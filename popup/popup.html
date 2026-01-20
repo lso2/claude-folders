@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Folders</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Setup Screen -->
+    <div id="setupScreen" class="screen">
+      <div class="setup-content">
+        <svg width="48" height="48" viewBox="0 0 18 18" fill="currentColor" class="setup-icon">
+          <path d="M2 3h6l2 2h6v10H2V3z"/>
+        </svg>
+        <h2>Welcome to Claude Folders</h2>
+        <p>Organize your Claude conversations into folders</p>
+        <button id="selectFolderBtn" class="btn-primary">
+          Select Data Folder
+        </button>
+        <p class="help-text">
+          Select your <code>claude-chat-organizer/data</code> folder
+        </p>
+      </div>
+    </div>
+
+    <!-- Main Screen -->
+    <div id="mainScreen" class="screen hidden">
+      <header class="popup-header">
+        <h1>Folders</h1>
+        <div class="header-actions">
+          <button id="coffeeBtn" class="icon-btn coffee-btn" title="Support this project">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 3H4v10a4 4 0 004 4h6a4 4 0 004-4v-3h2a3 3 0 000-6zm0 4h-2V5h2a1 1 0 010 2zM2 21h20v2H2z"/>
+            </svg>
+          </button>
+          <button id="analyticsBtn" class="icon-btn" title="Analytics">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 8L8 2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 8L13 11" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </button>
+          <button id="applyHeaderBtn" class="icon-btn" title="Apply Claude's Categories">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            </svg>
+          </button>
+          <button id="importBtn" class="icon-btn sync-btn" title="Sync Chats">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 2a6 6 0 015.3 8.8l1.4 1.4A8 8 0 108 16v-2a6 6 0 010-12z"/>
+            </svg>
+          </button>
+          <button id="exportAllBtn" class="icon-btn export-btn" title="Export All Chats to Markdown">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </button>
+          <button id="openOrganizerBtn" class="btn-organizer-orange" title="Open Organizer">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M2 2h12v12H2V2zm1 1v10h10V3H3z"/>
+              <path d="M5 6h6M5 8h6M5 10h4"/>
+            </svg>
+            Organizer
+          </button>
+          <button id="toggleSetupBtn" class="icon-btn toggle-setup-btn hidden" title="Show/Hide Setup">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search folders..." class="search-input">
+      </div>
+
+      <div class="filters-bar">
+        <div id="filterPills" class="filter-pills"></div>
+        <button id="editCategoriesBtn" class="icon-btn" title="Edit Categories">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm-11 11L10 3l3.5 3.5L5.354 14.646a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.616-.616l1-4a.5.5 0 0 1 .131-.233z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- First Run Setup Instructions -->
+      <div id="setupInstructions" class="setup-instructions hidden">
+        <div class="setup-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Import & Analyze Your Chats</h3>
+            <p>Click Import → Quick to scrape your chats, then use the button below to let Claude organize them.</p>
+            <button id="askClaudeBtn" class="btn-organize">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+              </svg>
+              Ask Claude to Organize
+            </button>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Apply Claude's Response</h3>
+            <p>After Claude provides the JSON, paste it here to organize your chats.</p>
+            <button id="applyCategoriesBtn" class="btn-apply">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+              Apply Claude's Response
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="folderList" class="folder-list"></div>
+
+      <!-- Analytics View -->
+      <div id="analyticsView" class="analytics-view hidden">
+        <div class="analytics-header">
+          <button id="backToFoldersBtn" class="back-btn">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M11 2L5 8l6 6" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+            Back to Folders
+          </button>
+        </div>
+        <div class="donut-container">
+          <canvas id="donutChart" width="200" height="200"></canvas>
+        </div>
+        <div id="analyticsLegend" class="analytics-legend"></div>
+        <div id="analyticsStats" class="analytics-stats"></div>
+      </div>
+
+      <div class="popup-footer">
+        <div class="stats" id="statsText"></div>
+      </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Sync Chats</h2>
+          <button class="close-modal" data-modal="importModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="import-mode-selector">
+            <button class="mode-btn active" data-mode="quick">Quick</button>
+            <button class="mode-btn" data-mode="full">Full</button>
+            <button class="mode-btn" data-mode="organize">AI Organize</button>
+          </div>
+          
+          <!-- Quick Import -->
+          <div class="import-mode quick-mode">
+            <p class="modal-instructions">
+              <strong>Quick import</strong> - Auto-scrape your chats from Claude.ai
+            </p>
+            <button id="autoScrapeBtn" class="btn-primary" style="width: 100%;">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="margin-right: 8px;">
+                <path d="M8 2a6 6 0 015.3 8.8l1.4 1.4A8 8 0 108 16v-2a6 6 0 010-12z"/>
+              </svg>
+              Auto-Import from Claude.ai
+            </button>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 12px;">
+              Opens claude.ai/chats and automatically scrapes all visible chat titles, URLs, and dates. No manual work needed!
+            </p>
+          </div>
+          
+          <!-- Full Import -->
+          <div class="import-mode full-mode hidden">
+            <p class="modal-instructions">
+              <strong>Full import</strong> - Ask Claude for chat details (slower but better)
+            </p>
+            <div class="prompt-box">Use recent_chats (n=20, paginate with 'before') to get ALL chats. For EACH, use conversation_search for a snippet. Return ONLY JSON:
+[{"id":"uuid","title":"...","url":"https://claude.ai/chat/uuid","date":"YYYY-MM-DD","snippet":"150-200 char summary"}]</div>
+            <button class="copy-prompt-btn">Copy Prompt</button>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 12px;">
+              Then paste the JSON below
+            </p>
+          </div>
+          
+          <!-- AI Organize -->
+          <div class="import-mode organize-mode hidden">
+            <p class="modal-instructions">
+              <strong>AI organize</strong> - Claude analyzes & creates folders for you
+            </p>
+            <div class="prompt-box">Use recent_chats (n=20, paginate) to get ALL chats. For each, get snippet via conversation_search. Analyze and organize into categories/folders. Return JSON:
+{"categories":["Business","Personal",...],"folders":[{"id":"id","category":"Business","name":"Folder Name","chats":[{"id":"uuid","title":"...","url":"...","date":"...","snippet":"..."}]}]}
+Create 5-10 categories, group chats meaningfully.</div>
+            <button class="copy-prompt-btn">Copy Prompt</button>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 12px;">
+              Then paste the JSON below
+            </p>
+          </div>
+          
+          <div class="import-paste-section hidden">
+            <p class="modal-instructions" style="margin-top: 20px;">
+              <strong>Paste JSON response:</strong>
+            </p>
+            <textarea id="importTextarea" placeholder='Paste Claude\'s JSON here...' rows="10"></textarea>
+            
+            <div class="modal-actions">
+              <button id="cancelImportBtn" class="btn-secondary">Cancel</button>
+              <button id="confirmImportBtn" class="btn-primary">Import</button>
+            </div>
+            
+            <div id="importStatus" class="import-status hidden"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Categories Modal -->
+    <div id="editCategoriesModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Edit Categories</h2>
+          <button class="close-modal" data-modal="editCategoriesModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="categoriesList" class="edit-list"></div>
+          <div class="add-item-row">
+            <input type="text" id="newCategoryInput" placeholder="New category name..." class="edit-input">
+            <button id="addCategoryBtn" class="btn-primary">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rename Folder Modal -->
+    <div id="renameFolderModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Rename Folder</h2>
+          <button class="close-modal" data-modal="renameFolderModal">×</button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label">Folder Name:</label>
+          <input type="text" id="renameFolderInput" class="edit-input" style="width: 100%; margin-bottom: 12px;">
+          <label class="form-label">Category:</label>
+          <select id="renameFolderCategory" class="edit-select" style="width: 100%;"></select>
+          <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn-secondary" data-modal="renameFolderModal">Cancel</button>
+            <button id="confirmRenameFolder" class="btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move Chat Modal -->
+    <div id="moveChatModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Move Chat</h2>
+          <button class="close-modal" data-modal="moveChatModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-instructions">Select destination folder:</p>
+          <div id="moveFolderList" class="folder-select-list"></div>
+          <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn-secondary" data-modal="moveChatModal">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirmDeleteModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Confirm Delete</h2>
+          <button class="close-modal" data-modal="confirmDeleteModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p id="deleteMessage" class="modal-instructions"></p>
+          <div class="modal-actions" style="margin-top: 20px;">
+            <button class="btn-secondary" data-modal="confirmDeleteModal">Cancel</button>
+            <button id="confirmDeleteBtn" class="btn-danger">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coffee Modal -->
+    <div id="coffeeModal" class="modal hidden">
+      <div class="modal-content coffee-modal-content">
+        <div class="modal-header">
+          <h2>☕ Support Claude Folders</h2>
+          <button class="close-modal" data-modal="coffeeModal">×</button>
+        </div>
+        <div class="modal-body" style="text-align: center;">
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">
+            If this extension helps you stay organized, consider buying me a coffee!
+          </p>
+          <a href="https://ko-fi.com/techreader" target="_blank" class="coffee-link-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 3H4v10a4 4 0 004 4h6a4 4 0 004-4v-3h2a3 3 0 000-6zm0 4h-2V5h2a1 1 0 010 2zM2 21h20v2H2z"/>
+            </svg>
+            Buy me a coffee on Ko-fi
+          </a>
+          <p style="font-size: 11px; color: var(--text-secondary); margin-top: 16px; opacity: 0.7;">
+            Your support keeps this project alive! 💖
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../lib/handle-storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
