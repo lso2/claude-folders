@@ -12,6 +12,22 @@ let searchTerm = '';
 let currentTab = 'chats';
 let sidebarState = 'normal';
 
+// Escape user content before it goes into innerHTML
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+// Only allow safe links into href attributes
+function safeUrl(url) {
+  const s = String(url || '');
+  return (/^https?:\/\//i.test(s) || s.startsWith('/')) ? esc(s) : '#';
+}
+
 function countChats(data) {
   if (!data || !data.folders) return 0;
   let count = 0;
@@ -90,11 +106,17 @@ async function loadAllData() {
     categories = data.categories || ['Personal', 'Work', 'Projects'];
     metadata = data.metadata || { userName: 'James', userInitial: 'J', userTeam: '' };
     allChats = [];
+    const seenChatIds = new Set();
     folders.forEach(f => {
-      if (f.chats) allChats.push(...f.chats);
+      if (!f.chats) return;
+      f.chats.forEach(c => {
+        if (seenChatIds.has(c.id)) return; // a chat belongs in one folder
+        seenChatIds.add(c.id);
+        allChats.push(c);
+      });
     });
   }
-  
+
   console.log('[ORGANIZER] folders:', folders.length);
   console.log('[ORGANIZER] allChats:', allChats.length);
   
@@ -107,6 +129,33 @@ async function loadAllData() {
   renderCategoryFilters();
   renderFolderList();
   renderRecentChats();
+}
+
+// One click: write data + refresh viewer files + embed every exported chat's
+// markdown into data.js, so the folder is a complete, directly-openable library.
+async function runBuildLibrary() {
+  const btn = document.getElementById('buildLibraryBtn');
+  const original = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
+  try {
+    if (typeof buildLibrary !== 'function') {
+      alert('Library builder unavailable - reload the page and try again.');
+      return;
+    }
+    const data = { folders, categories, metadata };
+    const result = await buildLibrary(data, (done, total) => {
+      if (btn) btn.textContent = `Embedding ${done}/${total}...`;
+    });
+    if (result.success) {
+      alert(`Library built in your data folder.\n\nEmbedded ${result.embedded} of ${result.total} chats for offline reading.\n\nOpen index.html from that folder to browse everything offline.`);
+    } else {
+      alert('Could not build library: ' + (result.error || 'unknown error'));
+    }
+  } catch (e) {
+    alert('Build library failed: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = original; }
+  }
 }
 
 async function saveData() {
@@ -224,6 +273,7 @@ function setupEventListeners() {
   
   // Export MD
   document.getElementById('exportMdBtn')?.addEventListener('click', showExportMdModal);
+  document.getElementById('buildLibraryBtn')?.addEventListener('click', runBuildLibrary);
   
   // Category search
   document.getElementById('categorySearchInput')?.addEventListener('input', (e) => {
@@ -489,9 +539,9 @@ function renderFolderList() {
   }
   
   folderGrid.innerHTML = filtered.map(folder => `
-    <div class="folder-card" data-folder-id="${folder.id}">
-      <div class="folder-category">${folder.category}</div>
-      <div class="folder-name">${folder.name}</div>
+    <div class="folder-card" data-folder-id="${esc(folder.id)}">
+      <div class="folder-category">${esc(folder.category)}</div>
+      <div class="folder-name">${esc(folder.name)}</div>
       <div class="folder-count">${folder.chats ? folder.chats.length : 0} chat${(folder.chats ? folder.chats.length : 0) !== 1 ? 's' : ''}</div>
     </div>
   `).join('');
@@ -518,13 +568,13 @@ function openFolder(folderId) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
           All folders
         </a>
-        <span style="background: var(--accent-bg); color: var(--accent-color); padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500;">${currentFolder.category}</span>
+        <span style="background: var(--accent-bg); color: var(--accent-color); padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500;">${esc(currentFolder.category)}</span>
       </div>
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5">
           <path d="M22 19V9a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z"/>
         </svg>
-        <h1 id="folderDetailTitle" style="font-size: 28px; font-weight: 600; color: var(--title-color); margin: 0;">${currentFolder.name}</h1>
+        <h1 id="folderDetailTitle" style="font-size: 28px; font-weight: 600; color: var(--title-color); margin: 0;">${esc(currentFolder.name)}</h1>
       </div>
       <div style="display: flex; align-items: center; gap: 16px; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
         <span>${chatCount} chat${chatCount !== 1 ? 's' : ''}</span>
@@ -599,12 +649,12 @@ async function renderChatList(searchFilter = '') {
   container.innerHTML = chats.map(chat => {
     const hasExport = exportedChats[chat.id];
     return `
-    <div class="chat-item" data-chat-id="${chat.id}" data-url="${chat.url}">
+    <div class="chat-item" data-chat-id="${esc(chat.id)}" data-url="${safeUrl(chat.url)}">
       <div class="chat-item-buttons">
-        <button class="view-offline-btn ${hasExport ? '' : 'download-btn'}" data-chat-id="${chat.id}" data-title="${chat.title.replace(/"/g, '&quot;')}" title="${hasExport ? 'View exported markdown' : 'Download chat as markdown'}">
+        <button class="view-offline-btn ${hasExport ? '' : 'download-btn'}" data-chat-id="${esc(chat.id)}" data-title="${esc(chat.title)}" title="${hasExport ? 'View exported markdown' : 'Download chat as markdown'}">
           ${hasExport ? 'VIEW OFFLINE' : 'DOWNLOAD'}
         </button>
-        <button class="view-chat-btn" data-url="${chat.url}" title="Open chat on Claude">
+        <button class="view-chat-btn" data-url="${safeUrl(chat.url)}" title="Open chat on Claude">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
             <polyline points="15 3 21 3 21 9"/>
@@ -614,17 +664,17 @@ async function renderChatList(searchFilter = '') {
         </button>
       </div>
       <div class="chat-item-content">
-        <div class="chat-item-title">${chat.title}</div>
-        ${chat.snippet ? `<div class="chat-item-snippet">${chat.snippet}</div>` : ''}
+        <div class="chat-item-title">${esc(chat.title)}</div>
+        ${chat.snippet ? `<div class="chat-item-snippet">${esc(chat.snippet)}</div>` : ''}
         ${chat.tags && chat.tags.length ? `
           <div class="chat-item-tags">
-            ${chat.tags.slice(0, 3).map(tag => `<span class="chat-tag">#${tag}</span>`).join('')}
+            ${chat.tags.slice(0, 3).map(tag => `<span class="chat-tag">#${esc(tag)}</span>`).join('')}
           </div>
         ` : ''}
       </div>
       <div class="chat-item-actions">
-        <div class="chat-item-date">${chat.relativeDate || formatRelativeDate(chat.date)}</div>
-        <button class="chat-menu-btn" data-chat-id="${chat.id}">⋮</button>
+        <div class="chat-item-date">${esc(chat.relativeDate || formatRelativeDate(chat.date))}</div>
+        <button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>
       </div>
     </div>
   `}).join('');
@@ -730,8 +780,9 @@ async function openMarkdownViewer(chatId, chatTitle) {
 
 // Render markdown content as styled HTML
 function renderMarkdownAsHtml(title, markdown) {
-  // Basic markdown to HTML conversion
-  let html = markdown
+  const safeTitle = esc(title);
+  // Escape first so raw HTML inside the chat can't execute, then format markdown
+  let html = esc(markdown)
     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
     .replace(/^## (.*$)/gim, '<h2>$1</h2>')
     .replace(/^# (.*$)/gim, '<h1>$1</h1>')
@@ -746,7 +797,7 @@ function renderMarkdownAsHtml(title, markdown) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${title} - Offline View</title>
+  <title>${safeTitle} - Offline View</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -796,7 +847,7 @@ function renderMarkdownAsHtml(title, markdown) {
 <body>
   <div class="header-bar">
     <span>📄 Offline View</span>
-    <span>${title}</span>
+    <span>${safeTitle}</span>
   </div>
   <div class="content">
     <p>${html}</p>
@@ -828,9 +879,9 @@ function renderActivityTab() {
         <svg width="12" height="12" viewBox="0 0 16 16" fill="white"><path d="M8 3v5l3 3"/></svg>
       </div>
       <div style="flex:1;min-width:0;">
-        <div style="color:var(--title-color);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${chat.title}</div>
+        <div style="color:var(--title-color);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(chat.title)}</div>
         <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-          Added ${chat.relativeDate || formatRelativeDate(chat.date)}
+          Added ${esc(chat.relativeDate || formatRelativeDate(chat.date))}
         </div>
       </div>
     </div>
@@ -850,7 +901,7 @@ function renderRecentChats() {
   }
   
   recentList.innerHTML = recent.map(chat => `
-    <a href="${chat.url}" target="_blank" class="recent-item" title="${chat.title}">${chat.title}</a>
+    <a href="${safeUrl(chat.url)}" target="_blank" class="recent-item" title="${esc(chat.title)}">${esc(chat.title)}</a>
   `).join('');
 }
 
@@ -922,13 +973,13 @@ function showMoveChatModal(chatId) {
     folderListHtml = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">No other folders available. Create a new folder first.</div>';
   } else {
     folderListHtml = otherFolders.map(f => `
-      <div class="move-folder-item" data-folder-id="${f.id}">
+      <div class="move-folder-item" data-folder-id="${esc(f.id)}">
         <svg width="16" height="16" viewBox="0 0 18 18" fill="currentColor" style="opacity:0.6;flex-shrink:0;">
           <path d="M2 3h6l2 2h6v10H2V3z"/>
         </svg>
         <div style="flex:1;min-width:0;">
-          <span style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;">${f.category}</span>
-          <div style="font-size:14px;color:var(--title-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${f.name}</div>
+          <span style="font-size:10px;color:var(--text-secondary);text-transform:uppercase;">${esc(f.category)}</span>
+          <div style="font-size:14px;color:var(--title-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(f.name)}</div>
         </div>
         <span style="font-size:12px;color:var(--text-secondary);">${f.chats ? f.chats.length : 0}</span>
       </div>

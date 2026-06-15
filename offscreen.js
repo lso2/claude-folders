@@ -28,7 +28,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(e => sendResponse({ success: false, exists: false }));
     return true;
   }
+
+  if (message.action === 'offscreenSyncToDisk') {
+    handleSyncToDisk()
+      .then(result => sendResponse(result))
+      .catch(e => sendResponse({ success: false, error: e.message }));
+    return true;
+  }
 });
+
+// Write the latest cached data to the user's folder from the offscreen document,
+// which always exists (the background creates it on demand), so syncing no longer
+// depends on the popup being open.
+async function handleSyncToDisk() {
+  const result = await chrome.storage.local.get('cachedData');
+  const data = result.cachedData;
+  if (!data || !data.folders) {
+    return { success: false, error: 'No cached data to write' };
+  }
+  const ok = await writeDataFile(data);
+  console.log('[OFFSCREEN] syncToDisk wrote data:', ok);
+  return { success: ok };
+}
 
 async function handleWriteExport(filename, content) {
   try {
@@ -40,13 +61,26 @@ async function handleWriteExport(filename, content) {
   }
 }
 
+async function getOrgId() {
+  // The page-side exporter persists the active org id; offscreen has no cookies
+  try {
+    const result = await chrome.storage.local.get('activeOrgId');
+    if (result.activeOrgId) return result.activeOrgId;
+  } catch (e) {}
+  return null;
+}
+
 async function handleExportChatById(chatId, chatTitle) {
   try {
+    const orgId = await getOrgId();
+    if (!orgId) {
+      throw new Error('No active org id - open claude.ai and sync once first');
+    }
     // Fetch the chat conversation from Claude API
-    const response = await fetch(`https://claude.ai/api/organizations/*/chat_conversations/${chatId}?tree=True&rendering_mode=messages&render_all_tools=true`, {
+    const response = await fetch(`https://claude.ai/api/organizations/${orgId}/chat_conversations/${chatId}?tree=True&rendering_mode=messages&render_all_tools=true`, {
       credentials: 'include'
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }

@@ -1,7 +1,45 @@
-// Background Service Worker - Routes messages and caches data in chrome.storage.local
+// Background Service Worker - Routes messages and caches per-account data in chrome.storage.local
 
 let cachedData = null;
+let currentAccountKey = null;
 let offscreenCreated = false;
+
+// Each signed-in account keeps its own folders under cfData_<key>. `cachedData`
+// is always a mirror of the active account so the organizer page and the
+// offscreen disk-writer (both read `cachedData`) keep working unchanged.
+function acctKey(key) { return 'cfData_' + (key || currentAccountKey || 'default'); }
+
+async function persist() {
+  if (!cachedData) return;
+  const obj = { cachedData };
+  if (currentAccountKey) obj[acctKey()] = cachedData;
+  await chrome.storage.local.set(obj);
+}
+
+async function broadcastDataUpdated() {
+  const tabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
+  for (const tab of tabs) {
+    try { await chrome.tabs.sendMessage(tab.id, { action: 'dataUpdated' }); } catch (e) {}
+  }
+}
+
+function countChatsIn(data) {
+  let n = 0;
+  data?.folders?.forEach(f => { if (f.chats) n += f.chats.length; });
+  return n;
+}
+
+// How much of the data we currently hold actually belongs to the just-scraped
+// account. Near zero means the held data is a different account's, so the caller
+// starts this account fresh instead of mixing the two together.
+function overlapRatioWithScraped(scrapedIds) {
+  const haveIds = [];
+  cachedData?.folders?.forEach(f => f.chats?.forEach(c => haveIds.push(c.id)));
+  if (haveIds.length < 50 || scrapedIds.size < 50) return 1; // too little to judge - keep
+  let overlap = 0;
+  haveIds.forEach(id => { if (scrapedIds.has(id)) overlap++; });
+  return overlap / haveIds.length;
+}
 
 // Create offscreen document for file operations
 async function ensureOffscreen() {
@@ -27,6 +65,16 @@ async function ensureOffscreen() {
     console.log('[BG] Offscreen creation failed:', e.message);
     return false;
   }
+}
+
+// Persist cached data to the user's folder through the offscreen document, which
+// the background creates on demand. This replaces messaging the popup (which is
+// usually closed, so that message had no receiver).
+async function syncDataToDisk() {
+  await ensureOffscreen();
+  const response = await chrome.runtime.sendMessage({ action: 'offscreenSyncToDisk' });
+  console.log('[BG] syncToDisk via offscreen:', response?.success);
+  return response;
 }
 
 // Load cached data on startup
@@ -68,76 +116,89 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function handleMessage(message, sender, sendResponse) {
   try {
     switch (message.action) {
-      
-      case 'getData':
-        // Return cached data
+
+      case 'setAccount': {
+        // Switch the active account. The panel must never go blank: if this
+        // account has no slot yet, fall back to the last working data (or the
+        // blob the earlier build stashed) so existing folders stay visible.
+        const key = message.accountKey || 'default';
+        if (key === currentAccountKey && cachedData && cachedData.folders && cachedData.folders.length) {
+          sendResponse({ success: true }); break;
+        }
+        const nonEmpty = d => d && Array.isArray(d.folders) && d.folders.length;
+        const slot = await chrome.storage.local.get(acctKey(key));
+        let data = slot[acctKey(key)];
+        if (!nonEmpty(data)) {
+          // Never blank: recover the richest dataset stored under any key (the
+          // active mirror, the old global cache, a stash, or a prior slot) so
+          // the earlier build's overwrite can't lose the user's folders.
+          const all = await chrome.storage.local.get(null);
+          let best = null, bestN = -1;
+          for (const [k, v] of Object.entries(all)) {
+            if (k === acctKey(key)) continue;
+            if (v && Array.isArray(v.folders)) {
+              const n = countChatsIn(v);
+              if (n > bestN) { bestN = n; best = v; }
+            }
+          }
+          data = nonEmpty(best) ? best : (data || { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} });
+        }
+        currentAccountKey = key;
+        cachedData = data;
+        console.log('[BG] Account', key, '-', countChatsIn(cachedData), 'chats');
+        await persist();
+        await broadcastDataUpdated();
+        sendResponse({ success: true });
+        break;
+      }
+
+      case 'getData': {
+        // Return cached data for the active account
         if (!cachedData) await loadCachedData();
         const allChats = [];
         cachedData.folders?.forEach(f => f.chats?.forEach(c => allChats.push(c)));
-        sendResponse({ 
-          success: true, 
-          folders: cachedData.folders || [], 
+        sendResponse({
+          success: true,
+          folders: cachedData.folders || [],
           categories: cachedData.categories || ['Personal', 'Work', 'Projects'],
           metadata: cachedData.metadata || {},
-          allChats 
+          allChats
         });
         break;
+      }
         
       case 'saveData':
         // Called by content-script after organizing - update cache and trigger file sync
         console.log('[BG] saveData received');
         cachedData = message.data;
-        await chrome.storage.local.set({ cachedData });
+        await persist();
         console.log('[BG] Cache updated:', cachedData.folders?.length, 'folders');
-        // Tell popup to sync to disk
-        try {
-          await chrome.runtime.sendMessage({ action: 'syncToDisk' });
-          console.log('[BG] Sent syncToDisk to popup');
-        } catch (e) {
-          console.log('[BG] Could not send to popup (probably closed):', e.message);
-        }
-        // Broadcast to content scripts
-        const saveTabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
-        for (const tab of saveTabs) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'dataUpdated' });
-          } catch (e) {}
-        }
+        // Write to the user's folder via the offscreen document
+        await syncDataToDisk();
+        await broadcastDataUpdated();
         sendResponse({ success: true });
         break;
       
       case 'updateCache':
-        // Called by popup after writing to JSON file
+        // Called by popup/organizer after writing to JSON file
         cachedData = message.data;
-        await chrome.storage.local.set({ cachedData });
+        await persist();
         console.log('[BG] Cache updated:', cachedData.folders?.length, 'folders');
-        // Broadcast to content scripts
-        const tabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
-        for (const tab of tabs) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'dataUpdated' });
-          } catch (e) {}
-        }
+        await broadcastDataUpdated();
         sendResponse({ success: true });
         break;
-        
+
       case 'dataUpdated':
-        // Broadcast to all tabs
-        const allTabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
-        for (const tab of allTabs) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'dataUpdated' });
-          } catch (e) {}
-        }
+        await broadcastDataUpdated();
         sendResponse({ success: true });
         break;
         
       case 'createFolder':
         if (!cachedData) await loadCachedData();
         cachedData.folders.push(message.folder);
-        await chrome.storage.local.set({ cachedData });
+        await persist();
         // Tell popup to sync to disk
-        chrome.runtime.sendMessage({ action: 'syncToDisk', data: cachedData });
+        syncDataToDisk();
         sendResponse({ success: true });
         break;
         
@@ -150,50 +211,68 @@ async function handleMessage(message, sender, sendResponse) {
             f.chats = f.chats.filter(c => c.id !== message.chat.id);
           });
           folder.chats.push(message.chat);
-          await chrome.storage.local.set({ cachedData });
+          await persist();
           // Tell popup to sync to disk
-          chrome.runtime.sendMessage({ action: 'syncToDisk', data: cachedData });
+          syncDataToDisk();
         }
         sendResponse({ success: true });
         break;
         
       case 'scrapedChats':
         if (!cachedData) await loadCachedData();
+        // If the data we hold is a different account's (almost no overlap with
+        // what we just scraped), start this account fresh so the two never mix.
+        if (overlapRatioWithScraped(new Set((message.chats || []).map(c => c.id))) < 0.10) {
+          console.log('[BG] Scraped set does not match held data - starting fresh for this account');
+          cachedData = { folders: [], categories: cachedData.categories || ['Personal', 'Work', 'Projects'], metadata: cachedData.metadata || {} };
+        }
         let unsorted = cachedData.folders.find(f => f.id === 'unsorted');
         if (!unsorted) {
           unsorted = { id: 'unsorted', category: 'Personal', name: 'Unsorted Chats', chats: [] };
           cachedData.folders.push(unsorted);
         }
-        const existingIds = new Set();
-        cachedData.folders.forEach(f => f.chats?.forEach(c => existingIds.add(c.id)));
-        const newChats = message.chats.filter(c => !existingIds.has(c.id));
-        console.log('[BG] scrapedChats: received', message.chats.length, ', new:', newChats.length);
-        unsorted.chats.push(...newChats);
+        // Index every chat we already have by id (across all folders)
+        const existingById = new Map();
+        cachedData.folders.forEach(f => f.chats?.forEach(c => existingById.set(c.id, c)));
+
+        let newCount = 0;
+        let updatedCount = 0;
+        for (const incoming of message.chats) {
+          const current = existingById.get(incoming.id);
+          if (current) {
+            // Already organized somewhere: refresh changed metadata in place,
+            // but keep the chat's folder, tags, snippet and exported flag
+            if (incoming.title && incoming.title !== current.title) { current.title = incoming.title; updatedCount++; }
+            if (incoming.date) current.date = incoming.date;
+            if (incoming.relativeDate) current.relativeDate = incoming.relativeDate;
+            if (incoming.url) current.url = incoming.url;
+          } else {
+            // Genuinely new: drop it into Unsorted and remember it
+            unsorted.chats.push(incoming);
+            existingById.set(incoming.id, incoming);
+            newCount++;
+          }
+        }
+        console.log('[BG] scrapedChats: received', message.chats.length, ', new:', newCount, ', updated:', updatedCount);
         console.log('[BG] unsorted folder now has', unsorted.chats.length, 'chats');
-        console.log('[BG] cachedData.folders:', cachedData.folders.length, 'folders');
         
         // Save to storage first
-        await chrome.storage.local.set({ cachedData });
+        await persist();
         console.log('[BG] Saved to chrome.storage.local');
-        
-        // Tell popup to sync to disk
-        try {
-          await chrome.runtime.sendMessage({ action: 'syncToDisk' });
-          console.log('[BG] Sent syncToDisk to popup');
-        } catch (e) {
-          console.log('[BG] Could not send to popup (probably closed):', e.message);
-        }
-        sendResponse({ success: true, count: newChats.length });
+
+        // Write to the user's folder via the offscreen document
+        await syncDataToDisk();
+        sendResponse({ success: true, count: newCount, updated: updatedCount });
         break;
       
       case 'updateMetadata':
         if (!cachedData) await loadCachedData();
         if (message.metadata) {
           cachedData.metadata = { ...cachedData.metadata, ...message.metadata };
-          await chrome.storage.local.set({ cachedData });
+          await persist();
           console.log('[BG] Metadata updated:', cachedData.metadata);
           // Tell popup to sync
-          chrome.runtime.sendMessage({ action: 'syncToDisk', data: cachedData });
+          syncDataToDisk();
         }
         sendResponse({ success: true });
         break;
@@ -312,7 +391,7 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ error: 'Unknown action: ' + message.action });
     }
   } catch (error) {
-    console.error('[BG] Error:', error);
+    console.log('[BG] Error:', error.message);
     sendResponse({ error: error.message });
   }
 }

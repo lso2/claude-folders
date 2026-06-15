@@ -4,9 +4,81 @@ let folders = [];
 let categories = [];
 let allChats = [];
 let metadata = {};
+let cfOrganizeIndex = []; // ordered chat ids from the last "Ask Claude" prompt
+let cfLegacyAvailable = false; // older data exists that this account can restore by syncing
 let currentChatId = null;
 let sidebarInjected = false;
 let panelExpanded = false;
+let sidebarInjectRetries = 0;
+
+// Shared folder glyph used for the sidebar nav icon and panel headers
+const CF_FOLDER_ICON_PATH = 'M22 19V9a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z';
+
+// Escape user-supplied strings before they go into innerHTML so a title like
+// "<img onerror=...>" renders as text instead of breaking the layout
+function cfEscapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Only allow safe chat links into href so a stored "javascript:" url can't run
+function cfSafeUrl(url) {
+  const s = String(url || '');
+  if (/^https?:\/\//i.test(s) || s.startsWith('/')) return cfEscapeHtml(s);
+  return '#';
+}
+
+// ===== Account scoping =====
+// Folders, known IDs and pending lists are stored separately per signed-in
+// account so switching Claude accounts never shows the previous one's chats.
+let cfAccountKey = 'acct_default';
+let cfAccountReady = null;
+
+function cfHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
+async function cfResolveAccountKey() {
+  try {
+    const res = await fetch('https://claude.ai/api/organizations', { credentials: 'include' });
+    if (res.ok) {
+      const orgs = await res.json();
+      if (Array.isArray(orgs) && orgs.length) {
+        const ids = orgs.map(o => o && (o.uuid || o.id)).filter(Boolean).sort();
+        if (ids.length) return 'acct_' + cfHash(ids.join('|'));
+      }
+    }
+  } catch (e) {
+    console.log('[CONTENT] account resolve failed:', e.message);
+  }
+  try {
+    const btn = document.querySelector('[data-testid="user-menu-button"]');
+    const txt = btn?.textContent?.trim();
+    if (txt) return 'acct_' + cfHash(txt);
+  } catch (e) {}
+  return 'acct_default';
+}
+
+function cfKnownKey() { return 'knownChatIds__' + cfAccountKey; }
+function cfPendingKey() { return 'pendingNewChats__' + cfAccountKey; }
+function cfMonitorKey() { return 'monitoredNewChats__' + cfAccountKey; }
+
+async function cfInitAccount() {
+  cfAccountKey = await cfResolveAccountKey();
+  console.log('[CONTENT] account key:', cfAccountKey);
+  try {
+    await chrome.runtime.sendMessage({ action: 'setAccount', accountKey: cfAccountKey });
+  } catch (e) {
+    console.log('[CONTENT] setAccount failed:', e.message);
+  }
+}
 
 init();
 
@@ -14,14 +86,19 @@ function init() {
   console.log('[CONTENT] Claude Folders loaded');
   updateCurrentChatId();
   scrapeUserInfo();
-  loadData();
-  
-  // Check if we navigated here to run a sync
-  checkPendingSync();
-  
-  // Check if we need to auto-paste organize data
+
+  // Everything that reads per-account data waits until the key is resolved and
+  // handed to the background, so the first load already targets this account.
+  cfAccountReady = cfInitAccount();
+  cfAccountReady.then(() => {
+    loadData();
+    checkPendingSync();
+    startNewChatMonitor();
+  });
+
+  // Check if we need to auto-paste organize data (account-independent)
   checkPendingOrganizeData();
-  
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => setTimeout(injectUI, 1000));
   } else {
@@ -42,9 +119,6 @@ function init() {
     }
     return true;
   });
-  
-  // Start passive monitoring for new chats
-  startNewChatMonitor();
 }
 
 async function checkPendingSync() {
@@ -130,12 +204,12 @@ async function startNewChatMonitor() {
 
 async function loadKnownChatIds() {
   try {
-    const result = await chrome.storage.local.get(['knownChatIds', 'pendingNewChats']);
-    if (result.knownChatIds) {
-      knownChatIds = new Set(result.knownChatIds);
+    const result = await chrome.storage.local.get([cfKnownKey(), cfPendingKey()]);
+    if (result[cfKnownKey()]) {
+      knownChatIds = new Set(result[cfKnownKey()]);
     }
-    if (result.pendingNewChats) {
-      pendingNewChats = result.pendingNewChats;
+    if (result[cfPendingKey()]) {
+      pendingNewChats = result[cfPendingKey()];
     }
     
     // Also add all chats from folders to known
@@ -169,7 +243,7 @@ async function checkForNewChats() {
   
   if (newFound > 0) {
     console.log('[MONITOR] Found', newFound, 'new chats. Pending total:', pendingNewChats.length);
-    await chrome.storage.local.set({ pendingNewChats });
+    await chrome.storage.local.set({ [cfPendingKey()]: pendingNewChats });
     
     // Check if we should show notification
     if (pendingNewChats.length >= 30) {
@@ -262,12 +336,12 @@ async function runSyncFromNotification() {
     
     // Mark pending as known so we don't re-detect them
     pendingNewChats.forEach(id => knownChatIds.add(id));
-    await chrome.storage.local.set({ 
-      knownChatIds: Array.from(knownChatIds),
-      pendingNewChats: []
+    await chrome.storage.local.set({
+      [cfKnownKey()]: Array.from(knownChatIds),
+      [cfPendingKey()]: []
     });
     pendingNewChats = [];
-    
+
     // Set flag and navigate - scrape will run after page loads
     sessionStorage.setItem('cf-pending-sync', 'true');
     window.location.href = 'https://claude.ai/recents';
@@ -275,9 +349,9 @@ async function runSyncFromNotification() {
     // Already on recents, run scrape directly
     showNotification('Syncing from Recents page...');
     pendingNewChats.forEach(id => knownChatIds.add(id));
-    await chrome.storage.local.set({ 
-      knownChatIds: Array.from(knownChatIds),
-      pendingNewChats: []
+    await chrome.storage.local.set({
+      [cfKnownKey()]: Array.from(knownChatIds),
+      [cfPendingKey()]: []
     });
     pendingNewChats = [];
     await scrapeRecentsPage();
@@ -361,6 +435,7 @@ async function loadData() {
       categories = response.categories || [];
       allChats = response.allChats || [];
       metadata = response.metadata || {};
+      cfLegacyAvailable = !!response.legacyAvailable;
       console.log('[CONTENT] Got', folders.length, 'folders,', allChats.length, 'chats');
       
       // If no data from background, try reading cache directly
@@ -948,47 +1023,90 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
+// Find the nav anchor we clone for styling. Claude relabels and restructures
+// the sidebar often, so try several anchors by text and only fall back to the
+// first icon-bearing link, rather than depending on one exact label.
+function findSidebarTemplateLink(nav) {
+  const links = Array.from(nav.querySelectorAll('a'));
+  const byText = (label) => links.find(a => a.textContent.trim().toLowerCase().includes(label));
+  return byText('projects') || byText('chats') || links.find(a => a.querySelector('svg')) || links[0] || null;
+}
+
+// Build a folder icon sized to fill Claude's icon box (so it lines up with the
+// other nav icons and stays visible when the sidebar collapses).
+function buildFolderSvg() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('width', '20');
+  svg.setAttribute('height', '20');
+  svg.style.cssText = 'width:20px;height:20px;flex:0 0 auto;';
+  svg.innerHTML = `<path d="${CF_FOLDER_ICON_PATH}"/>`;
+  return svg;
+}
+
+// Convert the cloned "Projects" link into "Folders" while keeping Claude's exact
+// inner structure (the translate offset, the sized icon box, the truncating label
+// span). That structure is what makes the row align with the other nav items and
+// collapse with the sidebar, so we only swap two things: the icon-font glyph
+// (<span data-cds="Icon">) becomes a folder SVG, and the label text becomes
+// "Folders". After the glyph is gone, the first remaining text node is the label,
+// so we rename it and blank any leftover copies to avoid a duplicate "Projects".
+function renderFoldersLinkInner(link) {
+  const glyph = link.querySelector('[data-cds="Icon"]');
+  if (glyph) {
+    glyph.replaceWith(buildFolderSvg());
+  } else if (!link.querySelector('svg')) {
+    link.insertBefore(buildFolderSvg(), link.firstChild);
+  }
+
+  const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.textContent && node.textContent.trim().length > 0) textNodes.push(node);
+  }
+  if (textNodes.length > 0) {
+    textNodes[0].textContent = 'Folders';
+    for (let i = 1; i < textNodes.length; i++) textNodes[i].textContent = '';
+  }
+}
+
 function injectSidebar() {
   // Check if our link still exists (React may have removed it)
-  const existingLink = document.querySelector('a[data-folders-link="true"]');
-  if (existingLink) return;
-  
+  if (document.querySelector('a[data-folders-link="true"]')) return;
+
   const nav = document.querySelector('nav');
-  if (!nav) {
-    setTimeout(injectSidebar, 500);
+  const templateLink = nav ? findSidebarTemplateLink(nav) : null;
+
+  if (!nav || !templateLink) {
+    // Cap retries so a Claude DOM change can't schedule callbacks forever
+    if (sidebarInjectRetries++ < 30) {
+      setTimeout(injectSidebar, 500);
+    } else {
+      console.log('[CONTENT] Gave up injecting sidebar - nav/template link not found');
+    }
     return;
   }
-  
-  const links = nav.querySelectorAll('a');
-  let projectsLink = null;
-  links.forEach(link => {
-    if (link.textContent.includes('Projects')) projectsLink = link;
-  });
-  
-  if (!projectsLink) {
-    setTimeout(injectSidebar, 500);
-    return;
-  }
-  
-  const foldersLink = projectsLink.cloneNode(true);
+  sidebarInjectRetries = 0;
+
+  const foldersLink = templateLink.cloneNode(true);
   foldersLink.setAttribute('data-folders-link', 'true');
-  const span = foldersLink.querySelector('span');
-  if (span) span.textContent = 'Folders';
-  
-  const svg = foldersLink.querySelector('svg');
-  if (svg) {
-    svg.innerHTML = '<path d="M22 19V9a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z" fill="none" stroke="currentColor" stroke-width="2"/>';
-    svg.setAttribute('viewBox', '0 0 24 24');
-  }
-  
+  foldersLink.setAttribute('aria-label', 'Folders');
+  foldersLink.removeAttribute('aria-current');
+  foldersLink.classList.remove('active');
+  renderFoldersLinkInner(foldersLink);
+
   foldersLink.href = '#';
   foldersLink.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     toggleFoldersPanel();
   });
-  
-  projectsLink.parentNode.insertBefore(foldersLink, projectsLink.nextSibling);
+
+  templateLink.parentNode.insertBefore(foldersLink, templateLink.nextSibling);
   sidebarInjected = true;
   console.log('[CONTENT] Sidebar injected');
 }
@@ -1010,7 +1128,15 @@ function toggleFoldersPanel() {
   
   renderPanelContent(panel);
   document.body.appendChild(panel);
-  
+
+  // Anchor the flyout to the real sidebar edge so it sits flush whether the
+  // sidebar is expanded or collapsed (the CSS default assumes the expanded width)
+  const navEl = document.querySelector('a[data-folders-link="true"]')?.closest('nav') || document.querySelector('nav');
+  if (navEl) {
+    const right = Math.round(navEl.getBoundingClientRect().right);
+    if (right > 0) panel.style.left = right + 'px';
+  }
+
   // Close on outside click (delay to avoid immediate close)
   setTimeout(() => {
     document.addEventListener('click', closePanelOnOutsideClick);
@@ -1019,7 +1145,7 @@ function toggleFoldersPanel() {
 
 function closePanelOnOutsideClick(e) {
   const panel = document.querySelector('.claude-folders-panel');
-  const foldersLink = document.querySelector('a[href="#"]'); // The Folders nav link
+  const foldersLink = document.querySelector('a[data-folders-link="true"]'); // The Folders nav link
   if (panel && !panel.contains(e.target) && !foldersLink?.contains(e.target)) {
     panel.remove();
     panelExpanded = false;
@@ -1091,7 +1217,10 @@ function renderPanelContent(panel) {
   `;
   
   if (folders.length === 0) {
-    html += `<div class="folders-empty"><p>No folders yet</p><p style="font-size:12px;color:#888;">Use Import or Ask Claude to add chats</p></div>`;
+    const emptyHint = cfLegacyAvailable
+      ? 'Previously organized data was found. Run a Sync on this account to restore it.'
+      : 'Use Import or Ask Claude to add chats';
+    html += `<div class="folders-empty"><p>No folders yet</p><p style="font-size:12px;color:#888;">${cfEscapeHtml(emptyHint)}</p></div>`;
   } else {
     const byCategory = {};
     folders.forEach(f => {
@@ -1100,17 +1229,17 @@ function renderPanelContent(panel) {
     });
     
     Object.keys(byCategory).forEach(cat => {
-      html += `<div class="folder-category-group"><div class="folder-category-header">${cat}</div>`;
+      html += `<div class="folder-category-group"><div class="folder-category-header">${cfEscapeHtml(cat)}</div>`;
       byCategory[cat].forEach(folder => {
         const chatCount = folder.chats ? folder.chats.length : 0;
         html += `
-          <div class="folder-panel-item" data-folder-id="${folder.id}">
+          <div class="folder-panel-item" data-folder-id="${cfEscapeHtml(folder.id)}">
             <svg width="14" height="14" viewBox="0 0 18 18" fill="currentColor" style="margin-right:8px;opacity:0.6;flex-shrink:0;">
               <path d="M2 3h6l2 2h6v10H2V3z"/>
             </svg>
-            <span class="folder-panel-name">${folder.name}</span>
+            <span class="folder-panel-name">${cfEscapeHtml(folder.name)}</span>
             <span class="folder-panel-count">${chatCount}</span>
-            <button class="folder-export-btn" data-folder-id="${folder.id}" title="Export folder to markdown">
+            <button class="folder-export-btn" data-folder-id="${cfEscapeHtml(folder.id)}" title="Export folder to markdown">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
@@ -1121,13 +1250,13 @@ function renderPanelContent(panel) {
               <path d="M6 4l4 4-4 4"/>
             </svg>
           </div>
-          <div class="folder-chats-list" data-folder-id="${folder.id}" data-shown="10" style="display:none;">
+          <div class="folder-chats-list" data-folder-id="${cfEscapeHtml(folder.id)}" data-shown="10" style="display:none;">
             ${(folder.chats || []).slice(0, 10).map(chat => `
-              <a href="${chat.url}" target="_blank" class="folder-chat-link" title="${chat.title}">
-                ${chat.title}
+              <a href="${cfSafeUrl(chat.url)}" target="_blank" class="folder-chat-link" title="${cfEscapeHtml(chat.title)}">
+                ${cfEscapeHtml(chat.title)}
               </a>
             `).join('')}
-            ${(folder.chats?.length || 0) > 10 ? `<button class="folder-load-more-btn" data-folder-id="${folder.id}">Load +${folder.chats.length - 10} more</button>` : ''}
+            ${(folder.chats?.length || 0) > 10 ? `<button class="folder-load-more-btn" data-folder-id="${cfEscapeHtml(folder.id)}">Load +${folder.chats.length - 10} more</button>` : ''}
           </div>
         `;
       });
@@ -1175,17 +1304,14 @@ function renderPanelContent(panel) {
     showApplyCategoriesModal();
   });
   
-  // Toggle setup buttons visibility
-  const organizedFolders = folders.filter(f => f.id !== 'unsorted');
-  const hasOrganizedData = organizedFolders.length > 0 && categories.length > 0;
+  // Setup actions (Ask Claude / Apply) stay open by default. The gear is always
+  // available and only collapses the row when the user wants more list room.
   const toggleSetupBtn = panel.querySelector('.toggle-setup-btn');
   const panelActions = panel.querySelector('.folders-panel-actions');
-  
-  if (hasOrganizedData && toggleSetupBtn && panelActions) {
-    toggleSetupBtn.style.display = 'flex';
-    panelActions.style.display = 'none';
-  }
-  
+
+  if (toggleSetupBtn) toggleSetupBtn.style.display = 'flex';
+  if (panelActions) panelActions.style.display = 'block';
+
   toggleSetupBtn?.addEventListener('click', () => {
     if (panelActions) {
       panelActions.style.display = panelActions.style.display === 'none' ? 'block' : 'none';
@@ -1239,13 +1365,13 @@ function renderPanelContent(panel) {
     // Rebuild the chat list
     const remaining = folder.chats.length - newShown;
     let html = folder.chats.slice(0, newShown).map(chat => `
-      <a href="${chat.url}" target="_blank" class="folder-chat-link" title="${chat.title}">
-        ${chat.title}
+      <a href="${cfSafeUrl(chat.url)}" target="_blank" class="folder-chat-link" title="${cfEscapeHtml(chat.title)}">
+        ${cfEscapeHtml(chat.title)}
       </a>
     `).join('');
-    
+
     if (remaining > 0) {
-      html += `<button class="folder-load-more-btn" data-folder-id="${folderId}">Load +${remaining} more</button>`;
+      html += `<button class="folder-load-more-btn" data-folder-id="${cfEscapeHtml(folderId)}">Load +${remaining} more</button>`;
     }
     
     chatsList.innerHTML = html;
@@ -1505,39 +1631,46 @@ function showFolderPicker(anchorElement) {
   
   const rect = anchorElement.getBoundingClientRect();
   picker.style.top = `${rect.bottom + 8}px`;
-  picker.style.right = `${window.innerWidth - rect.right}px`;
+  picker.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
   picker.style.left = 'auto';
-  
+
   let html = '<div class="folders-picker-header">Select folder</div><div class="folders-picker-list">';
-  
+
   if (folders.length > 0) {
     folders.forEach(folder => {
       html += `
-        <div class="folder-picker-item" data-folder-id="${folder.id}">
-          <span class="folder-category">${folder.category}</span>
-          <span class="folder-name">${folder.name}</span>
+        <div class="folder-picker-item" data-folder-id="${cfEscapeHtml(folder.id)}">
+          <span class="folder-category">${cfEscapeHtml(folder.category)}</span>
+          <span class="folder-name">${cfEscapeHtml(folder.name)}</span>
         </div>
       `;
     });
   } else {
     html += `<div style="padding:12px 16px;color:#888;font-size:13px;">No folders yet. Create one below:</div>`;
   }
-  
+
   html += `</div>`;
-  
+
   html += `
     <div class="folder-picker-divider"></div>
     <div class="folder-picker-new">
       <input type="text" id="newFolderName" placeholder="New folder name..." class="new-folder-input">
       <select id="newFolderCategory" class="new-folder-select">
-        ${(categories.length > 0 ? categories : ['Personal', 'Work', 'Projects']).map(cat => `<option value="${cat}">${cat}</option>`).join('')}
+        ${(categories.length > 0 ? categories : ['Personal', 'Work', 'Projects']).map(cat => `<option value="${cfEscapeHtml(cat)}">${cfEscapeHtml(cat)}</option>`).join('')}
       </select>
       <button class="create-folder-btn">Create & Add</button>
     </div>
   `;
-  
+
   picker.innerHTML = html;
   document.body.appendChild(picker);
+
+  // Clamp inside the viewport: if it would spill past the bottom, flip above
+  const pickerRect = picker.getBoundingClientRect();
+  if (pickerRect.bottom > window.innerHeight - 8) {
+    const flippedTop = rect.top - pickerRect.height - 8;
+    picker.style.top = `${Math.max(8, flippedTop)}px`;
+  }
   
   picker.querySelectorAll('.folder-picker-item').forEach(item => {
     item.addEventListener('click', async () => {
@@ -1609,21 +1742,32 @@ async function assignCurrentChatToFolder(folderId) {
 
 function observeUrlChanges() {
   let lastUrl = location.href;
-  new MutationObserver(() => {
-    const url = location.href;
-    if (url !== lastUrl) {
-      lastUrl = url;
-      updateCurrentChatId();
-      if (url.includes('/chat/')) {
-        setTimeout(injectChatButton, 500);
+  let checkScheduled = false;
+
+  // React mutates the DOM constantly, so coalesce bursts of mutations into one
+  // check on the next animation frame instead of querying on every mutation.
+  const scheduleCheck = () => {
+    if (checkScheduled) return;
+    checkScheduled = true;
+    requestAnimationFrame(() => {
+      checkScheduled = false;
+      const url = location.href;
+      if (url !== lastUrl) {
+        lastUrl = url;
+        updateCurrentChatId();
+        if (url.includes('/chat/')) {
+          setTimeout(injectChatButton, 500);
+        }
       }
-    }
-    // Re-inject sidebar if React removed it
-    if (!document.querySelector('a[data-folders-link="true"]')) {
-      sidebarInjected = false;
-      injectSidebar();
-    }
-  }).observe(document, { subtree: true, childList: true });
+      // Re-inject sidebar if React removed it
+      if (!document.querySelector('a[data-folders-link="true"]')) {
+        sidebarInjected = false;
+        injectSidebar();
+      }
+    });
+  };
+
+  new MutationObserver(scheduleCheck).observe(document, { subtree: true, childList: true });
 }
 
 function showNotification(message, isError = false) {
@@ -1693,51 +1837,56 @@ function hideSyncProgressBar() {
 
 async function askClaudeToOrganize() {
   showNotification('Analyzing chat patterns...');
-  
-  // Step 1: Run local analysis
+
   const analysis = analyzeChatsLocally();
-  
+
   if (analysis.totalChats === 0) {
     showNotification('No chats to organize! Import chats first.', true);
     return;
   }
-  
-  // Step 2: Build compact prompt with just the analysis
-  const prompt = `I have ${analysis.totalChats} Claude chats to organize. Here's the word frequency analysis:
 
-TOP 80 KEYWORDS (word: count):
-${analysis.topWords.map(w => `${w.word}(${w.count})`).join(', ')}
+  // Send Claude the real numbered titles (so it can both design folders AND
+  // directly assign the obvious ones) plus the frequency hints. The number->id
+  // map is stored so the pasted-back response resolves to real chats.
+  cfOrganizeIndex = allChats.map(c => c.id);
+  const MAX_TITLES = 2000;
+  const numbered = allChats.slice(0, MAX_TITLES)
+    .map((c, i) => `${i + 1}. ${String(c.title || '').replace(/\s+/g, ' ').slice(0, 120)}`)
+    .join('\n');
 
-TOP 40 PHRASES (phrase: count):
-${analysis.topPhrases.map(p => `${p.phrase}(${p.count})`).join(', ')}
+  const prompt = `I have ${analysis.totalChats} Claude chat titles to organize into folders. Each title is numbered.
 
-Based on these patterns, design a categorization system. Return ONLY valid JSON in this exact format:
+FREQUENT WORDS: ${analysis.topWords.map(w => w.word).join(', ')}
+FREQUENT PHRASES: ${analysis.topPhrases.map(p => p.phrase).join(', ')}
+
+NUMBERED TITLES:
+${numbered}
+
+Design a folder system AND assign the clearly-matching titles. Return ONLY valid JSON in this shape:
 {
   "categories": [
     {
       "name": "Category Name",
       "folders": [
-        {"name": "Folder Name", "keywords": ["keyword1", "keyword2", "phrase match"]}
+        {"name": "Folder Name", "keywords": ["distinctive phrase", "specific term"], "chats": [12, 47, 103]}
       ]
     }
   ]
 }
 
-Requirements:
-- 6-8 broad categories representing major areas (e.g., "Development", "Business", "Personal", "Learning")
-- 2-6 folders per category
-- 5-15 keywords per folder (use words/phrases from my data above)
-- Keywords are case-insensitive substring matches
-- Order categories/folders from most specific to least (first match wins)
-- Last category should be "Miscellaneous" with folder "General" and empty keywords []
-- Return ONLY the JSON, no markdown, no explanation`;
+Rules:
+- 6-9 categories, 2-5 folders each. Order the most specific category/folder first.
+- keywords: 6-15 per folder. Strongly prefer DISTINCTIVE multi-word phrases ("global payments", "android app", "wordpress plugin") and specific nouns. Never use a generic word on its own (app, code, data, system, design, file, update, project, fix, build, error) - only inside a longer phrase. Keywords match whole words, case-insensitive.
+- chats: the NUMBERS of titles that clearly belong in that folder. Include only ones you are confident about and leave the rest out (the keywords catch them). Each number in at most one folder.
+- Last category "Miscellaneous", folder "General", keywords [], no chats.
+- Return ONLY the JSON, no markdown, no commentary.`;
 
-  // Store for new tab
-  await chrome.storage.local.set({ 
+  await chrome.storage.local.set({
     pendingOrganizePrompt: prompt,
-    pendingOrganizeAnalysis: analysis
+    pendingOrganizeAnalysis: analysis,
+    ['organizeIndex__' + cfAccountKey]: cfOrganizeIndex
   });
-  
+
   window.open('https://claude.ai/new', '_blank');
   showNotification('Opening Claude - paste the response back to apply it!');
 }
@@ -1792,73 +1941,186 @@ function analyzeChatsLocally() {
   };
 }
 
+// ===== Shared text helpers for the categorizer =====
+function cfTokenize(text) { return (String(text || '').toLowerCase().match(/[a-z0-9]+/g) || []); }
+function cfEscapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function cfNormKw(s) { return String(s || '').toLowerCase().trim(); }
+
+// Precompile folder keyword rules. A keyword shared across many folders gets an
+// IDF down-weight (1/df) so generic words like "design" barely score, while
+// distinctive phrases score high. Single words match on whole-word boundaries
+// so "car" no longer matches inside "scorecard".
+function cfBuildKeywordIndex(cats) {
+  const folderCountByKw = new Map();
+  const raw = [];
+  (cats || []).forEach(cat => (cat.folders || []).forEach(fd => {
+    const uniq = [...new Set((fd.keywords || []).map(cfNormKw).filter(Boolean))];
+    raw.push({ category: cat.name, name: fd.name, keywords: uniq });
+    uniq.forEach(kw => folderCountByKw.set(kw, (folderCountByKw.get(kw) || 0) + 1));
+  }));
+  return raw.map(rf => ({
+    category: rf.category, name: rf.name,
+    rules: rf.keywords.map(kw => {
+      const isPhrase = kw.includes(' ');
+      const df = folderCountByKw.get(kw) || 1;
+      let base = isPhrase ? 3 : 1;
+      if (kw.length >= 7) base += 0.5;
+      base *= 1 / df;
+      return { kw, isPhrase, base, re: isPhrase ? null : new RegExp('(^|[^a-z0-9])' + cfEscapeRe(kw) + '([^a-z0-9]|$)') };
+    })
+  }));
+}
+
+function cfScoreText(text, folder) {
+  let s = 0;
+  for (const r of folder.rules) {
+    if (r.isPhrase) { if (text.includes(r.kw)) s += r.base; }
+    else { if (r.re.test(text)) s += r.base; }
+  }
+  return s;
+}
+
+function cfReconcileTokens(name) { return new Set(cfTokenize(name).filter(t => t.length > 2 && t !== 'and' && t !== 'the')); }
+function cfJaccard(a, b) { if (!a.size || !b.size) return 0; let i = 0; a.forEach(x => { if (b.has(x)) i++; }); return i / (a.size + b.size - i); }
+
+// Merge + reconcile: snap a pre-existing category onto the closest new canonical
+// name (so "Data & Analytics" folds into "Data & Analysis"), then merge folders
+// that share a category and normalized name. The Unsorted bucket is left alone.
+function cfReconcile(folderList, canonicalCats) {
+  const canon = (canonicalCats || []).filter(Boolean);
+  const canonTok = canon.map(c => ({ name: c, tok: cfReconcileTokens(c) }));
+  const remap = new Map();
+  folderList.forEach(f => {
+    if (f.id === 'unsorted') { f.category = 'Unsorted'; return; }
+    if (!f.category) f.category = 'Miscellaneous';
+    if (canon.includes(f.category)) return;
+    if (remap.has(f.category)) { f.category = remap.get(f.category); return; }
+    const ft = cfReconcileTokens(f.category);
+    let best = null, bestJ = 0;
+    canonTok.forEach(c => { const j = cfJaccard(ft, c.tok); if (j > bestJ) { bestJ = j; best = c.name; } });
+    const mapped = (best && bestJ >= 0.30) ? best : f.category;
+    remap.set(f.category, mapped);
+    f.category = mapped;
+  });
+  const normName = s => cfTokenize(s).join(' ');
+  const seen = new Map();
+  const out = [];
+  for (const f of folderList) {
+    const key = f.category.toLowerCase().trim() + '::' + normName(f.name);
+    if (seen.has(key)) {
+      const tgt = seen.get(key);
+      const have = new Set(tgt.chats.map(c => c.id));
+      (f.chats || []).forEach(c => { if (!have.has(c.id)) { tgt.chats.push(c); have.add(c.id); } });
+    } else { seen.set(key, f); out.push(f); }
+  }
+  return out;
+}
+
 function applyCategorization(categoryDefs) {
-  // categoryDefs = { categories: [{ name, folders: [{ name, keywords }] }] }
-  
-  const results = [];
-  const usedChatIds = new Set();
-  let folderId = 1;
-  
-  // Process each category/folder in order (first match wins)
-  for (const category of categoryDefs.categories) {
-    for (const folderDef of category.folders) {
-      const matchedChats = [];
-      
-      // Skip empty keywords (catch-all)
-      if (folderDef.keywords.length === 0) continue;
-      
-      for (const chat of allChats) {
-        if (usedChatIds.has(chat.id)) continue;
-        
-        const titleLower = chat.title.toLowerCase();
-        const matches = folderDef.keywords.some(kw => titleLower.includes(kw.toLowerCase()));
-        
-        if (matches) {
-          matchedChats.push({
-            id: chat.id,
-            title: chat.title,
-            url: chat.url,
-            date: chat.date
-          });
-          usedChatIds.add(chat.id);
-        }
-      }
-      
-      if (matchedChats.length > 0) {
-        results.push({
-          id: `folder-${folderId++}`,
-          name: folderDef.name,
-          category: category.name,
-          chats: matchedChats
-        });
-      }
-    }
-  }
-  
-  // Catch-all for uncategorized
-  const uncategorized = allChats
-    .filter(c => !usedChatIds.has(c.id))
-    .map(c => ({ id: c.id, title: c.title, url: c.url, date: c.date }));
-  
-  if (uncategorized.length > 0) {
-    results.push({
-      id: `folder-${folderId}`,
-      name: 'General',
-      category: 'Miscellaneous',
-      chats: uncategorized
-    });
-  }
-  
-  // Extract unique categories
-  const uniqueCategories = [...new Set(results.map(f => f.category))];
-  
-  return {
-    categories: uniqueCategories,
-    folders: results
+  // Hybrid merge: (1) apply Claude's confident per-folder chat assignments, then
+  // (2) a scored keyword matcher (whole-word, phrase-weighted, generic keywords
+  // IDF-damped, best match wins) for the rest, (3) leftovers to Unsorted, then
+  // (4) reconcile near-duplicate categories. Preserves existing folder ids/names.
+  const merged = JSON.parse(JSON.stringify(folders || []));
+  const preExistingIds = new Set((folders || []).map(f => f.id));
+  const folderKey = (cat, name) => `${(cat || '').toLowerCase().trim()}::${(name || '').toLowerCase().trim()}`;
+  const byKey = new Map();
+  merged.forEach(f => byKey.set(folderKey(f.category, f.name), f));
+
+  const chatById = new Map();
+  (allChats || []).forEach(c => chatById.set(c.id, c));
+  merged.forEach(f => f.chats?.forEach(c => { if (!chatById.has(c.id)) chatById.set(c.id, c); }));
+
+  let nextIdNum = 1;
+  const makeId = () => { let id; do { id = `folder-${nextIdNum++}`; } while (merged.some(f => f.id === id)); return id; };
+  const getOrCreateFolder = (category, name) => {
+    const key = folderKey(category, name);
+    let f = byKey.get(key);
+    if (!f) { f = { id: makeId(), name: name || 'Untitled', category: category || 'Miscellaneous', chats: [] }; merged.push(f); byKey.set(key, f); }
+    if (!Array.isArray(f.chats)) f.chats = [];
+    return f;
   };
+  const assignChat = (target, chatId) => {
+    const meta = chatById.get(chatId) || { id: chatId, title: 'Untitled Chat', url: `https://claude.ai/chat/${chatId}`, date: new Date().toISOString().split('T')[0] };
+    merged.forEach(f => { if (f.chats) f.chats = f.chats.filter(c => c.id !== chatId); });
+    target.chats.push({ id: chatId, title: meta.title, url: meta.url, date: meta.date, relativeDate: meta.relativeDate, snippet: meta.snippet || '', tags: meta.tags || [], exported: meta.exported });
+  };
+
+  // Resolve a chat reference: a 1-based number (from the prompt), numeric string,
+  // an id, or {id}/{index}. Numbers map through the stored prompt index.
+  const arrIdx = (cfOrganizeIndex && cfOrganizeIndex.length) ? cfOrganizeIndex : (allChats || []).map(c => c.id);
+  const resolveId = (ref) => {
+    if (ref == null) return null;
+    if (typeof ref === 'object') ref = ref.id ?? ref.chatId ?? ref.index;
+    if (typeof ref === 'number' || /^\d+$/.test(String(ref))) {
+      const n = Number(ref);
+      if (n >= 1 && n <= arrIdx.length) return arrIdx[n - 1];
+      if (arrIdx[n] != null) return arrIdx[n];
+      return null;
+    }
+    return String(ref);
+  };
+
+  const assigned = new Set();
+  const cats = Array.isArray(categoryDefs.categories) ? categoryDefs.categories : [];
+  const explicitFolders = Array.isArray(categoryDefs.folders) ? categoryDefs.folders : null;
+
+  // PHASE 1 - Claude's confident assignments (chats listed per folder) win first
+  const applyExplicit = (category, name, refs) => {
+    if (!Array.isArray(refs) || !refs.length) return;
+    const target = getOrCreateFolder(category, name);
+    for (const ref of refs) {
+      const id = resolveId(ref);
+      if (!id || assigned.has(id) || !chatById.has(id)) continue;
+      assignChat(target, id);
+      assigned.add(id);
+    }
+  };
+  if (explicitFolders) { for (const fd of explicitFolders) { if (fd) applyExplicit(fd.category, fd.name, fd.chats || fd.chatIndices); } }
+  for (const cat of cats) { for (const fd of (cat.folders || [])) { applyExplicit(cat.name, fd.name, fd.chats || fd.chatIndices); } }
+
+  // PHASE 2 - scored keyword matching, best folder wins, for the remainder
+  const ruleFolders = cfBuildKeywordIndex(cats);
+  const THRESH = 0.6;
+  for (const chat of (allChats || [])) {
+    if (assigned.has(chat.id)) continue;
+    const text = ' ' + String(chat.title || '').toLowerCase() + ' ' + String(chat.snippet || '').toLowerCase() + ' ';
+    let best = null, bestScore = 0;
+    for (const rf of ruleFolders) {
+      if (!rf.rules.length) continue;
+      const sc = cfScoreText(text, rf);
+      if (sc > bestScore) { bestScore = sc; best = rf; }
+    }
+    if (best && bestScore >= THRESH) { assignChat(getOrCreateFolder(best.category, best.name), chat.id); assigned.add(chat.id); }
+  }
+
+  // PHASE 3 - anything still unplaced goes to Unsorted (kept visible, never absorbed)
+  let unsorted = merged.find(f => f.id === 'unsorted');
+  (allChats || []).forEach(c => {
+    if (merged.some(f => f.chats?.some(x => x.id === c.id))) return;
+    if (!unsorted) { unsorted = { id: 'unsorted', name: 'Unsorted Chats', category: 'Unsorted', chats: [] }; merged.push(unsorted); }
+    unsorted.chats.push({ id: c.id, title: c.title, url: c.url, date: c.date, relativeDate: c.relativeDate, snippet: c.snippet || '', tags: c.tags || [], exported: c.exported });
+  });
+
+  let result = merged.filter(f => (f.chats && f.chats.length > 0) || preExistingIds.has(f.id) || f.id === 'unsorted');
+
+  // PHASE 4 - collapse near-duplicate categories/folders
+  result = cfReconcile(result, cats.map(c => c.name));
+
+  const uniqueCategories = [...new Set([...(categories || []), ...result.map(f => f.category)].filter(Boolean))];
+  return { categories: uniqueCategories, folders: result };
 }
 
 function showApplyCategoriesModal() {
+  // Restore the number->id map from the last "Ask Claude" run so pasted-back
+  // numeric assignments resolve, even if this is a fresh page load.
+  if (!cfOrganizeIndex.length) {
+    chrome.storage.local.get('organizeIndex__' + cfAccountKey, (r) => {
+      const idx = r['organizeIndex__' + cfAccountKey];
+      if (Array.isArray(idx) && idx.length) cfOrganizeIndex = idx;
+    });
+  }
+
   // Create modal overlay
   const overlay = document.createElement('div');
   overlay.className = 'categories-modal-overlay';
@@ -1923,7 +2185,7 @@ function showApplyCategoriesModal() {
       applyBtn.disabled = false;
       applyBtn.classList.add('ready');
     } catch (e) {
-      statsDiv.innerHTML = `<span style="color:#ef4444;">Error: ${e.message}</span>`;
+      statsDiv.innerHTML = `<span style="color:#ef4444;">Error: ${cfEscapeHtml(e.message)}</span>`;
       applyBtn.disabled = true;
     }
   });
@@ -2076,157 +2338,165 @@ function renderPanelAnalytics(panel) {
   statsEl.innerHTML = statsHtml;
 }
 
+// Convert a relative label like "3 hours ago" / "Yesterday" to an ISO date
+function cfRelativeToISODate(relativeDate) {
+  let date = new Date();
+  if (relativeDate) {
+    const d = new Date();
+    const num = (re) => { const m = relativeDate.match(re); return m ? parseInt(m[1]) : null; };
+    const minutes = num(/(\d+)\s+minute/i);
+    const hours = num(/(\d+)\s+hour/i);
+    const days = num(/(\d+)\s+day/i);
+    const weeks = num(/(\d+)\s+week/i);
+    const months = num(/(\d+)\s+month/i);
+    const years = num(/(\d+)\s+year/i);
+    if (minutes !== null) d.setMinutes(d.getMinutes() - minutes);
+    else if (hours !== null) d.setHours(d.getHours() - hours);
+    else if (days !== null) d.setDate(d.getDate() - days);
+    else if (weeks !== null) d.setDate(d.getDate() - weeks * 7);
+    else if (months !== null) d.setMonth(d.getMonth() - months);
+    else if (years !== null) d.setFullYear(d.getFullYear() - years);
+    else if (relativeDate.toLowerCase().includes('yesterday')) d.setDate(d.getDate() - 1);
+    date = d;
+  }
+  return date.toISOString().split('T')[0];
+}
+
+// Parse a recents chat <a> element into a chat record (or null if not a chat)
+function cfParseChatLink(link) {
+  const href = link.getAttribute('href');
+  if (!href || !href.includes('/chat/')) return null;
+  const match = href.match(/\/chat\/([a-f0-9-]+)/i);
+  if (!match) return null;
+
+  let title = '';
+  let relativeDate = '';
+  const titleEl = link.querySelector('[class*="title"]') ||
+                  link.querySelector('[class*="name"]') ||
+                  link.querySelector('div > div:first-child');
+  const dateEl = link.querySelector('[class*="time"]') ||
+                 link.querySelector('[class*="date"]') ||
+                 link.querySelector('[class*="ago"]');
+  if (titleEl) title = titleEl.textContent?.trim() || '';
+  if (dateEl) relativeDate = dateEl.textContent?.trim() || '';
+
+  if (!title || !relativeDate) {
+    const fullText = link.textContent?.trim() || '';
+    const timeMatch = fullText.match(/(\d+\s+(?:minute|hour|day|week|month|year)s?\s+ago|Yesterday|Today)/i);
+    if (timeMatch) {
+      relativeDate = relativeDate || timeMatch[1];
+      const idx = fullText.indexOf('Last message');
+      if (idx > 0) title = title || fullText.substring(0, idx).trim();
+      else title = title || fullText.replace(/Last message.*$/i, '').replace(timeMatch[0], '').trim();
+    } else if (!title) {
+      title = fullText;
+    }
+  }
+
+  title = title.replace(/\s+/g, ' ').trim();
+  if (title.length > 200) title = title.substring(0, 197) + '...';
+  if (!title || title.length < 2) title = 'Untitled Chat';
+
+  return {
+    id: match[1],
+    title,
+    url: href.startsWith('http') ? href : `https://claude.ai${href}`,
+    date: cfRelativeToISODate(relativeDate),
+    relativeDate: relativeDate || 'Today',
+    snippet: '',
+    tags: []
+  };
+}
+
+// Find the nearest scrollable ancestor of the chat list so we can drive it
+function cfFindScroller(root) {
+  let el = root.querySelector('a[href*="/chat/"]');
+  while (el && el !== document.body) {
+    const style = getComputedStyle(el);
+    if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 20) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+// Claude's recents list is infinite-scroll, so we scroll to the bottom and wait
+// for lazy-loaded rows instead of clicking a "Show more" button that no longer
+// exists. Collects every chat link (deduped by id). Returns all visible records
+// so the caller can both add new chats and refresh changed ones.
+async function cfCollectChatsByScrolling(rootEl, onProgress) {
+  const root = rootEl || document.body;
+  const seenIds = new Set();
+  const collected = [];
+  let stagnantRounds = 0;
+  let lastCount = -1;
+
+  for (let round = 0; round < 200; round++) {
+    const links = root.querySelectorAll('a[href*="/chat/"]');
+    for (const link of links) {
+      if (link.closest('nav')) continue;
+      const record = cfParseChatLink(link);
+      if (!record || seenIds.has(record.id)) continue;
+      seenIds.add(record.id);
+      collected.push(record);
+    }
+
+    if (onProgress) onProgress(collected.length);
+
+    // Stop once the count stops growing across several scroll attempts
+    if (collected.length === lastCount) {
+      if (++stagnantRounds >= 4) break;
+    } else {
+      stagnantRounds = 0;
+      lastCount = collected.length;
+    }
+
+    // Prefer a real load-more button if one exists, otherwise scroll
+    const moreBtn = Array.from(root.querySelectorAll('button')).find(btn => {
+      const t = btn.textContent.trim().toLowerCase();
+      return (t.includes('show more') || t.includes('load more')) && !btn.closest('nav');
+    });
+    if (moreBtn) {
+      moreBtn.click();
+    } else {
+      const scroller = cfFindScroller(root);
+      if (scroller) scroller.scrollTo(0, scroller.scrollHeight);
+      else window.scrollTo(0, document.body.scrollHeight);
+    }
+    await new Promise(r => setTimeout(r, 1200));
+  }
+
+  return collected;
+}
+
 async function scrapeAllChats() {
   console.log('[SCRAPER] Starting...');
   showNotification('Scraping chats...');
-  
-  // Clear monitored new chats since we're doing a full sync
+
   monitoredNewChats.clear();
-  chrome.storage.local.set({ monitoredNewChats: [] });
+  chrome.storage.local.set({ [cfMonitorKey()]: [] });
   hideSyncNotification();
-  
+
   await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Get existing IDs from all folders
+
   const existingIds = new Set();
-  folders.forEach(f => {
-    if (f.chats) f.chats.forEach(c => existingIds.add(c.id));
-  });
+  folders.forEach(f => { if (f.chats) f.chats.forEach(c => existingIds.add(c.id)); });
   console.log('[SCRAPER] Existing chat IDs:', existingIds.size);
-  
-  let clickCount = 0;
-  const scrapedChats = [];
-  const seenIds = new Set(existingIds);
-  let consecutiveEmptyPages = 0;
-  
-  while (clickCount < 100) {
-    // Track how many new chats found this page
-    const countBefore = scrapedChats.length;
-    
-    // Scrape current visible chats
-    const chatLinks = document.querySelectorAll('a[href*="/chat/"]');
-    
-    for (const link of chatLinks) {
-      const href = link.getAttribute('href');
-      if (!href?.includes('/chat/')) continue;
-      const match = href.match(/\/chat\/([a-f0-9-]+)/i);
-      if (!match) continue;
-      const chatId = match[1];
-      if (seenIds.has(chatId)) continue;
-      seenIds.add(chatId);
-      
-      // Get title and date from separate elements within the link
-      let title = '';
-      let relativeDate = '';
-      
-      // Look for the title element (usually first text node or specific class)
-      const titleEl = link.querySelector('[class*="title"]') || 
-                      link.querySelector('[class*="name"]') ||
-                      link.querySelector('div > div:first-child');
-      
-      // Look for the date element (usually contains "ago" or time info)
-      const dateEl = link.querySelector('[class*="time"]') ||
-                     link.querySelector('[class*="date"]') ||
-                     link.querySelector('[class*="ago"]');
-      
-      if (titleEl) {
-        title = titleEl.textContent?.trim() || '';
-      }
-      
-      if (dateEl) {
-        relativeDate = dateEl.textContent?.trim() || '';
-      }
-      
-      // Fallback: if no separate elements, parse from full text
-      if (!title || !relativeDate) {
-        const fullText = link.textContent?.trim() || '';
-        const timeMatch = fullText.match(/(\d+\s+(?:minute|hour|day|week|month|year)s?\s+ago|Yesterday|Today)/i);
-        if (timeMatch) {
-          relativeDate = timeMatch[1];
-          const idx = fullText.indexOf('Last message');
-          if (idx > 0) {
-            title = fullText.substring(0, idx).trim();
-          } else {
-            title = fullText.replace(/Last message.*$/i, '').replace(timeMatch[0], '').trim();
-          }
-        } else {
-          title = fullText;
-        }
-      }
-      
-      // Clean up
-      title = title.replace(/\s+/g, ' ').trim();
-      if (title.length > 200) title = title.substring(0, 197) + '...';
-      if (!title || title.length < 2) title = 'Untitled Chat';
-      
-      // Parse relative date to ISO date for sorting
-      let date = new Date().toISOString().split('T')[0];
-      if (relativeDate) {
-        const d = new Date();
-        const minutesMatch = relativeDate.match(/(\d+)\s+minute/i);
-        const hoursMatch = relativeDate.match(/(\d+)\s+hour/i);
-        const daysMatch = relativeDate.match(/(\d+)\s+day/i);
-        const weeksMatch = relativeDate.match(/(\d+)\s+week/i);
-        const monthsMatch = relativeDate.match(/(\d+)\s+month/i);
-        const yearsMatch = relativeDate.match(/(\d+)\s+year/i);
-        
-        if (minutesMatch) d.setMinutes(d.getMinutes() - parseInt(minutesMatch[1]));
-        else if (hoursMatch) d.setHours(d.getHours() - parseInt(hoursMatch[1]));
-        else if (daysMatch) d.setDate(d.getDate() - parseInt(daysMatch[1]));
-        else if (weeksMatch) d.setDate(d.getDate() - parseInt(weeksMatch[1]) * 7);
-        else if (monthsMatch) d.setMonth(d.getMonth() - parseInt(monthsMatch[1]));
-        else if (yearsMatch) d.setFullYear(d.getFullYear() - parseInt(yearsMatch[1]));
-        else if (relativeDate.toLowerCase().includes('yesterday')) d.setDate(d.getDate() - 1);
-        date = d.toISOString().split('T')[0];
-      }
-      
-      scrapedChats.push({
-        id: chatId,
-        title,
-        url: href.startsWith('http') ? href : `https://claude.ai${href}`,
-        date,
-        relativeDate: relativeDate || 'Today',
-        snippet: '',
-        tags: []
-      });
-    }
-    
-    // Check if we found any new chats this page
-    const newThisPage = scrapedChats.length - countBefore;
-    if (newThisPage === 0) {
-      consecutiveEmptyPages++;
-      console.log('[SCRAPER] No new chats this page, consecutive empty:', consecutiveEmptyPages);
-      if (consecutiveEmptyPages >= 2) {
-        console.log('[SCRAPER] Stopping early - no new chats found');
-        break;
-      }
-    } else {
-      consecutiveEmptyPages = 0;
-    }
-    
-    // Try to click "Show more" button
-    const showMoreBtn = Array.from(document.querySelectorAll('button')).find(btn => 
-      btn.textContent.includes('Show more')
-    );
-    if (!showMoreBtn) break;
-    
-    showMoreBtn.click();
-    clickCount++;
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    showNotification(`Scanning... ${scrapedChats.length} new chats found`);
-  }
-  
-  // Send only new chats to be appended
-  if (scrapedChats.length > 0) {
+
+  const collected = await cfCollectChatsByScrolling(document.body, (count) => {
+    showNotification(`Scanning... ${count} chats found`);
+  });
+  const newChats = collected.filter(c => !existingIds.has(c.id));
+
+  // Send everything: background adds new chats and refreshes changed metadata
+  if (collected.length > 0) {
     try {
-      await chrome.runtime.sendMessage({ action: 'scrapedChats', chats: scrapedChats });
-      allChats.push(...scrapedChats);
+      await chrome.runtime.sendMessage({ action: 'scrapedChats', chats: collected });
     } catch (error) {
       console.log('[SCRAPER] Error:', error.message);
     }
   }
-  
-  showNotification(`Done! Added ${scrapedChats.length} new chats`);
+
+  showNotification(`Done! ${newChats.length} new, ${collected.length} scanned`);
   await loadData();
 }
 
@@ -2256,156 +2526,40 @@ async function scrapeRecentsPage(exportAllMissing = false) {
   pendingNewChats = [];
   if (typeof monitoredNewChats !== 'undefined') {
     monitoredNewChats.clear();
-    chrome.storage.local.set({ monitoredNewChats: [] });
+    chrome.storage.local.set({ [cfMonitorKey()]: [] });
   }
   
   console.log('[SCRAPER] Scraping recents page...');
-  showSyncProgressBar('Syncing from Recents...', 0);
-  
+  showSyncProgressBar('Syncing from Recents...');
+
   // Wait for page to fully render
   await new Promise(resolve => setTimeout(resolve, 2000));
-  
+
   // Get existing IDs from all folders
   const existingIds = new Set();
   folders.forEach(f => {
     if (f.chats) f.chats.forEach(c => existingIds.add(c.id));
   });
   console.log('[SCRAPER] Existing chat IDs:', existingIds.size);
-  
-  let clickCount = 0;
-  const scrapedChats = [];
-  const seenIds = new Set(existingIds);
-  let consecutiveEmptyPages = 0;
-  
+
   // Find the main content area (not the nav sidebar)
   const mainContent = document.querySelector('main') || document.querySelector('[class*="main"]') || document.body;
-  
-  while (clickCount < 100) {
-    const countBefore = scrapedChats.length;
-    
-    // Scrape chat links from main content area only
-    const chatLinks = mainContent.querySelectorAll('a[href*="/chat/"]');
-    
-    for (const link of chatLinks) {
-      // Skip if this link is in the nav sidebar
-      if (link.closest('nav')) continue;
-      
-      const href = link.getAttribute('href');
-      if (!href?.includes('/chat/')) continue;
-      const match = href.match(/\/chat\/([a-f0-9-]+)/i);
-      if (!match) continue;
-      const chatId = match[1];
-      if (seenIds.has(chatId)) continue;
-      seenIds.add(chatId);
-      
-      // Get title and date from separate elements within the link
-      let title = '';
-      let relativeDate = '';
-      
-      const titleEl = link.querySelector('[class*="title"]') || 
-                      link.querySelector('[class*="name"]') ||
-                      link.querySelector('div > div:first-child');
-      
-      const dateEl = link.querySelector('[class*="time"]') ||
-                     link.querySelector('[class*="date"]') ||
-                     link.querySelector('[class*="ago"]');
-      
-      if (titleEl) {
-        title = titleEl.textContent?.trim() || '';
-      }
-      
-      if (dateEl) {
-        relativeDate = dateEl.textContent?.trim() || '';
-      }
-      
-      // Fallback: parse from full text
-      if (!title || !relativeDate) {
-        const fullText = link.textContent?.trim() || '';
-        const timeMatch = fullText.match(/(\d+\s+(?:minute|hour|day|week|month|year)s?\s+ago|Yesterday|Today)/i);
-        if (timeMatch) {
-          relativeDate = timeMatch[1];
-          const idx = fullText.indexOf('Last message');
-          if (idx > 0) {
-            title = fullText.substring(0, idx).trim();
-          } else {
-            title = fullText.replace(/Last message.*$/i, '').replace(timeMatch[0], '').trim();
-          }
-        } else {
-          title = fullText;
-        }
-      }
-      
-      // Clean up
-      title = title.replace(/\s+/g, ' ').trim();
-      if (title.length > 200) title = title.substring(0, 197) + '...';
-      if (!title || title.length < 2) title = 'Untitled Chat';
-      
-      // Parse relative date to ISO date
-      let date = new Date().toISOString().split('T')[0];
-      if (relativeDate) {
-        const d = new Date();
-        const minutesMatch = relativeDate.match(/(\d+)\s+minute/i);
-        const hoursMatch = relativeDate.match(/(\d+)\s+hour/i);
-        const daysMatch = relativeDate.match(/(\d+)\s+day/i);
-        const weeksMatch = relativeDate.match(/(\d+)\s+week/i);
-        const monthsMatch = relativeDate.match(/(\d+)\s+month/i);
-        const yearsMatch = relativeDate.match(/(\d+)\s+year/i);
-        
-        if (minutesMatch) d.setMinutes(d.getMinutes() - parseInt(minutesMatch[1]));
-        else if (hoursMatch) d.setHours(d.getHours() - parseInt(hoursMatch[1]));
-        else if (daysMatch) d.setDate(d.getDate() - parseInt(daysMatch[1]));
-        else if (weeksMatch) d.setDate(d.getDate() - parseInt(weeksMatch[1]) * 7);
-        else if (monthsMatch) d.setMonth(d.getMonth() - parseInt(monthsMatch[1]));
-        else if (yearsMatch) d.setFullYear(d.getFullYear() - parseInt(yearsMatch[1]));
-        else if (relativeDate.toLowerCase().includes('yesterday')) d.setDate(d.getDate() - 1);
-        date = d.toISOString().split('T')[0];
-      }
-      
-      scrapedChats.push({
-        id: chatId,
-        title,
-        url: href.startsWith('http') ? href : `https://claude.ai${href}`,
-        date,
-        relativeDate: relativeDate || 'Today',
-        snippet: '',
-        tags: []
-      });
-    }
-    
-    // Check if we found any new chats this page
-    const newThisPage = scrapedChats.length - countBefore;
-    if (newThisPage === 0) {
-      consecutiveEmptyPages++;
-      console.log('[SCRAPER] No new chats this page, consecutive empty:', consecutiveEmptyPages);
-      if (consecutiveEmptyPages >= 2) {
-        console.log('[SCRAPER] Stopping - no new chats found');
-        break;
-      }
-    } else {
-      consecutiveEmptyPages = 0;
-    }
-    
-    // Find "Show more" button in main content (not in sidebar)
-    const showMoreBtn = Array.from(mainContent.querySelectorAll('button')).find(btn => 
-      btn.textContent.includes('Show more') && !btn.closest('nav')
-    );
-    if (!showMoreBtn) break;
-    
-    showMoreBtn.click();
-    clickCount++;
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    showSyncProgressBar(`Scanning... ${scrapedChats.length} new chats found`);
-  }
-  
-  // Send new chats to be appended to folders
-  if (scrapedChats.length > 0) {
+
+  // Auto-scroll the recents list and collect every chat (Claude uses infinite scroll)
+  const collected = await cfCollectChatsByScrolling(mainContent, (count) => {
+    showSyncProgressBar(`Scanning... ${count} chats found`);
+  });
+  // scrapedChats = the genuinely new ones (used below for passive export + counts)
+  const scrapedChats = collected.filter(c => !existingIds.has(c.id));
+  console.log('[SCRAPER] Scanned', collected.length, 'chats,', scrapedChats.length, 'new');
+
+  // Send everything: background adds new chats and refreshes changed metadata
+  if (collected.length > 0) {
     try {
-      await chrome.runtime.sendMessage({ action: 'scrapedChats', chats: scrapedChats });
-      allChats.push(...scrapedChats);
-      
-      // Update known IDs
-      scrapedChats.forEach(c => knownChatIds.add(c.id));
-      await chrome.storage.local.set({ knownChatIds: Array.from(knownChatIds) });
+      await chrome.runtime.sendMessage({ action: 'scrapedChats', chats: collected });
+      // Update known IDs so the passive monitor doesn't re-flag these
+      collected.forEach(c => knownChatIds.add(c.id));
+      await chrome.storage.local.set({ [cfKnownKey()]: Array.from(knownChatIds) });
     } catch (error) {
       console.log('[SCRAPER] Error:', error.message);
     }
@@ -2418,16 +2572,17 @@ async function scrapeRecentsPage(exportAllMissing = false) {
   
   // Clear any pending new chats that accumulated during sync
   pendingNewChats = [];
-  await chrome.storage.local.set({ pendingNewChats: [] });
+  await chrome.storage.local.set({ [cfPendingKey()]: [] });
   if (typeof monitoredNewChats !== 'undefined') {
     monitoredNewChats.clear();
-    await chrome.storage.local.set({ monitoredNewChats: [] });
+    await chrome.storage.local.set({ [cfMonitorKey()]: [] });
   }
   
   // Now export chats to markdown
   let exportSuccess = 0;
   let exportSkipped = 0;
   let exportEmpty = 0;
+  let exportFail = 0;
   
   // Determine which chats to check for MD export
   let chatsToExport = [];
@@ -2603,10 +2758,10 @@ let syncInProgress = false;
 function startNewChatMonitor() {
   console.log('[MONITOR] Starting passive chat monitor');
   
-  // Load tracked IDs from storage
-  chrome.storage.local.get('monitoredNewChats', (result) => {
-    if (result.monitoredNewChats) {
-      monitoredNewChats = new Set(result.monitoredNewChats);
+  // Load tracked IDs from storage (per active account)
+  chrome.storage.local.get(cfMonitorKey(), (result) => {
+    if (result[cfMonitorKey()]) {
+      monitoredNewChats = new Set(result[cfMonitorKey()]);
       console.log('[MONITOR] Loaded', monitoredNewChats.size, 'pending new chats');
       checkSyncThreshold();
     }
@@ -2658,7 +2813,7 @@ function scanForNewChats() {
   
   if (foundNew) {
     // Save to storage
-    chrome.storage.local.set({ monitoredNewChats: [...monitoredNewChats] });
+    chrome.storage.local.set({ [cfMonitorKey()]: [...monitoredNewChats] });
     checkSyncThreshold();
   }
 }
@@ -2780,8 +2935,8 @@ function hideSyncNotification() {
 async function runSyncAndClear() {
   // Clear tracked new chats
   monitoredNewChats.clear();
-  chrome.storage.local.set({ monitoredNewChats: [] });
-  
+  chrome.storage.local.set({ [cfMonitorKey()]: [] });
+
   // Navigate to recents and run the scraper
   if (!window.location.pathname.includes('/recents')) {
     showNotification('Navigating to Recents to sync...');

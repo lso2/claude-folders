@@ -8,6 +8,20 @@
 
 A Chrome extension that adds folder organization, markdown export, and offline viewing to Claude.ai conversations. All data stays on your computer - no cloud sync, no accounts, complete privacy.
 
+## What's new in 1.1.x
+
+This release fixes the sidebar icon and reworks how syncing and the offline library behave so re-importing is no longer destructive.
+
+- **Folders icon fixed** so the sidebar entry renders its icon and full label instead of clipping to "olders", because the icon is now built with a fixed size rather than depending on Claude's cloned markup.
+- **The Folders row matches the native nav** (1.1.2) by keeping Claude's icon box and label layout, so it lines up with the other items and hides its label when the sidebar collapses, and the flyout panel now opens flush against the sidebar edge whether it is expanded or collapsed.
+- **Sync now auto-scrolls** the recents list to the bottom so it captures every conversation, replacing the old reliance on a "Show more" button that Claude no longer shows.
+- **Re-syncing checks for updates and duplicates** so an existing chat is refreshed in place (title and date) and only genuinely new chats are added, which means a chat is never duplicated across folders.
+- **Re-organizing merges instead of clobbering** so applying a new set from Claude reuses folders by name, keeps chats you already filed, reassigns where the new rules match, and leaves untouched chats where they are.
+- **The offline library is directly usable** through a one-click "Build Library" button in the Organizer that embeds each exported chat into `data.js`, so "View Offline" works even when you open `index.html` straight from disk.
+- **Library files refresh automatically** on every save, so fixes reach an already-set-up data folder without you clearing it out and re-selecting it.
+- **Switching Claude profiles/orgs no longer breaks export**, because the active organization id is re-read live instead of being cached once.
+- **Syncing to disk no longer throws or depends on the popup** (1.1.1), because disk writes now run in the always-available offscreen document instead of being messaged to a popup that is usually closed, which is what produced the `syncToDisk is not defined` and "Could not establish connection" errors.
+
 ## Summary
 
 Claude Folders transforms Claude.ai's flat conversation list into an organized folder system with:

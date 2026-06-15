@@ -25,32 +25,6 @@ function init() {
       return true;
     }
     
-    if (message.action === 'syncToDisk') {
-      // Read fresh from storage - don't trust message data
-      console.log('[POPUP] syncToDisk - reading from storage');
-      chrome.storage.local.get('cachedData').then(async (result) => {
-        const data = result.cachedData;
-        console.log('[POPUP] Storage has:', data?.folders?.length, 'folders');
-        
-        if (data && data.folders) {
-          folders = data.folders;
-          categories = data.categories || ['Personal', 'Work', 'Projects'];
-          metadata = data.metadata || {};
-          allChats = [];
-          folders.forEach(f => f.chats?.forEach(c => allChats.push(c)));
-          
-          console.log('[POPUP] Writing to file...');
-          const success = await writeDataFile({ folders, categories, metadata });
-          console.log('[POPUP] Write result:', success);
-          
-          renderFolders();
-          updateStats();
-        }
-      });
-      sendResponse({ success: true });
-      return true;
-    }
-    
     if (message.action === 'reloadData') {
       loadData().then(() => sendResponse({ success: true }));
       return true;
@@ -1119,12 +1093,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Keep channel open for async response
   }
   
-  if (message.action === 'syncToDisk') {
-    syncToDisk()
-      .then(() => sendResponse({ success: true }))
-      .catch(e => sendResponse({ success: false, error: e.message }));
-    return true;
-  }
 });
 
 async function handleWriteExportFile(filename, content) {

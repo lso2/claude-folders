@@ -3,6 +3,23 @@ let folders = [];
 let allChats = [];
 let categories = [];
 let metadata = {};
+
+// Escape user content before it goes into innerHTML
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Only allow safe links into href attributes
+function safeUrl(url) {
+  const s = String(url || '');
+  return (/^https?:\/\//i.test(s) || s.startsWith('/')) ? esc(s) : '#';
+}
 let currentCategory = 'all';
 let currentFolder = null;
 let currentView = 'list';
@@ -51,7 +68,7 @@ async function loadAllData() {
     renderRecentChats();
     
   } catch (error) {
-    console.error('Error loading data:', error);
+    console.log('Error loading data:', error.message);
     document.getElementById('folderGrid').innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px; color: var(--body-text);">
         <p style="margin-bottom:8px;">No data yet.</p>
@@ -75,7 +92,7 @@ function renderCategoryFilters() {
   // Get unique categories from folders
   const uniqueCats = [...new Set(folders.map(f => f.category).filter(Boolean))];
   uniqueCats.forEach(cat => {
-    html += `<button class="filter-pill" data-filter="${cat}">${cat}</button>`;
+    html += `<button class="filter-pill" data-filter="${esc(cat)}">${esc(cat)}</button>`;
   });
   
   filterPills.innerHTML = html;
@@ -143,9 +160,9 @@ function renderFolderList() {
   }
   
   folderGrid.innerHTML = filtered.map(folder => `
-    <div class="folder-card" data-folder-id="${folder.id}">
-      <div class="folder-category">${folder.category || 'Uncategorized'}</div>
-      <div class="folder-name">${folder.name}</div>
+    <div class="folder-card" data-folder-id="${esc(folder.id)}">
+      <div class="folder-category">${esc(folder.category || 'Uncategorized')}</div>
+      <div class="folder-name">${esc(folder.name)}</div>
       <div class="folder-count">${folder.chats?.length || 0} chat${(folder.chats?.length || 0) !== 1 ? 's' : ''}</div>
     </div>
   `).join('');
@@ -158,56 +175,20 @@ function renderFolderList() {
 function openFolder(folderId) {
   currentFolder = folders.find(f => f.id === folderId);
   if (!currentFolder) return;
-  
+
   document.getElementById('folderListView').classList.add('hidden');
   document.getElementById('folderDetailView').classList.remove('hidden');
-  
-  // Update header with folder icon, name, category badge, and chat count
-  const headerArea = document.getElementById('folderDetailHeader');
-  if (headerArea) {
-    const chatCount = currentFolder.chats ? currentFolder.chats.length : 0;
-    headerArea.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-        <a href="#" id="backBtn" style="color: var(--text-secondary); text-decoration: none; display: flex; align-items: center; gap: 6px; font-size: 14px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-          All folders
-        </a>
-        <span style="background: var(--accent-bg); color: var(--accent-color); padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 500;">${currentFolder.category}</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5">
-          <path d="M22 19V9a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2z"/>
-        </svg>
-        <h1 id="folderDetailTitle" style="font-size: 28px; font-weight: 600; color: var(--title-color); margin: 0;">${currentFolder.name}</h1>
-      </div>
-      <div style="display: flex; align-items: center; gap: 16px; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
-        <span>${chatCount} chat${chatCount !== 1 ? 's' : ''}</span>
-      </div>
-      <div style="margin-bottom: 16px;">
-        <div style="position: relative; max-width: 500px;">
-          <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-          </svg>
-          <input type="text" id="folderChatSearch" placeholder="Search chat titles" style="width: 100%; padding: 10px 12px 10px 40px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--title-color); font-size: 14px; box-sizing: border-box;">
-        </div>
-      </div>
-    `;
-    
-    // Re-attach back button handler
-    document.getElementById('backBtn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      document.getElementById('folderDetailView')?.classList.add('hidden');
-      document.getElementById('folderListView')?.classList.remove('hidden');
-      currentFolder = null;
-    });
-    
-    // Attach search handler
-    document.getElementById('folderChatSearch')?.addEventListener('input', (e) => {
-      chatSearchTerm = e.target.value;
-      renderChatList();
-    });
-  }
-  
+
+  // Populate the detail header elements that actually exist in index.html
+  const titleEl = document.getElementById('folderDetailTitle');
+  if (titleEl) titleEl.textContent = currentFolder.name || 'Untitled';
+  const catEl = document.getElementById('folderCategory');
+  if (catEl) catEl.textContent = currentFolder.category || 'Uncategorized';
+
+  // Reset the in-folder search box (its handler is bound once on load)
+  const searchEl = document.getElementById('chatSearchInput');
+  if (searchEl) searchEl.value = '';
+
   chatSearchTerm = '';
   currentTab = 'chats';
   renderChatList();
@@ -234,16 +215,18 @@ function renderChatList() {
     return;
   }
   
+  const embedded = (typeof claudeFoldersData !== 'undefined') && claudeFoldersData.content;
   container.innerHTML = chats.map(chat => {
-    // Check if exported flag exists
-    const hasExport = chat.exported;
+    // Offline content is available if the chat was exported or its markdown is
+    // embedded in data.js (the latter works even when opened straight from disk)
+    const hasExport = !!(chat.exported || (embedded && embedded[chat.id]));
     return `
-    <div class="chat-item" data-chat-id="${chat.id}" data-url="${chat.url}">
+    <div class="chat-item" data-chat-id="${esc(chat.id)}" data-url="${safeUrl(chat.url)}">
       <div class="chat-item-buttons">
-        <button class="view-offline-btn ${hasExport ? '' : 'no-export'}" data-chat-id="${chat.id}" data-title="${chat.title.replace(/"/g, '&quot;')}" title="${hasExport ? 'View exported markdown' : 'No offline version available'}">
+        <button class="view-offline-btn ${hasExport ? '' : 'no-export'}" data-chat-id="${esc(chat.id)}" data-title="${esc(chat.title)}" title="${hasExport ? 'View exported markdown' : 'No offline version available'}">
           ${hasExport ? 'VIEW OFFLINE' : 'NO EXPORT'}
         </button>
-        <button class="view-chat-btn" data-url="${chat.url}" title="Open chat on Claude">
+        <button class="view-chat-btn" data-url="${safeUrl(chat.url)}" title="Open chat on Claude">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
             <polyline points="15 3 21 3 21 9"/>
@@ -253,16 +236,16 @@ function renderChatList() {
         </button>
       </div>
       <div class="chat-item-content">
-        <div class="chat-item-title">${chat.title}</div>
-        ${chat.snippet ? `<div class="chat-item-snippet">${chat.snippet}</div>` : ''}
+        <div class="chat-item-title">${esc(chat.title)}</div>
+        ${chat.snippet ? `<div class="chat-item-snippet">${esc(chat.snippet)}</div>` : ''}
         ${chat.tags && chat.tags.length ? `
           <div class="chat-item-tags">
-            ${chat.tags.slice(0, 3).map(tag => `<span class="chat-tag">#${tag}</span>`).join('')}
+            ${chat.tags.slice(0, 3).map(tag => `<span class="chat-tag">#${esc(tag)}</span>`).join('')}
           </div>
         ` : ''}
       </div>
       <div class="chat-item-actions">
-        <div class="chat-item-date">${chat.relativeDate || formatRelativeDate(chat.date)}</div>
+        <div class="chat-item-date">${esc(chat.relativeDate || formatRelativeDate(chat.date))}</div>
       </div>
     </div>
   `}).join('');
@@ -310,29 +293,41 @@ function generateExportFilename(chatId, title) {
   return `${prefix}_${safeName}.md`;
 }
 
-// Open the markdown file in a viewer - tries to fetch from chats/ folder
+// Open the chat markdown in a viewer. Prefers content embedded in data.js so it
+// works when index.html is opened directly from disk (file://), where fetching
+// the chats/*.md files is blocked by the browser. Falls back to fetch when the
+// library is served over http.
 async function openMarkdownViewer(chatId, chatTitle) {
-  const filename = generateExportFilename(chatId, chatTitle);
-  
-  try {
-    const response = await fetch(`chats/${filename}`);
-    if (response.ok) {
-      const content = await response.text();
-      const viewerWindow = window.open('', '_blank');
-      viewerWindow.document.write(renderMarkdownAsHtml(chatTitle, content));
-      viewerWindow.document.close();
-    } else {
-      alert('File not found: chats/' + filename);
+  let content = null;
+
+  const embedded = (typeof claudeFoldersData !== 'undefined') && claudeFoldersData.content;
+  if (embedded && embedded[chatId]) {
+    content = embedded[chatId];
+  } else {
+    try {
+      const filename = generateExportFilename(chatId, chatTitle);
+      const response = await fetch(`chats/${filename}`);
+      if (response.ok) content = await response.text();
+    } catch (e) {
+      console.log('Fetch fallback failed:', e.message);
     }
-  } catch (e) {
-    alert('Could not load file: ' + e.message);
   }
+
+  if (!content) {
+    alert('No offline copy of this chat yet.\n\nOpen the extension and run a sync / Build Library to export it.');
+    return;
+  }
+
+  const viewerWindow = window.open('', '_blank');
+  viewerWindow.document.write(renderMarkdownAsHtml(chatTitle, content));
+  viewerWindow.document.close();
 }
 
 // Render markdown content as styled HTML
 function renderMarkdownAsHtml(title, markdown) {
-  // Basic markdown to HTML conversion
-  let html = markdown
+  const safeTitle = esc(title);
+  // Escape first so raw HTML inside the chat can't execute, then format markdown
+  let html = esc(markdown)
     .replace(/^### (.*$)/gim, '<h3>$1</h3>')
     .replace(/^## (.*$)/gim, '<h2>$1</h2>')
     .replace(/^# (.*$)/gim, '<h1>$1</h1>')
@@ -347,7 +342,7 @@ function renderMarkdownAsHtml(title, markdown) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${title} - Offline View</title>
+  <title>${safeTitle} - Offline View</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -397,7 +392,7 @@ function renderMarkdownAsHtml(title, markdown) {
 <body>
   <div class="header-bar">
     <span>📄 Offline View</span>
-    <span>${title}</span>
+    <span>${safeTitle}</span>
   </div>
   <div class="content">
     <p>${html}</p>
@@ -411,8 +406,8 @@ function renderRecentChats() {
   const recent = allChats.slice(0, 50);
   
   recentList.innerHTML = recent.map(chat => `
-    <a href="${chat.url}" target="_blank" class="recent-item" title="${chat.title}">
-      ${chat.title}
+    <a href="${safeUrl(chat.url)}" target="_blank" class="recent-item" title="${esc(chat.title)}">
+      ${esc(chat.title)}
     </a>
   `).join('');
 }
@@ -596,6 +591,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('searchInput').addEventListener('input', (e) => {
     searchTerm = e.target.value;
     renderFolderList();
+  });
+
+  // In-folder chat search (bound once; openFolder just resets its value)
+  document.getElementById('chatSearchInput')?.addEventListener('input', (e) => {
+    chatSearchTerm = e.target.value;
+    renderChatList();
   });
   
   document.getElementById('backBtn')?.addEventListener('click', () => {
