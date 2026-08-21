@@ -8,19 +8,7 @@
 
 A Chrome extension that adds folder organization, markdown export, and offline viewing to Claude.ai conversations. All data stays on your computer - no cloud sync, no accounts, complete privacy.
 
-## What's new in 1.1.x
-
-This release fixes the sidebar icon and reworks how syncing and the offline library behave so re-importing is no longer destructive.
-
-- **Folders icon fixed** so the sidebar entry renders its icon and full label instead of clipping to "olders", because the icon is now built with a fixed size rather than depending on Claude's cloned markup.
-- **The Folders row matches the native nav** (1.1.2) by keeping Claude's icon box and label layout, so it lines up with the other items and hides its label when the sidebar collapses, and the flyout panel now opens flush against the sidebar edge whether it is expanded or collapsed.
-- **Sync now auto-scrolls** the recents list to the bottom so it captures every conversation, replacing the old reliance on a "Show more" button that Claude no longer shows.
-- **Re-syncing checks for updates and duplicates** so an existing chat is refreshed in place (title and date) and only genuinely new chats are added, which means a chat is never duplicated across folders.
-- **Re-organizing merges instead of clobbering** so applying a new set from Claude reuses folders by name, keeps chats you already filed, reassigns where the new rules match, and leaves untouched chats where they are.
-- **The offline library is directly usable** through a one-click "Build Library" button in the Organizer that embeds each exported chat into `data.js`, so "View Offline" works even when you open `index.html` straight from disk.
-- **Library files refresh automatically** on every save, so fixes reach an already-set-up data folder without you clearing it out and re-selecting it.
-- **Switching Claude profiles/orgs no longer breaks export**, because the active organization id is re-read live instead of being cached once.
-- **Syncing to disk no longer throws or depends on the popup** (1.1.1), because disk writes now run in the always-available offscreen document instead of being messaged to a popup that is usually closed, which is what produced the `syncToDisk is not defined` and "Could not establish connection" errors.
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Summary
 
@@ -29,7 +17,8 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - **📁 Folder Organization** - Create folders, assign categories, organize hundreds of chats
 - **📝 Markdown Export** - Automatically export conversations to `.md` files with full content
 - **👁️ Offline Viewing** - Read your exported conversations without internet access
-- **🔄 Passive Sync** - Monitors for new chats and notifies when 30+ are ready to import
+- **🔄 Passive Sync** - Monitors for new chats and shows a sync bar as soon as one is ready to import
+- **📚 Full Account Import** - Reads every organization your login can reach, not just the active one, and not just the visible rows
 - **📊 Analytics** - View category distribution and folder statistics
 - **💾 Local Storage** - All data stored in a folder you choose on your computer
 - **🎨 Native Feel** - UI integrates seamlessly with Claude.ai's design
@@ -58,7 +47,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 
 ### Passive Chat Monitor
 - Automatically detects new conversations in the sidebar
-- Shows notification when 30+ new chats are available
+- Shows a sync bar as soon as a new chat is available
 - One-click sync to import all new chats
 - Smart skip logic - only imports chats not already in folders
 
@@ -95,10 +84,10 @@ Or download and extract the ZIP file.
 
 ### Step 4: Import Your Chats
 
-1. Navigate to https://claude.ai/recents
+1. Open any Claude.ai page
 2. Click the extension icon
 3. Click **Sync from Recents**
-4. Wait for scraping and export to complete
+4. Wait for the conversation list to read and the exports to finish
 5. Open the Organizer to view and organize your chats
 
 ## Usage
@@ -142,7 +131,7 @@ Or download and extract the ZIP file.
 
 **Automatic (Passive Monitor):**
 - Extension watches for new chats in Claude.ai sidebar
-- Orange notification appears when 30+ new chats detected
+- Orange bar appears once a new chat is detected
 - Click **Sync Now** to import
 
 **Manual:**
@@ -156,7 +145,9 @@ All data is stored locally in the folder you selected:
 
 ```
 Your-Data-Folder/
-├── folders.json         # Folder definitions and chat assignments
+├── data.json            # Active account's folder definitions and chat assignments
+├── data.<account>.json  # One file per signed-in account, so accounts sharing a folder stay separate
+├── data.js              # Same data for the standalone offline viewer
 ├── chats/               # Exported markdown files
 │   ├── a1b2c3d4_Chat_Title_Here.md
 │   ├── e5f6g7h8_Another_Chat.md
@@ -246,8 +237,9 @@ Claude's response here...
 
 ### Chats not syncing
 - Check that you're logged into Claude.ai
-- Navigate to https://claude.ai/recents before syncing (it should do this automatically)
+- One login can carry several organizations. The sync reads every one it can, and the console lists them with a count each, so a total lower than you expect shows which organization is short
 - Look for errors in the browser console (F12)
+- A message about reading the page instead of the API means the conversation list request failed, and that run only covers the rows Claude had loaded
 
 ### Export showing "empty chats"
 - Some conversations may have no messages (opened but never used)
@@ -264,7 +256,16 @@ Claude's response here...
 claude-folders-extension/
 ├── manifest.json          # Extension configuration
 ├── background.js          # Service worker, message handling
-├── content-script.js      # Injects into claude.ai pages
+├── content/               # Content script parts, loaded in manifest order
+│   ├── cf-state.js        # Shared state, escaping, account keys
+│   ├── cf-core.js         # Startup, pending work, data load
+│   ├── cf-styles.js       # Injected stylesheet
+│   ├── cf-sidebar.js      # Sidebar row and folders panel
+│   ├── cf-chat.js         # Per-chat controls and folder picker
+│   ├── cf-organize.js     # Categorization and analytics
+│   ├── cf-sync.js         # Conversation collection and sync
+│   ├── cf-monitor.js      # New-chat monitor
+│   └── cf-boot.js         # Entry point
 ├── inject.css             # Styles for injected UI
 ├── offscreen.html/js      # File system operations
 ├── lib/

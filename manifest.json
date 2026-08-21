@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Claude Folders",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Organize your Claude conversations into folders",
   "permissions": [
     "storage",
@@ -16,9 +16,24 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://claude.ai/*"],
-      "js": ["lib/chat-exporter.js", "content-script.js"],
-      "css": ["inject.css"],
+      "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "lib/chat-exporter.js",
+        "content/cf-state.js",
+        "content/cf-core.js",
+        "content/cf-styles.js",
+        "content/cf-sidebar.js",
+        "content/cf-chat.js",
+        "content/cf-organize.js",
+        "content/cf-sync.js",
+        "content/cf-monitor.js",
+        "content/cf-boot.js"
+      ],
+      "css": [
+        "inject.css"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -37,8 +52,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["organizer/*", "lib/*", "standalone/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "organizer/*",
+        "lib/*",
+        "standalone/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

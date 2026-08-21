@@ -16,6 +16,10 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+.claude-folders-btn.in-header {
+  margin-left: 0;
+}
+
 .claude-folders-btn:hover {
   background: #4d4d4a;
 }

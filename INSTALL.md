@@ -42,12 +42,12 @@ Your-Data-Folder/
 2. Click **Sync** button (orange icon)
 3. Select **Quick** tab
 4. Click **"Auto-Import from Claude.ai"**
-5. Extension opens claude.ai/recents and scrapes all visible chats
+5. Extension reads the full conversation list from your account
 6. Wait for completion notification
 
 ### Passive Monitor
 - Extension automatically detects new chats as you browse Claude.ai
-- Orange notification appears when 30+ new chats detected
+- Orange bar appears once a new chat is detected
 - Click **"Sync Now"** to import them
 
 ## Step 4: Organize with AI
@@ -205,14 +205,12 @@ All data stored in `data.json`:
 ### Chats Not Appearing
 - Click Sync button to import
 - Check you're logged into Claude.ai
-- Navigate to claude.ai/recents first
 - Look in browser console for errors
 
 ### Sync Not Working
 - Refresh Claude.ai page
 - Re-enable extension
 - Check console for errors
-- Try manual scrape from recents page
 
 ### Export Fails
 - Check folder permissions

@@ -145,6 +145,9 @@ async function handleMessage(message, sender, sendResponse) {
         }
         currentAccountKey = key;
         cachedData = data;
+        // The offscreen writer has no page context, so the key it needs to name
+        // this account's data file is persisted here
+        await chrome.storage.local.set({ activeAccountKey: key });
         console.log('[BG] Account', key, '-', countChatsIn(cachedData), 'chats');
         await persist();
         await broadcastDataUpdated();
@@ -300,7 +303,8 @@ async function handleMessage(message, sender, sendResponse) {
           const exportResponse = await chrome.runtime.sendMessage({
             action: 'offscreenExportChatById',
             chatId: message.chatId,
-            chatTitle: message.chatTitle
+            chatTitle: message.chatTitle,
+            orgId: message.orgId
           });
           sendResponse(exportResponse || { success: false, error: 'No response from offscreen' });
         } catch (e) {
@@ -325,6 +329,19 @@ async function handleMessage(message, sender, sendResponse) {
         }
         break;
       
+      case 'listExports':
+        // One directory read for the whole sync, so checking 1,700 chats against
+        // disk costs a single message instead of one per chat
+        try {
+          await ensureOffscreen();
+          const listResponse = await chrome.runtime.sendMessage({ action: 'offscreenListExports' });
+          sendResponse(listResponse || { success: false, files: [] });
+        } catch (e) {
+          console.log('[BG] listExports failed:', e.message);
+          sendResponse({ success: false, files: [], error: e.message });
+        }
+        break;
+
       case 'checkExportExists':
         // Check if an exported chat file exists
         try {
@@ -348,14 +365,15 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ success: true });
         break;
         
-      case 'startAutoScrape':
-        const existingTabs = await chrome.tabs.query({ url: 'https://claude.ai/recents' });
-        let tab;
-        if (existingTabs.length > 0) {
-          tab = existingTabs[0];
-          await chrome.tabs.update(tab.id, { active: true });
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
+      case 'startAutoScrape': {
+        // Sync no longer needs the recents page, so any open Claude tab is used
+        // and the active one is preferred. A new tab is created only when Claude
+        // is not open at all, which is what used to force a second recents tab
+        // and a fresh scroll every time.
+        const claudeTabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
+        let tab = claudeTabs.find(t => t.active) || claudeTabs[0];
+
+        if (!tab) {
           tab = await chrome.tabs.create({ url: 'https://claude.ai/recents', active: true });
           await new Promise((resolve) => {
             const listener = (tabId, info) => {
@@ -368,25 +386,28 @@ async function handleMessage(message, sender, sendResponse) {
             setTimeout(resolve, 15000);
           });
           await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          console.log('[BG] Reusing the open Claude tab', tab.id, 'for this sync');
         }
-        
+
         let retries = 5;
         while (retries > 0) {
           try {
             await chrome.tabs.sendMessage(tab.id, { action: 'startScrape' });
-            sendResponse({ success: true });
+            sendResponse({ success: true, reusedTab: claudeTabs.length > 0 });
             return;
           } catch (error) {
             retries--;
             if (retries > 0) {
               await new Promise(resolve => setTimeout(resolve, 2000));
             } else {
-              sendResponse({ success: false, error: 'Content script not ready. Refresh claude.ai/recents and try again.' });
+              sendResponse({ success: false, error: 'The Claude tab did not answer. Reload claude.ai and try again.' });
             }
           }
         }
         break;
-        
+      }
+
       default:
         sendResponse({ error: 'Unknown action: ' + message.action });
     }

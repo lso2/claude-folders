@@ -9,7 +9,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.action === 'offscreenExportChatById') {
-    handleExportChatById(message.chatId, message.chatTitle)
+    handleExportChatById(message.chatId, message.chatTitle, message.orgId)
       .then(result => sendResponse(result))
       .catch(e => sendResponse({ success: false, error: e.message }));
     return true;
@@ -26,6 +26,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleCheckExportExists(message.chatId, message.chatTitle)
       .then(result => sendResponse(result))
       .catch(e => sendResponse({ success: false, exists: false }));
+    return true;
+  }
+
+  if (message.action === 'offscreenListExports') {
+    listExportedChats()
+      .then(files => sendResponse({ success: true, files }))
+      .catch(e => sendResponse({ success: false, files: [], error: e.message }));
     return true;
   }
 
@@ -70,19 +77,22 @@ async function getOrgId() {
   return null;
 }
 
-async function handleExportChatById(chatId, chatTitle) {
+async function handleExportChatById(chatId, chatTitle, ownerOrgId) {
   try {
-    const orgId = await getOrgId();
+    const orgId = ownerOrgId || await getOrgId();
     if (!orgId) {
       throw new Error('No active org id - open claude.ai and sync once first');
     }
-    // Fetch the chat conversation from Claude API
+    // A conversation is only visible under the organization that owns it, so a
+    // chat from another organization on the same login answers 404 here
     const response = await fetch(`https://claude.ai/api/organizations/${orgId}/chat_conversations/${chatId}?tree=True&rendering_mode=messages&render_all_tools=true`, {
       credentials: 'include'
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(response.status === 404
+        ? `not found under organization ${String(orgId).slice(-6)}`
+        : `HTTP ${response.status}`);
     }
     
     const data = await response.json();
