@@ -109,7 +109,7 @@ async function exportChatsToMarkdown(scope) {
   const progressCurrent = document.getElementById('exportProgressCurrent');
 
   // Filenames start with the chat id prefix, which survives a rename
-  const onDisk = new Set((await listExportedChats()).map(name => String(name).slice(0, 8).toLowerCase()));
+  const onDisk = new Set((await listExportedChats()).map(exportPrefixOfFilename).filter(Boolean));
   const files = [];
   const reasons = new Map();
   const exportedIds = [];
@@ -123,7 +123,7 @@ async function exportChatsToMarkdown(scope) {
     progressText.textContent = `Exporting... ${i + 1} / ${chatsToExport.length}`;
     progressCurrent.textContent = chat.title || 'Untitled';
 
-    if (onDisk.has(String(chat.id || '').slice(0, 8).toLowerCase())) {
+    if (onDisk.has(exportIdPrefix(chat.id).toLowerCase())) {
       skippedCount++;
       continue;
     }

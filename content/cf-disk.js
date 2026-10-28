@@ -1,8 +1,9 @@
 // content/cf-disk.js
 // Sends export files to the background writer and asks for folder access when it is missing.
-// Globals: cfWriteExport, cfSaveExport, cfQueueExport, cfCheckWriteAccess, cfPromptFolderAccess,
-//          cfReportSave
-// Depends on: lib/storage-keys.js, content/cf-notify.js, content/cf-export.js (markChatAsExported)
+// Globals: cfWriteExport, cfSaveExport, cfQueueExport, cfCheckWriteAccess, cfFolderAccessAction,
+//          cfPromptFolderAccess, cfReportSave
+// Depends on: lib/storage-keys.js, lib/folder-picker.js, content/cf-notify.js,
+//             content/cf-export-records.js (markChatAsExported)
 // Notes: docs/notes/content/cf-disk.js.md
 
 // One write through the offscreen writer, returning its { success, code, error } as given
@@ -68,17 +69,30 @@ async function cfCheckWriteAccess() {
   return { ok: true, folderName: res.folderName };
 }
 
+// The message and button for a missing folder or permission, shared by the notice and the sync bar.
+// A browser without the folder picker gets the flag page, since no folder can be chosen there.
+function cfFolderAccessAction(code, folderName, permission) {
+  if (code === 'no-folder' && !cfFolderPickerAvailable()) {
+    return {
+      message: CF_PICKER_MISSING + (cfPickerFlagAvailable() ? ' ' + CF_PICKER_FLAG_HINT : ''),
+      label: cfPickerFlagAvailable() ? 'Open flag' : null,
+      run: () => cfOpenPickerFlag()
+    };
+  }
+  const noFolder = code === 'no-folder';
+  return {
+    message: noFolder
+      ? 'No data folder is selected for exports.'
+      : `Saving exports needs access to the "${folderName || 'data'}" folder (permission: ${permission || 'unknown'}).`,
+    label: noFolder ? 'Choose folder' : 'Grant access',
+    run: () => chrome.runtime.sendMessage({ action: 'openFolderAccess' }).catch(() => {})
+  };
+}
+
 // Chrome only re-grants folder access from a click inside an extension page
 function cfPromptFolderAccess(code, folderName, permission) {
-  const noFolder = code === 'no-folder';
-  const message = noFolder
-    ? 'No data folder is selected for exports.'
-    : `Saving exports needs access to the "${folderName || 'data'}" folder (permission: ${permission || 'unknown'}).`;
-  cfNotifyAction('access', message, [{
-    label: noFolder ? 'Choose folder' : 'Grant access',
-    primary: true,
-    onClick: () => chrome.runtime.sendMessage({ action: 'openFolderAccess' }).catch(() => {})
-  }]);
+  const action = cfFolderAccessAction(code, folderName, permission);
+  cfNotifyAction('access', action.message, action.label ? [{ label: action.label, primary: true, onClick: action.run }] : []);
 }
 
 function cfReportSave(outcome) {

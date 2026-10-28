@@ -2,6 +2,81 @@
 
 All notable changes to Claude Folders.
 
+## 1.3.10
+
+- Importing Cowork chats asks for data folder access when it is missing.
+- Fixed folder requests made while the offscreen writer is starting.
+
+## 1.3.9
+
+**Cowork sessions**
+
+- Cowork exports from another account can be imported as Cowork tasks.
+- Imported Cowork tasks keep their original titles and are filed in an Imported Cowork chats folder.
+- Exports of the account's own sessions and of tasks made by an earlier import are never offered for import.
+- Removed the Share button from Cowork pages.
+
+**Other**
+
+- The import buttons use the gray of the Add to folder button.
+- Fixed read errors in the organizer's offline view.
+
+## 1.3.8
+
+- Fixed shared-chat imports and Cowork copies on Claude's current new-chat page.
+
+## 1.3.7
+
+**Cowork sessions**
+
+- Cowork sessions can be exported to markdown from their page.
+- Syncing stores Cowork sessions in the folders and exports them with the chats.
+- New Cowork sessions are counted in the sync bar.
+- Cowork sessions can be shared through a chat copy.
+- Cowork exports are named with the whole session id.
+- Cowork rows in the folders panel have a Cowork label.
+
+**Other**
+
+- Organizing with Claude keeps each chat's organization, update time and import source.
+- Export filenames in the offline viewer are built by the extension's own helpers.
+
+## 1.3.6
+
+- The orange import button appears above the shared chats in a project's Activity tab whenever others shared chats there.
+- With every shared chat already imported, the button offers to import them again.
+- Open claude.ai tabs are reloaded after an update.
+- Fixed data syncs written through the offscreen writer.
+
+## 1.3.5
+
+**Exporting**
+
+- Only the chats being exported are counted in export progress, after one check against the files on disk.
+- Chats already on disk are marked exported in one storage write.
+- Stored chats from organizations this login cannot read are counted separately and not fetched.
+
+**Syncing**
+
+- Syncing needs a writable data folder.
+- The sync bar shows the folder state and an access button while access is missing.
+- A sync requested without access is started once access is granted.
+
+**Brave**
+
+- In a browser without window.showDirectoryPicker, folder selection shows the reason, and Brave has an Open flag button for the file-system-access-api flag.
+
+**Importing shared chats**
+
+- An orange import button appears above the shared chats in a project's Activity tab when some are not imported yet.
+- Removed the Import Shared Chats button from the Folders panel.
+- The share page's Import button is orange.
+
+**Accounts**
+
+- Only the active account's data file is read from the data folder.
+- A new account has empty folders when another account already has its own.
+
 ## 1.3.4
 
 - Missing chats are counted as "not found on the account" in export and sync summaries.

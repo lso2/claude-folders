@@ -1,7 +1,8 @@
 // content/cf-composer.js
-// Drives Claude's message composer: picks the Chat surface, attaches a file, types and sends.
-// Globals: CF_COMPOSER, cfSleep, cfWaitFor, cfComposerReady, cfSelectChatSurface, cfAttachFile,
-//          cfInsertPrompt, cfSendWhenReady, cfWaitForNewChat, cfWaitForReplyDone
+// Drives Claude's message composer on /new for an import run.
+// Globals: CF_COMPOSER, cfSleep, cfWaitFor, cfComposerReady, cfSelectSurface, cfAttachFile,
+//          cfInsertPrompt, cfSendWhenReady, cfWaitForNewConversation, cfWaitForReplyDone
+// Depends on: content/cf-text.js (cfStripGlyphs)
 // Notes: docs/notes/content/cf-composer.js.md
 
 // Selectors measured on claude.ai's /new page; see the notes for the measurement
@@ -30,23 +31,25 @@ async function cfWaitFor(check, timeoutMs, intervalMs) {
   return null;
 }
 
+// Ready means the input and the file input are on the page. The send button is
+// waited for later, in cfSendWhenReady.
 async function cfComposerReady(timeoutMs) {
   return cfWaitFor(() => {
     const input = document.querySelector(CF_COMPOSER.input);
     const file = document.querySelector(CF_COMPOSER.file);
-    const send = document.querySelector(CF_COMPOSER.send);
-    return input && file && send ? { input, file, send } : null;
+    return input && file ? { input, file } : null;
   }, timeoutMs, 300);
 }
 
-// The composer offers Chat and Cowork; an imported transcript belongs in a chat
-function cfSelectChatSurface() {
+// The composer's Surface group has Chat and Cowork. A page without the group
+// counts as the Chat surface.
+function cfSelectSurface(label) {
   const group = document.querySelector(CF_COMPOSER.surface);
-  if (!group) return true;
-  const chatRadio = Array.from(group.querySelectorAll('[role="radio"]'))
-    .find(el => cfStripGlyphs(el.textContent).toLowerCase() === 'chat');
-  if (!chatRadio) return false;
-  if (chatRadio.getAttribute('aria-checked') !== 'true') chatRadio.click();
+  if (!group) return label === 'chat';
+  const radio = Array.from(group.querySelectorAll('[role="radio"]'))
+    .find(el => cfStripGlyphs(el.textContent).toLowerCase() === label);
+  if (!radio) return false;
+  if (radio.getAttribute('aria-checked') !== 'true') radio.click();
   return true;
 }
 
@@ -78,10 +81,11 @@ async function cfSendWhenReady(timeoutMs) {
   return true;
 }
 
-// The page address is /chat/<id> once the conversation exists
-async function cfWaitForNewChat(timeoutMs) {
+// The page address is /chat/<uuid> once a chat exists and /cowork/<id> once a Cowork task does
+async function cfWaitForNewConversation(timeoutMs) {
   return cfWaitFor(() => {
-    const match = window.location.pathname.match(/^\/chat\/([0-9a-f-]{36})/i);
+    const path = window.location.pathname;
+    const match = path.match(/^\/chat\/([0-9a-f-]{36})/i) || path.match(/^\/cowork\/(cse_[A-Za-z0-9]+)/);
     return match ? match[1] : null;
   }, timeoutMs, 300);
 }

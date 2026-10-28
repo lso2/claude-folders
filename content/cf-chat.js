@@ -1,7 +1,7 @@
 // content/cf-chat.js
-// Places the Export, Import and Add to folder buttons on chat, Cowork and shared-chat pages.
-// Globals: CF_EXPORT_ICON, CF_IMPORT_ICON, CF_FOLDER_BTN_ICON, cfMakeButton, cfClearChatButtons,
-//          injectChatButton, cfInjectShareButtons
+// Places the extension's buttons on chat, Cowork and shared-chat pages.
+// Globals: CF_EXPORT_ICON, CF_IMPORT_ICON, CF_FOLDER_BTN_ICON, cfMakeButton,
+//          cfClearChatButtons, injectChatButton, cfInjectShareButtons
 // Depends on: content/cf-routes.js, content/cf-export.js, content/cf-picker.js,
 //             content/cf-import.js, inject.css (button styles)
 // Notes: docs/notes/content/cf-chat.js.md
@@ -60,15 +60,11 @@ function injectChatButton() {
   };
 
   const exportBtn = cfMakeButton('claude-folders-btn claude-export-btn' + (placeFirst ? ' in-header' : ''), CF_EXPORT_ICON, 'Export');
-  if (ref.kind === 'cowork') {
-    exportBtn.disabled = true;
-    exportBtn.title = 'Claude has no transcript endpoint for Cowork sessions';
-  } else {
-    exportBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await handleExportCurrentChat(exportBtn);
-    });
-  }
+  exportBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (ref.kind === 'cowork') await handleExportCoworkPage(exportBtn, ref.id);
+    else await handleExportCurrentChat(exportBtn);
+  });
 
   const folderBtn = cfMakeButton('claude-folders-btn' + (placeFirst ? ' in-header' : ''), CF_FOLDER_BTN_ICON, 'Add to folder');
   folderBtn.addEventListener('click', (e) => {
@@ -76,13 +72,10 @@ function injectChatButton() {
     showFolderPicker(folderBtn);
   });
 
-  if (placeFirst) {
-    place(folderBtn);
-    place(exportBtn);
-  } else {
-    place(exportBtn);
-    place(folderBtn);
-  }
+  const order = [exportBtn, folderBtn];
+  // With placeFirst, place() inserts each button at the front of the actions group
+  const placed = placeFirst ? order.slice().reverse() : order;
+  placed.forEach(place);
 }
 
 // Shared chat pages have no header. Their buttons sit in a fixed bar at the top right.

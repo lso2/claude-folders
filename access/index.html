@@ -13,6 +13,7 @@
     <div class="access-actions">
       <button class="access-btn" id="accessGrantBtn" hidden>Allow access</button>
       <button class="access-btn access-btn-light" id="accessChooseBtn" hidden>Choose folder</button>
+      <button class="access-btn" id="accessFlagBtn" hidden>Open flag</button>
     </div>
     <p class="access-result" id="accessResult" hidden></p>
     <p class="access-note">Chrome's folder prompt for this extension has only Allow and Block. Exports are saved while this window is open with access granted.</p>
@@ -20,11 +21,15 @@
   </main>
   <script src="../lib/apply-update.js"></script>
   <script src="../lib/chat-markdown.js"></script>
+  <script src="../lib/cowork-api.js"></script>
+  <script src="../lib/cowork-markdown.js"></script>
+  <script src="../lib/cowork-export.js"></script>
   <script src="../lib/storage-keys.js"></script>
   <script src="../lib/handle-storage.js"></script>
   <script src="../lib/data-file.js"></script>
   <script src="../lib/export-files.js"></script>
   <script src="../lib/folder-access.js"></script>
+  <script src="../lib/folder-picker.js"></script>
   <script src="../lib/folder-ops.js"></script>
   <script src="access.js"></script>
 </body>

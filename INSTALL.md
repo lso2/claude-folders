@@ -49,10 +49,17 @@ Your-Data-Folder/
 1. Open a chat someone shared with you (`claude.ai/share/...`)
 2. Click **Import** at the top right
 3. A new chat is opened with the transcript attached and a request for Claude to reconstruct it
-4. To import every chat shared with you in your projects, click **Folders** in Claude's sidebar, then **Import Shared Chats**
+4. To import every chat shared in a project, open the project's **Activity** tab and click the import button above the shared chats
+
+### Cowork Sessions
+1. Syncing stores your Cowork sessions in the folders with your chats and exports them to `chats/`
+2. On a Cowork session (`claude.ai/cowork/...`), click **Export** to save the whole session to `chats/`
+3. To move the sessions to another account, sign in to that account with the same data folder chosen and open **Chats and tasks**
+4. Click **Import N Cowork chats** above the list and confirm. Each session is started as a Cowork task with its export attached and a request for Claude to reconstruct it
+5. A button reading **Import Cowork chats** without a number means the data folder needs access first. Clicking it opens the access window, and the count appears once access is granted
 
 ### Passive Monitor
-- Extension automatically detects new chats as you browse Claude.ai
+- Extension automatically detects new chats and Cowork sessions as you browse Claude.ai
 - Orange bar appears once a new chat is detected
 - Click **"Sync Now"** to import them
 
@@ -235,7 +242,7 @@ All data stored in `data.json`:
 **Supported:**
 - ✅ Chrome 102+
 - ✅ Edge 102+
-- ✅ Brave 1.40+
+- ✅ Brave 1.40+ (with `brave://flags/#file-system-access-api` set to Enabled and Brave restarted)
 - ✅ Opera 88+
 
 **Not Supported:**

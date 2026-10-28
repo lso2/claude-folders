@@ -1,0 +1,677 @@
+/* inject.css
+   Styles every element the extension injects into claude.ai pages.
+   Notes: docs/notes/inject.css.md */
+
+.claude-folders-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-left: 12px;
+  background: #3d3d3a;
+  border: 1px solid #4d4d4a;
+  border-radius: 6px;
+  color: #e8e6e3;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.claude-folders-btn.in-header {
+  margin-left: 0;
+}
+
+.claude-folders-btn:hover {
+  background: #4d4d4a;
+}
+
+.claude-folders-btn svg {
+  color: #faf9f5;
+  flex-shrink: 0;
+}
+
+/* Folders Panel - flyout beside nav */
+.claude-folders-panel {
+  position: fixed;
+  left: 260px;
+  top: 0;
+  width: 280px;
+  height: 100vh;
+  background: #2a2a28;
+  border-right: 1px solid #3d3d3a;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 4px 0 12px rgba(0,0,0,0.3);
+  animation: slideInLeft 0.15s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.folders-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #3d3d3a;
+}
+
+.folders-panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: #e8e6e3;
+  font-weight: 500;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.panel-btn {
+  background: transparent;
+  border: none;
+  color: #9c9a92;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-size: 18px;
+}
+
+.panel-btn:hover {
+  background: #3d3d3a;
+  color: #e8e6e3;
+}
+
+.folders-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.folders-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #9c9a92;
+}
+
+.folders-empty p:first-child {
+  font-size: 14px;
+  color: #c2c0b5;
+  margin-bottom: 8px;
+}
+
+.folder-category-group {
+  margin-bottom: 8px;
+}
+
+.folder-category-header {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9c9a92;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.folder-panel-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.folder-panel-item:hover {
+  background: #3d3d3a;
+}
+
+.folder-panel-name {
+  flex: 1;
+  color: #e8e6e3;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-panel-count {
+  color: #9c9a92;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+/* Folder Picker Dropdown */
+.claude-folders-picker {
+  position: fixed;
+  background: #2a2a28;
+  border: 1px solid #3d3d3a;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 10001;
+  min-width: 280px;
+  max-height: 400px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.folders-picker-header {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #9c9a92;
+  border-bottom: 1px solid #3d3d3a;
+}
+
+.folder-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.folder-picker-item:hover {
+  background: #3d3d3a;
+}
+
+.folder-picker-item .folder-category {
+  font-size: 10px;
+  color: #9c9a92;
+  text-transform: uppercase;
+}
+
+.folder-picker-item .folder-name {
+  color: #e8e6e3;
+  font-size: 14px;
+}
+
+.folder-picker-divider {
+  height: 1px;
+  background: #3d3d3a;
+  margin: 8px 0;
+}
+
+.folder-picker-new {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.new-folder-input {
+  padding: 8px 12px;
+  background: #1a1a18;
+  border: 1px solid #3d3d3a;
+  border-radius: 6px;
+  color: #e8e6e3;
+  font-size: 13px;
+  outline: none;
+}
+
+.new-folder-input:focus {
+  border-color: #b87333;
+}
+
+.new-folder-select {
+  padding: 8px 12px;
+  background: #1a1a18;
+  border: 1px solid #3d3d3a;
+  border-radius: 6px;
+  color: #e8e6e3;
+  font-size: 13px;
+}
+
+.create-folder-btn {
+  padding: 8px 16px;
+  background: #b87333;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.create-folder-btn:hover {
+  background: #c98040;
+}
+
+/* Notifications */
+.claude-folders-notification {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #2a2a28;
+  border: 1px solid #3d3d3a;
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: #e8e6e3;
+  font-size: 14px;
+  z-index: 10002;
+  transition: transform 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.claude-folders-notification.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Toasts and notices are stacked in one column without overlap */
+.cf-notice-stack {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 10002;
+  pointer-events: none;
+}
+
+body:has(#cf-sync-progress) .cf-notice-stack,
+body:has(#claude-folders-sync-notification) .cf-notice-stack {
+  bottom: 84px;
+}
+
+.cf-notice-stack > .claude-folders-notification {
+  position: static;
+  transform: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+}
+
+.cf-notice-stack > .claude-folders-notification.show {
+  transform: none;
+  opacity: 1;
+}
+
+.claude-folders-notification.error {
+  border-color: #7f1d1d;
+  background: #7f1d1d;
+  color: #ffffff;
+}
+
+/* Scrollbar */
+.claude-folders-panel::-webkit-scrollbar,
+.claude-folders-picker::-webkit-scrollbar {
+  width: 8px;
+}
+
+.claude-folders-panel::-webkit-scrollbar-track,
+.claude-folders-picker::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.claude-folders-panel::-webkit-scrollbar-thumb,
+.claude-folders-picker::-webkit-scrollbar-thumb {
+  background: #64645f;
+  border-radius: 4px;
+}
+
+.claude-folders-panel::-webkit-scrollbar-thumb:hover,
+.claude-folders-picker::-webkit-scrollbar-thumb:hover {
+  background: #757570;
+}
+
+/* Export button specific styles */
+.claude-export-btn {
+  background: #2d4a3e;
+  border-color: #3d5a4e;
+}
+
+.claude-export-btn:hover {
+  background: #3d5a4e;
+}
+
+.claude-export-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Spin animation for loading */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.claude-folders-btn svg.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Exported badge */
+.chat-exported-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: #2d4a3e;
+  border-radius: 4px;
+  color: #7ac99b;
+  font-size: 10px;
+  margin-left: 8px;
+}
+
+/* Export progress modal */
+.export-progress-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+}
+
+.export-progress-content {
+  background: #2a2a28;
+  border: 1px solid #3d3d3a;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.export-progress-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #e8e6e3;
+  margin-bottom: 16px;
+}
+
+.export-progress-bar-container {
+  height: 8px;
+  background: #1a1a18;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.export-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #d97706, #b87333);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.export-progress-text {
+  font-size: 14px;
+  color: #9c9a92;
+  margin-bottom: 8px;
+}
+
+.export-progress-current {
+  font-size: 12px;
+  color: #7a786e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.export-cancel-btn {
+  margin-top: 16px;
+  padding: 8px 16px;
+  background: #3d3d3a;
+  border: none;
+  border-radius: 6px;
+  color: #e8e6e3;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.export-cancel-btn:hover {
+  background: #4d4d4a;
+}
+
+/* Folder export button in panel */
+.folder-export-btn {
+  background: transparent;
+  border: none;
+  color: #7a786e;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: auto;
+  margin-right: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.folder-panel-item:hover .folder-export-btn {
+  opacity: 1;
+}
+
+.folder-export-btn:hover {
+  background: #3d5a4e;
+  color: #7ac99b;
+}
+
+.folder-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.folder-export-btn svg.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Panel Organizer Orange Button */
+.panel-organizer-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.panel-organizer-btn:hover {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  transform: translateY(-1px);
+}
+
+.panel-organizer-btn svg {
+  fill: white;
+}
+
+/* Shared chat page: Export and Import sit in a fixed bar at the top right */
+.cf-share-actions {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 10000;
+}
+
+/* Notices with buttons stay until one is clicked */
+.claude-folders-notification.cf-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(680px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 10px 12px 10px 18px;
+}
+
+.cf-notice-text {
+  flex: 1 1 auto;
+  line-height: 1.4;
+}
+
+.cf-notice-btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #f5f4ef;
+  color: #1f1e1d;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cf-notice-btn:hover {
+  background: #e8e6dc;
+}
+
+.cf-notice-btn-primary {
+  background: #c2410c;
+  color: #ffffff;
+}
+
+.cf-notice-btn-primary:hover {
+  background: #9a3412;
+}
+
+.cf-notice-close {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  color: #e8e6e3;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* In-page confirmation */
+.cf-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100001;
+}
+
+.cf-confirm-box {
+  width: min(440px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid #3d3d3a;
+  border-radius: 12px;
+  background: #2a2a28;
+  color: #e8e6e3;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.cf-confirm-title {
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cf-confirm-body {
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d6d4cb;
+}
+
+.cf-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cf-confirm-cancel,
+.cf-confirm-ok {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cf-confirm-cancel {
+  background: #f5f4ef;
+  color: #1f1e1d;
+}
+
+.cf-confirm-ok {
+  background: #c2410c;
+  color: #ffffff;
+}
+
+.cf-confirm-ok:hover {
+  background: #9a3412;
+}
+
+/* Import buttons above a project's shared chats and above the Chats and tasks list.
+   They use the palette of .claude-folders-btn. */
+.cf-project-import,
+.cf-cowork-import {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.cf-cowork-import {
+  margin: 0 0 12px;
+}
+
+.cf-project-import button,
+.cf-cowork-import button {
+  padding: 8px 16px;
+  border: 1px solid #4d4d4a;
+  border-radius: 8px;
+  background: #3d3d3a;
+  color: #e8e6e3;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cf-project-import button:hover,
+.cf-cowork-import button:hover {
+  background: #4d4d4a;
+}

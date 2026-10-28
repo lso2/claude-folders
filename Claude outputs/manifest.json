@@ -1,0 +1,96 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Folders",
+  "version": "1.3.9",
+  "description": "Organize your Claude conversations into folders",
+  "permissions": [
+    "storage",
+    "tabs",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://claude.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "lib/chat-markdown.js",
+        "lib/cowork-api.js",
+        "lib/cowork-markdown.js",
+        "lib/cowork-export.js",
+        "lib/chat-exporter.js",
+        "lib/share-snapshots.js",
+        "lib/storage-keys.js",
+        "lib/folder-picker.js",
+        "content/cf-state.js",
+        "content/cf-text.js",
+        "content/cf-routes.js",
+        "content/cf-account.js",
+        "content/cf-notify.js",
+        "content/cf-data.js",
+        "content/cf-account-info.js",
+        "content/cf-pending.js",
+        "content/cf-styles.js",
+        "content/cf-org-filter.js",
+        "content/cf-sidebar.js",
+        "content/cf-panel.js",
+        "content/cf-chat.js",
+        "content/cf-picker.js",
+        "content/cf-url-watch.js",
+        "content/cf-export-records.js",
+        "content/cf-disk.js",
+        "content/cf-export.js",
+        "content/cf-export-run.js",
+        "content/cf-export-messages.js",
+        "content/cf-organize.js",
+        "content/cf-panel-analytics.js",
+        "content/cf-cowork-sync.js",
+        "content/cf-sync.js",
+        "content/cf-sync-summary.js",
+        "content/cf-monitor.js",
+        "content/cf-composer.js",
+        "content/cf-import-registry.js",
+        "content/cf-import.js",
+        "content/cf-cowork-import.js",
+        "content/cf-project-import.js",
+        "content/cf-core.js",
+        "content/cf-boot.js"
+      ],
+      "css": [
+        "inject.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "organizer/*",
+        "lib/*",
+        "standalone/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

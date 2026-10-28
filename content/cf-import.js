@@ -1,18 +1,18 @@
 // content/cf-import.js
-// Imports shared chats as new chats: exports each transcript, attaches it on /new and asks Claude to reconstruct it.
+// Imports each queued shared chat or Cowork export into this account with its transcript attached.
 // Globals: CF_IMPORT_OWNER_KEY, CF_REPLY_WAIT_MS, cfImportOwnerToken, cfLoadImportQueue,
-//          cfSaveImportQueue, cfImportPrompt, cfImportSharePage, cfImportAllShared,
-//          cfStartImportRun, cfResumeImport, cfRunImportStep, cfRenameImportedChat,
-//          cfFinishImportStep, cfAdvanceImport, cfFinishImportRun
-// Depends on: lib/share-snapshots.js, lib/chat-markdown.js, content/cf-composer.js,
-//             content/cf-import-registry.js, content/cf-disk.js, content/cf-notify.js,
-//             content/cf-sync.js (cfHeldChatIds)
+//          cfSaveImportQueue, cfImportPrompt, cfImportSourceId, cfShareImportSource,
+//          cfImportSource, cfImportSharePage, cfStartImportRun, cfResumeImport, cfRunImportStep,
+//          cfRenameImportedChat, cfFinishImportStep, cfAdvanceImport, cfFinishImportRun
+// Depends on: lib/share-snapshots.js, lib/chat-markdown.js, lib/cowork-api.js, content/cf-composer.js,
+//             content/cf-import-registry.js, content/cf-cowork-import.js, content/cf-disk.js,
+//             content/cf-notify.js
 // Notes: docs/notes/content/cf-import.js.md
 
 // A run is resumed only in the tab whose sessionStorage has this token
 const CF_IMPORT_OWNER_KEY = 'cf-import-owner';
 
-// Longest wait for Claude's reply before the run moves to the next shared chat
+// Longest wait for Claude's reply before the run's next item is started
 const CF_REPLY_WAIT_MS = 5 * 60 * 1000;
 
 function cfImportOwnerToken(create) {
@@ -43,6 +43,40 @@ function cfImportPrompt(item, snapshot) {
     'Reconstruct it here as our working context. Summarize what was asked and what was concluded, ' +
     'list the key facts, decisions and open questions, and keep any code, documents or drafts from it intact. ' +
     'Then treat that conversation as ours and continue from where it ended.';
+}
+
+// The key an import is recorded under: the snapshot id or the Cowork session id
+function cfImportSourceId(item) {
+  return item.kind === 'cowork' ? item.sessionId : item.snapshotId;
+}
+
+// A shared chat is exported and attached as the same file, and its copy is filed in
+// a folder named for the project it was shared in
+async function cfShareImportSource(item) {
+  const snapshot = await fetchSnapshot(item.orgId, item.snapshotId);
+  const markdown = snapshotToMarkdown(snapshot, item.projectName);
+  return {
+    sourceId: item.snapshotId,
+    surface: 'chat',
+    filename: generateExportFilename(item.snapshotId, snapshot.snapshot_name || item.title),
+    exportMarkdown: markdown,
+    attachMarkdown: markdown,
+    prompt: cfImportPrompt(item, snapshot),
+    importedFrom: {
+      snapshotId: item.snapshotId,
+      conversationId: snapshot.conversation_uuid || null,
+      sharedBy: item.creatorName,
+      projectId: item.projectId,
+      projectName: item.projectName
+    },
+    folderId: 'shared-' + (item.projectId || 'links'),
+    folderName: item.projectName || 'Shared links',
+    category: 'Shared'
+  };
+}
+
+async function cfImportSource(item) {
+  return item.kind === 'cowork' ? cfCoworkImportSource(item) : cfShareImportSource(item);
 }
 
 // The Import button on a /share/ page
@@ -82,51 +116,6 @@ async function cfImportSharePage(btn, snapshotId) {
   }
 }
 
-// The panel's Import Shared Chats button: every chat shared into the user's projects
-async function cfImportAllShared() {
-  showNotification('Looking for chats shared with you...');
-  try {
-    const orgId = await window.chatExporter.getActiveOrganizationId();
-    const ownId = await fetchAccountUuid();
-    const listing = await listSharedChats(orgId);
-    listing.failures.forEach(reason => console.log('[IMPORT] Project activity could not be read:', reason));
-
-    const candidates = listing.shares.filter(s => !ownId || s.creatorId !== ownId);
-    if (!candidates.length) {
-      showNotification(`No chats are shared with you in your ${listing.projectsRead} projects.`);
-      return;
-    }
-    await cfReconcileImported(orgId, candidates);
-    const imported = await cfLoadImported();
-    // Imports recorded before 1.3.1 filed their chats can still be missing from the folders
-    const held = cfHeldChatIds();
-    for (const share of candidates) {
-      const entry = imported[share.snapshotId];
-      if (entry && entry.chatId && !held.has(entry.chatId)) {
-        await cfFileReconciledChat(share, { uuid: entry.chatId, name: entry.title, created_at: entry.importedAt || entry.recordedAt });
-      }
-    }
-    const todo = candidates.filter(s => !imported[s.snapshotId]);
-    if (!todo.length) {
-      showNotification(`All ${candidates.length} shared chats are already imported.`);
-      return;
-    }
-
-    const n = todo.length;
-    const confirmed = await cfConfirm(
-      `Import ${n} shared chat${n === 1 ? '' : 's'}?`,
-      `Each one is opened as a new chat in your account with its transcript attached and a request to reconstruct it. ` +
-      (n === 1 ? '1 message will be sent. ' : `${n} messages will be sent one at a time. `) +
-      `${candidates.length - n} already imported.` +
-      (listing.failures.length ? ` Activity could not be read for ${listing.failures.length} project${listing.failures.length === 1 ? '' : 's'}.` : ''),
-      `Import ${n}`
-    );
-    if (confirmed) await cfStartImportRun(todo);
-  } catch (e) {
-    showNotification('Could not list shared chats: ' + e.message, true);
-  }
-}
-
 async function cfStartImportRun(items) {
   const queue = {
     owner: cfImportOwnerToken(true),
@@ -154,14 +143,15 @@ async function cfResumeImport() {
     else window.location.assign('/new');
     return;
   }
-  if (queue.stage === 'sent' && path === `/chat/${queue.chatId}`) {
+  if (queue.stage === 'sent' && (path === `/chat/${queue.chatId}` || path === `/cowork/${queue.chatId}`)) {
     await cfFinishImportStep(queue);
     return;
   }
   // A reload mid-send leaves the message's fate unknown. The item is recorded as
   // interrupted and never sent twice.
   if (queue.stage === 'sending') {
-    queue.results.push({ snapshotId: queue.items[queue.index].snapshotId, title: queue.items[queue.index].title, error: 'the page was reloaded while the message was being sent' });
+    const item = queue.items[queue.index];
+    queue.results.push({ sourceId: cfImportSourceId(item), title: item.title, error: 'the page was reloaded while the message was being sent' });
   }
   await cfAdvanceImport(queue);
 }
@@ -172,39 +162,40 @@ async function cfRunImportStep(queue) {
   syncInProgress = true;
   showSyncProgressBar(`Importing ${position}: ${item.title}`);
   try {
-    const snapshot = await fetchSnapshot(item.orgId, item.snapshotId);
-    const markdown = snapshotToMarkdown(snapshot, item.projectName);
-    const filename = generateExportFilename(item.snapshotId, snapshot.snapshot_name || item.title);
-    await cfSaveExport(filename, markdown, null);
+    const source = await cfImportSource(item);
+    // A shared chat is saved to the data folder first. A Cowork export is already there.
+    if (source.exportMarkdown) await cfSaveExport(source.filename, source.exportMarkdown, null);
 
+    const surfaceName = source.surface === 'cowork' ? 'Cowork' : 'Chat';
     let composer = await cfComposerReady(30000);
     if (!composer) throw new Error('the message composer did not appear within 30 seconds');
-    if (!cfSelectChatSurface()) throw new Error('the Chat option was not found in the composer');
+    if (!cfSelectSurface(source.surface)) throw new Error(`the ${surfaceName} option was not found in the composer`);
     composer = await cfComposerReady(10000);
-    if (!composer) throw new Error('the message composer disappeared after choosing Chat');
-    if (!await cfAttachFile(composer.file, filename, markdown)) throw new Error('no attachment thumbnail appeared within 20 seconds');
-    if (!cfInsertPrompt(composer.input, cfImportPrompt(item, snapshot))) throw new Error('the request could not be typed into the composer');
+    if (!composer) throw new Error(`the message composer disappeared after choosing ${surfaceName}`);
+    if (!await cfAttachFile(composer.file, source.filename, source.attachMarkdown)) throw new Error('no attachment thumbnail appeared within 20 seconds');
+    if (!cfInsertPrompt(composer.input, source.prompt)) throw new Error('the request could not be typed into the composer');
 
     queue.stage = 'sending';
     await cfSaveImportQueue(queue);
     if (!await cfSendWhenReady(60000)) throw new Error('the send button was missing or disabled for 60 seconds');
-    const chatId = await cfWaitForNewChat(60000);
-    if (!chatId) throw new Error('the page address did not change to a new chat within 60 seconds of sending');
+    const chatId = await cfWaitForNewConversation(60000);
+    if (!chatId) throw new Error('the page address did not change to a new chat or Cowork task within 60 seconds of sending');
+    const cowork = isCoworkSessionId(chatId);
 
     queue.stage = 'sent';
     queue.chatId = chatId;
     await cfSaveImportQueue(queue);
     const now = new Date().toISOString();
-    await cfRecordImported(item.snapshotId, { chatId, title: item.title, via: 'import', importedAt: now });
+    await cfRecordImported(source.sourceId, { chatId, title: item.title, via: 'import', importedAt: now });
     await chrome.runtime.sendMessage({
       action: 'fileImportedChat',
-      folderId: 'shared-' + (item.projectId || 'links'),
-      folderName: item.projectName || 'Shared links',
-      category: 'Shared',
+      folderId: source.folderId,
+      folderName: source.folderName,
+      category: source.category,
       chat: {
         id: chatId,
         title: item.title,
-        url: `https://claude.ai/chat/${chatId}`,
+        url: cowork ? coworkSessionUrl(chatId) : `https://claude.ai/chat/${chatId}`,
         date: now.split('T')[0],
         updatedAt: now,
         relativeDate: 'Just now',
@@ -213,28 +204,22 @@ async function cfRunImportStep(queue) {
         starred: false,
         orgId: item.orgId,
         orgName: null,
-        tags: ['imported'],
-        importedFrom: {
-          snapshotId: item.snapshotId,
-          conversationId: snapshot.conversation_uuid || null,
-          sharedBy: item.creatorName,
-          projectId: item.projectId,
-          projectName: item.projectName
-        }
+        tags: cowork ? ['cowork', 'imported'] : ['imported'],
+        importedFrom: source.importedFrom
       }
     });
-    queue.results.push({ snapshotId: item.snapshotId, title: item.title, chatId });
+    queue.results.push({ sourceId: source.sourceId, title: item.title, chatId });
     await cfSaveImportQueue(queue);
     await cfFinishImportStep(queue);
   } catch (e) {
     console.log('[IMPORT]', item.title, '-', e.message);
-    queue.results.push({ snapshotId: item.snapshotId, title: item.title, error: e.message });
+    queue.results.push({ sourceId: cfImportSourceId(item), title: item.title, error: e.message });
     await cfAdvanceImport(queue);
   }
 }
 
-// Claude titles a new chat from its first exchange. The import waits for that title
-// to land, then replaces it with the shared chat's own title.
+// Claude titles a new chat from its first exchange. The import waits until that title
+// is in the conversation list, then replaces it with the shared chat's own title.
 async function cfRenameImportedChat(orgId, chatId, title) {
   for (let i = 0; i < 20; i++) {
     const res = await fetch(`/api/organizations/${orgId}/chat_conversations?limit=20&offset=0`);
@@ -252,14 +237,19 @@ async function cfRenameImportedChat(orgId, chatId, title) {
   return put.ok;
 }
 
-// The next import starts only after Claude finishes replying in this one
+// The next import is started only after Claude's reply in this one is finished. A Cowork
+// task's turn is read from its event log, a chat's from the page.
 async function cfFinishImportStep(queue) {
   const item = queue.items[queue.index];
+  const cowork = isCoworkSessionId(queue.chatId);
   showSyncProgressBar(`Waiting for Claude's reply to ${item.title}`);
-  const done = await cfWaitForReplyDone(CF_REPLY_WAIT_MS);
+  const done = cowork
+    ? await cfWaitForCoworkTurn(queue.chatId, item.orgId, CF_REPLY_WAIT_MS)
+    : await cfWaitForReplyDone(CF_REPLY_WAIT_MS);
   if (!done) console.log('[IMPORT] Reply still running after', CF_REPLY_WAIT_MS / 60000, 'minutes; moving on');
   try {
-    await cfRenameImportedChat(item.orgId, queue.chatId, item.title);
+    if (cowork) await renameCoworkSession(queue.chatId, item.title, item.orgId);
+    else await cfRenameImportedChat(item.orgId, queue.chatId, item.title);
   } catch (e) {
     console.log('[IMPORT] Could not rename', queue.chatId, '-', e.message);
   }
@@ -286,9 +276,13 @@ async function cfFinishImportRun(queue) {
   const failed = queue.results.filter(r => r.error);
   failed.forEach(r => console.log('[IMPORT] Not imported:', r.title, '-', r.error));
   const total = queue.items.length;
-  let message = total === 1 && done.length === 1
-    ? `Imported "${done[0].title}" as a new chat.`
-    : `Imported ${done.length} of ${total} shared chats.`;
+  const cowork = queue.items.every(item => item.kind === 'cowork');
+  let message;
+  if (total === 1 && done.length === 1) {
+    message = cowork ? `Imported "${done[0].title}" as a Cowork task.` : `Imported "${done[0].title}" as a new chat.`;
+  } else {
+    message = cowork ? `Imported ${done.length} of ${total} Cowork chats.` : `Imported ${done.length} of ${total} shared chats.`;
+  }
   if (failed.length) message += ` ${failed.length} failed: ${failed[0].title}: ${failed[0].error}`;
   cfNotifyAction('import', message, [], failed.length > 0);
 }

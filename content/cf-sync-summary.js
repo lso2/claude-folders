@@ -4,12 +4,13 @@
 // Depends on: content/cf-text.js (cfEscapeHtml)
 // Notes: docs/notes/content/cf-sync-summary.js.md
 
-function showSyncSuccessModal(totalChats, scannedTotal, outcome, orgSummaries) {
+function showSyncSuccessModal(totalChats, scannedTotal, outcome, orgSummaries, coworkCount) {
   const result = outcome || { exported: 0, skipped: 0, empty: 0, unavailable: 0, failed: 0, reasons: new Map(), aborted: null };
   const exportSuccess = result.exported;
   const exportSkipped = result.skipped;
   const exportEmpty = result.empty;
   const exportUnavailable = result.unavailable;
+  const exportOtherOrgs = result.otherOrgs || 0;
   const exportFail = result.failed;
   const failureReasons = result.reasons;
   // Claude's list page shows only the active organization. The breakdown names each one.
@@ -72,6 +73,11 @@ function showSyncSuccessModal(totalChats, scannedTotal, outcome, orgSummaries) {
           <div style="margin-bottom: 8px;">
             <span style="color: #10b981; font-weight: 600;">${totalChats}</span> new chats imported${scannedTotal ? ` of ${scannedTotal}${orgLines.length > 1 ? ` across ${orgLines.length} organizations` : ' on the account'}` : ''}
           </div>
+          ${coworkCount > 0 ? `
+            <div style="margin-bottom: 8px; color: #9c9a92;">
+              ${coworkCount} Cowork session${coworkCount === 1 ? '' : 's'} in that total
+            </div>
+          ` : ''}
           <div style="margin-bottom: 8px;">
             <span style="color: #10b981; font-weight: 600;">${exportSuccess}</span> exported to markdown
           </div>
@@ -88,6 +94,11 @@ function showSyncSuccessModal(totalChats, scannedTotal, outcome, orgSummaries) {
           ${exportUnavailable > 0 ? `
             <div style="margin-bottom: 8px; color: #9c9a92;">
               ${exportUnavailable} not found on the account
+            </div>
+          ` : ''}
+          ${exportOtherOrgs > 0 ? `
+            <div style="margin-bottom: 8px; color: #9c9a92;">
+              ${exportOtherOrgs} in organizations this login cannot read
             </div>
           ` : ''}
           ${exportFail > 0 ? `

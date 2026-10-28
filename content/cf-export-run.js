@@ -1,19 +1,19 @@
 // content/cf-export-run.js
 // Exports a list of stored chats to the data folder for folder, popup and sync exports.
-// Globals: cfLoadExportedPrefixes, cfOrgIdFor, cfExportChatList, cfDescribeExportOutcome,
-//          cfRunExportWithModal, handleFolderExport
-// Depends on: lib/chat-exporter.js, content/cf-disk.js, content/cf-export.js,
-//             content/cf-notify.js, inject.css (export progress modal)
+// Globals: cfLoadExportedPrefixes, cfOrgIdFor, cfReadableOrgIds, cfExportChatList,
+//          cfDescribeExportOutcome, cfRunExportWithModal, handleFolderExport
+// Depends on: lib/chat-markdown.js (exportIdPrefix, exportPrefixOfFilename), lib/chat-exporter.js,
+//             content/cf-disk.js, content/cf-export-records.js, content/cf-notify.js, inject.css
 // Notes: docs/notes/content/cf-export-run.js.md
 
-// The 8-character id prefix in each filename is unchanged when a chat is renamed
+// The id prefix in each filename is unchanged when a chat is renamed
 async function cfLoadExportedPrefixes() {
   const prefixes = new Set();
   try {
     const response = await chrome.runtime.sendMessage({ action: 'listExports' });
     (response?.files || []).forEach(name => {
-      const match = String(name).match(/^([a-f0-9]{8})_/i);
-      if (match) prefixes.add(match[1].toLowerCase());
+      const prefix = exportPrefixOfFilename(name);
+      if (prefix) prefixes.add(prefix);
     });
     console.log('[EXPORT] Found', prefixes.size, 'chats already exported to disk');
   } catch (e) {
@@ -29,12 +29,25 @@ function cfOrgIdFor(chat) {
   return (stored && stored.orgId) || null;
 }
 
-// Write access is checked before the first fetch. A permission error during the run
-// stops it, leaving the remaining chats untouched for the next run.
+// The organizations this login can read. Null turns the organization filter off.
+async function cfReadableOrgIds() {
+  try {
+    const orgs = await window.chatExporter.listAccessibleOrganizations();
+    return orgs.length ? new Set(orgs.map(org => org.id)) : null;
+  } catch (e) {
+    console.log('[EXPORT] Could not list organizations:', e.message);
+    return null;
+  }
+}
+
+// Write access is checked before the first fetch. Chats already on disk, recorded as
+// missing, or stored with an organization this login cannot read are counted before
+// any export, and progress covers only the chats being exported. A permission error
+// during the run stops it, leaving the remaining chats for the next run.
 async function cfExportChatList(chats, options) {
   const opts = options || {};
   const outcome = {
-    total: chats.length, exported: 0, skipped: 0, empty: 0, unavailable: 0, failed: 0,
+    total: chats.length, exported: 0, skipped: 0, empty: 0, unavailable: 0, otherOrgs: 0, failed: 0,
     reasons: new Map(), aborted: null, cancelled: false
   };
   const noteFailure = (reason) => {
@@ -54,33 +67,48 @@ async function cfExportChatList(chats, options) {
     return outcome;
   }
 
+  if (opts.onCheck) opts.onCheck(chats.length);
   const prefixes = opts.skipExisting === false ? new Set() : await cfLoadExportedPrefixes();
   const unavailable = await cfLoadUnavailableChats();
+  const readable = opts.readableOrgIds || await cfReadableOrgIds();
 
-  for (let i = 0; i < chats.length; i++) {
+  const toExport = [];
+  const onDisk = [];
+  for (const chat of chats) {
+    const chatId = String((chat && chat.id) || '');
+    if (chatId.length < 8) {
+      outcome.unavailable++;
+      await cfMarkChatUnavailable(String((chat && chat.title) || 'Untitled'), 'stored record has no id');
+      continue;
+    }
+    if (unavailable[chatId]) {
+      outcome.unavailable++;
+      continue;
+    }
+    if (readable && chat.orgId && !readable.has(chat.orgId)) {
+      outcome.otherOrgs++;
+      continue;
+    }
+    if (prefixes.has(exportIdPrefix(chatId).toLowerCase())) {
+      outcome.skipped++;
+      onDisk.push(chatId);
+      continue;
+    }
+    toExport.push(chat);
+  }
+  await cfMarkChatsExported(onDisk);
+  console.log('[EXPORT] Checked', chats.length, 'chats:', toExport.length, 'to export,', outcome.skipped, 'on disk,',
+    outcome.unavailable, 'missing,', outcome.otherOrgs, 'in organizations this login cannot read');
+
+  for (let i = 0; i < toExport.length; i++) {
     if (opts.isCancelled && opts.isCancelled()) {
       outcome.cancelled = true;
       break;
     }
-    const chat = chats[i] || {};
-    const chatId = String(chat.id || '');
+    const chat = toExport[i];
+    const chatId = String(chat.id);
     const chatTitle = String(chat.title || 'Untitled');
-    if (opts.onProgress) opts.onProgress(i + 1, chats.length, chat);
-
-    if (chatId.length < 8) {
-      outcome.unavailable++;
-      await cfMarkChatUnavailable(chatTitle, 'stored record has no id');
-      continue;
-    }
-    if (unavailable[chatId] || cfIsCoworkId(chatId)) {
-      outcome.unavailable++;
-      continue;
-    }
-    if (prefixes.has(chatId.substring(0, 8).toLowerCase())) {
-      outcome.skipped++;
-      await markChatAsExported(chatId);
-      continue;
-    }
+    if (opts.onProgress) opts.onProgress(i + 1, toExport.length, chat);
 
     try {
       const result = await window.chatExporter.exportChatById(chatId, chatTitle, cfOrgIdFor(chat));
@@ -88,7 +116,7 @@ async function cfExportChatList(chats, options) {
         const written = await cfWriteExport(result.filename, result.markdown);
         if (written.success) {
           outcome.exported++;
-          prefixes.add(chatId.substring(0, 8).toLowerCase());
+          prefixes.add(exportIdPrefix(chatId).toLowerCase());
           await markChatAsExported(chatId);
         } else if (written.code === 'no-folder' || written.code === 'permission') {
           outcome.aborted = written.error;
@@ -102,7 +130,7 @@ async function cfExportChatList(chats, options) {
         const reason = result.error || 'no markdown returned';
         if (/no messages/i.test(reason)) {
           outcome.empty++;
-        } else if (/in any of the \d+ readable organizations/i.test(reason)) {
+        } else if (/in any of the \d+ readable organizations|^Cowork endpoint returned 404/i.test(reason)) {
           outcome.unavailable++;
           await cfMarkChatUnavailable(chatId, reason);
         } else {
@@ -128,6 +156,7 @@ function cfDescribeExportOutcome(outcome) {
   if (outcome.skipped) parts.push(`${outcome.skipped} already on disk`);
   if (outcome.empty) parts.push(`${outcome.empty} empty`);
   if (outcome.unavailable) parts.push(`${outcome.unavailable} not found on the account`);
+  if (outcome.otherOrgs) parts.push(`${outcome.otherOrgs} in organizations this login cannot read`);
   if (outcome.failed) {
     const top = Array.from(outcome.reasons.entries()).sort((a, b) => b[1] - a[1])[0];
     parts.push(`${outcome.failed} failed${top ? ` (${top[0]})` : ''}`);
@@ -163,6 +192,9 @@ async function cfRunExportWithModal(chats, title) {
 
   const outcome = await cfExportChatList(chats, {
     isCancelled: () => cancelled,
+    onCheck: (count) => {
+      text.textContent = `Checking ${count} chat${count === 1 ? '' : 's'} against the files on disk...`;
+    },
     onProgress: (done, total, chat) => {
       bar.style.width = `${Math.round(done / total * 100)}%`;
       text.textContent = `Exporting ${done} of ${total}`;

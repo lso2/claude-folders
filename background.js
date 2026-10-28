@@ -1,15 +1,17 @@
 // background.js
 // Service worker that answers extension messages against the cached folder data.
-// Globals: cachedData, currentAccountKey, offscreenCreated, accessWindowId, writerPort,
+// Globals: cachedData, currentAccountKey, offscreenCreated, offscreenSetup, accessWindowId, writerPort,
 //          writerRequestId, acctKey, persist, broadcastDataUpdated, broadcastToClaudeTabs,
-//          countChatsInData, overlapRatioWithScraped, ensureOffscreen, askOffscreen,
+//          countChatsInData, overlapRatioWithScraped, ensureOffscreen, setUpOffscreen, askOffscreen,
 //          askWriterWindow, askFolderWorker, syncDataToDisk, openAccessWindow, fileImportedChat,
-//          loadCachedData, countBgChats, handleMessage
+//          reloadClaudeTabs, loadCachedData, countBgChats, handleMessage
 // Notes: docs/notes/background.js.md
 
 let cachedData = null;
 let currentAccountKey = null;
 let offscreenCreated = false;
+// The setup in progress. Concurrent folder requests share it.
+let offscreenSetup = null;
 let accessWindowId = null;
 let writerPort = null;
 let writerRequestId = 0;
@@ -55,8 +57,15 @@ function overlapRatioWithScraped(scrapedIds) {
   return overlap / haveIds.length;
 }
 
-// The offscreen document performs every data-folder write and Chrome can close it between calls
-async function ensureOffscreen() {
+// The offscreen document performs every data-folder write and Chrome can close it between calls.
+// While a new document is loading, hasDocument() is already true and its message listener is
+// not there yet. A second request waits for the first one's setup.
+function ensureOffscreen() {
+  if (!offscreenSetup) offscreenSetup = setUpOffscreen().finally(() => { offscreenSetup = null; });
+  return offscreenSetup;
+}
+
+async function setUpOffscreen() {
   try {
     if (await chrome.offscreen.hasDocument()) {
       offscreenCreated = true;
@@ -78,7 +87,7 @@ async function ensureOffscreen() {
 
 // Writes the cached data to the data folder
 async function syncDataToDisk() {
-  const response = await askFolderWorker({ action: 'folderSyncToDisk' }, { success: false });
+  const response = await askFolderWorker({ action: 'folderSyncToDisk', data: cachedData, accountKey: currentAccountKey }, { success: false });
   console.log('[BG] syncToDisk:', response?.success, response?.error || '');
   return response;
 }
@@ -184,6 +193,22 @@ async function fileImportedChat(chat, folderId, folderName, category) {
 chrome.runtime.onStartup.addListener(loadCachedData);
 chrome.runtime.onInstalled.addListener(loadCachedData);
 
+// A tab opened before an update keeps the old content scripts, cut off from the
+// extension, until it loads again. claude.ai restores the composer draft on reload.
+async function reloadClaudeTabs(details) {
+  if (!details || details.reason !== 'update') return;
+  const tabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
+  for (const tab of tabs) {
+    try {
+      await chrome.tabs.reload(tab.id);
+    } catch (e) {
+      console.log('[BG] Could not reload tab', tab.id, '-', e.message);
+    }
+  }
+  console.log('[BG] Updated to', chrome.runtime.getManifest().version + ':', 'reloaded', tabs.length, 'claude.ai tabs');
+}
+chrome.runtime.onInstalled.addListener(reloadClaudeTabs);
+
 async function loadCachedData() {
   try {
     const result = await chrome.storage.local.get('cachedData');
@@ -221,9 +246,7 @@ async function handleMessage(message, sender, sendResponse) {
     switch (message.action) {
 
       case 'setAccount': {
-        // Switch the active account. The panel must never go blank: if this
-        // account has no slot yet, fall back to the last working data (or the
-        // blob the earlier build stashed) so existing folders stay visible.
+        // Switch the active account. Each account gets only its own folders.
         const key = message.accountKey || 'default';
         if (key === currentAccountKey && cachedData && cachedData.folders && cachedData.folders.length) {
           sendResponse({ success: true }); break;
@@ -232,19 +255,13 @@ async function handleMessage(message, sender, sendResponse) {
         const slot = await chrome.storage.local.get(acctKey(key));
         let data = slot[acctKey(key)];
         if (!nonEmpty(data)) {
-          // Never blank: recover the richest dataset stored under any key (the
-          // active mirror, the old global cache, a stash, or a prior slot) so
-          // the earlier build's overwrite can't lose the user's folders.
+          // Folders saved before per-account slots existed go to the first account that signs in.
+          // Once another account has its own slot, a new account starts empty.
           const all = await chrome.storage.local.get(null);
-          let best = null, bestN = -1;
-          for (const [k, v] of Object.entries(all)) {
-            if (k === acctKey(key)) continue;
-            if (v && Array.isArray(v.folders)) {
-              const n = countChatsIn(v);
-              if (n > bestN) { bestN = n; best = v; }
-            }
-          }
-          data = nonEmpty(best) ? best : (data || { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} });
+          const otherAccounts = Object.keys(all).filter(k => k.startsWith('cfData_') && k !== acctKey(key) && k !== 'cfData_default' && nonEmpty(all[k]));
+          const legacy = nonEmpty(all.cfData_default) ? all.cfData_default : (nonEmpty(all.cachedData) ? all.cachedData : null);
+          data = !otherAccounts.length && legacy ? legacy : (data || { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} });
+          console.log('[BG] Account', key, 'has no folders yet:', otherAccounts.length ? `starting empty beside ${otherAccounts.length} other account slots` : (legacy ? 'adopting folders saved before account slots' : 'starting empty'));
         }
         currentAccountKey = key;
         cachedData = data;
@@ -399,6 +416,18 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ success: true });
         break;
 
+      case 'openFlagsPage': {
+        // Only a browser flag page; the URL itself comes from lib/folder-picker.js
+        const url = String(message.url || '');
+        if (!/^chrome:\/\/flags\/#[a-z0-9-]+$/.test(url)) {
+          sendResponse({ success: false, error: `not a flags page: ${url}` });
+          break;
+        }
+        const tab = await chrome.tabs.create({ url });
+        sendResponse({ success: true, tabId: tab.id });
+        break;
+      }
+
       case 'folderAccessChanged':
         // Sent by the access window once the folder can be written again
         await broadcastToClaudeTabs({ action: 'folderAccessChanged', written: message.written || 0, failed: message.failed || 0 });
@@ -421,6 +450,10 @@ async function handleMessage(message, sender, sendResponse) {
           { action: 'folderReadExport', chatId: message.chatId, chatTitle: message.chatTitle },
           { success: false }
         ));
+        break;
+
+      case 'readExportFile':
+        sendResponse(await askFolderWorker({ action: 'folderReadExportFile', filename: message.filename, maxBytes: message.maxBytes }, { success: false }));
         break;
 
       case 'listExports':

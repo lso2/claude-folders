@@ -1,7 +1,8 @@
 // content/cf-picker.js
 // Shows the folder picker for the open chat and files the chat into the chosen or new folder.
 // Globals: showFolderPicker, createFolderAndAssign, assignCurrentChatToFolder
-// Depends on: content/cf-routes.js, content/cf-data.js, content/cf-notify.js
+// Depends on: lib/cowork-api.js (isCoworkSessionId), content/cf-routes.js, content/cf-data.js,
+//             content/cf-notify.js
 // Notes: docs/notes/content/cf-picker.js.md
 
 function showFolderPicker(anchorElement) {
@@ -109,7 +110,7 @@ async function assignCurrentChatToFolder(folderId) {
         id: currentChatId,
         title: chatTitle,
         url: chatUrl,
-        tags: [],
+        tags: isCoworkSessionId(currentChatId) ? ['cowork'] : [],
         date: new Date().toISOString().split('T')[0],
         relativeDate: 'Today'
       },

@@ -3,8 +3,9 @@
 // Globals: cfRelativeToISODate, CF_SYNC_OVERLAP_DAYS, CF_SYNC_CLEAN_PAGES, cfParseChatLink,
 //          cfFindScroller, CF_MORE_CONTROL, cfIsOwnUi, cfAdvanceChatList, cfCollectChatsByScrolling,
 //          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCollectAllChats, scrapeAllChats,
-//          scrapeRecentsPage
-// Depends on: lib/chat-exporter.js, content/cf-export-run.js, content/cf-sync-summary.js
+//          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, scrapeRecentsPage
+// Depends on: lib/chat-exporter.js, content/cf-disk.js, content/cf-export-run.js,
+//             content/cf-sync-summary.js, content/cf-cowork-sync.js
 // Notes: docs/notes/content/cf-sync.js.md
 
 // Convert a relative label like "3 hours ago" / "Yesterday" to an ISO date
@@ -241,11 +242,16 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
         if (org.reachedEnd && org.oldestStamp) await cfWriteWatermark(org.id, org.oldestStamp);
       }
 
-      if (result.records.length) {
+      // Cowork sessions are listed in full on every sync, from the organizations read above
+      const cowork = await cfCollectCoworkSessions(result.orgs.filter(o => !o.error));
+      if (result.records.length || cowork.length) {
         const readToEnd = result.orgs.every(o => o.error || o.reachedEnd);
-        console.log('[SCRAPER] Collected', result.records.length, 'conversations across',
-          result.orgs.length, 'organizations,', result.accountTotal, 'on this login');
-        return { chats: result.records, source: 'api', stoppedEarly: !readToEnd, accountTotal: result.accountTotal, orgs: result.orgs };
+        console.log('[SCRAPER] Collected', result.records.length, 'conversations and', cowork.length, 'Cowork sessions across',
+          result.orgs.length, 'organizations,', result.accountTotal, 'conversations on this login');
+        return {
+          chats: result.records.concat(cowork), source: 'api', stoppedEarly: !readToEnd,
+          accountTotal: result.accountTotal, orgs: result.orgs, coworkCount: cowork.length
+        };
       }
       console.log('[SCRAPER] The list endpoint returned no conversations, reading the page instead');
     } catch (e) {
@@ -257,7 +263,7 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
   const scraped = await cfCollectChatsByScrolling(rootEl, (count) => {
     if (onProgress) onProgress(count, null, 'dom');
   });
-  return { chats: scraped, source: 'dom', stoppedEarly: false, accountTotal: null, orgs: null };
+  return { chats: scraped, source: 'dom', stoppedEarly: false, accountTotal: null, orgs: null, coworkCount: 0 };
 }
 
 async function scrapeAllChats() {
@@ -291,10 +297,42 @@ async function scrapeAllChats() {
   await loadData();
 }
 
+// A sync asked for while the data folder cannot be written is kept for this tab
+// and started by the folderAccessChanged broadcast
+const CF_SYNC_AFTER_ACCESS_KEY = 'cf-sync-after-access';
+
+function cfRememberSyncRequest(exportAllMissing, fullResync) {
+  sessionStorage.setItem(CF_SYNC_AFTER_ACCESS_KEY, JSON.stringify({ exportAllMissing: !!exportAllMissing, fullResync: !!fullResync }));
+}
+
+function cfTakeSyncRequest() {
+  const raw = sessionStorage.getItem(CF_SYNC_AFTER_ACCESS_KEY);
+  sessionStorage.removeItem(CF_SYNC_AFTER_ACCESS_KEY);
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Scrape specifically from the recents page (not sidebar)
 // exportAllMissing: true = check ALL chats for missing MD (popup manual sync)
 //                   false = only export newly scraped chats (passive 30 notification)
 async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
+  // A sync runs only with a writable data folder. A request made without one is
+  // kept and started once access is granted.
+  const access = await cfCheckWriteAccess();
+  if (!access.ok) {
+    cfRememberSyncRequest(exportAllMissing, fullResync);
+    console.log('[SCRAPER] Sync waiting for folder access:', access.error);
+    if (access.code === 'no-folder' || access.code === 'permission') {
+      cfPromptFolderAccess(access.code, access.folderName, access.permission);
+    } else {
+      showNotification('Sync stopped: ' + access.error, true);
+    }
+    return;
+  }
+
   // The API listing works from any Claude page, so the recents detour only
   // happens when the API is unavailable and the rendered list is the only source
   const apiAvailable = !!window.chatExporter?.listAllConversations;
@@ -335,7 +373,7 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
   // Fallback root for the page-reading path (never the sidebar)
   const mainContent = document.querySelector('main') || document.body;
 
-  const { chats: collected, source, stoppedEarly, accountTotal, orgs: orgSummaries } = await cfCollectAllChats(mainContent, (count, total) => {
+  const { chats: collected, source, stoppedEarly, accountTotal, orgs: orgSummaries, coworkCount } = await cfCollectAllChats(mainContent, (count, total) => {
     showSyncProgressBar(total ? `Reading ${count} of ${total} chats...` : `Reading... ${count} chats found`);
   }, fullResync);
   // scrapedChats = the genuinely new ones (used below for passive export + counts)
@@ -378,10 +416,18 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
     chatsToExport = scrapedChats;
   }
 
+  // The organizations this run read are the ones this login can export from
+  const readableOrgIds = orgSummaries && orgSummaries.some(org => !org.error)
+    ? new Set(orgSummaries.filter(org => !org.error).map(org => org.id))
+    : null;
+
   let outcome = null;
   if (chatsToExport.length > 0) {
-    showSyncProgressBar(`Checking ${chatsToExport.length} chats for missing exports...`);
     outcome = await cfExportChatList(chatsToExport, {
+      readableOrgIds,
+      onCheck: (count) => {
+        showSyncProgressBar(`Checking ${count} chat${count === 1 ? '' : 's'} against the files on disk...`);
+      },
       onProgress: (done, total, chat) => {
         showSyncProgressBar(`Exporting ${done} of ${total}: ${String(chat.title || 'Untitled').substring(0, 30)}`);
       }
@@ -391,5 +437,7 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
   // Mark sync complete
   syncInProgress = false;
   
-  showSyncSuccessModal(scrapedChats.length, accountTotal || collected.length, outcome, orgSummaries);
+  // The account total counts conversations; Cowork sessions are added to it
+  const chatTotal = accountTotal || (collected.length - coworkCount);
+  showSyncSuccessModal(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount);
 }

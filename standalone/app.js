@@ -1,7 +1,8 @@
 // standalone/app.js
 // Offline library viewer copied into the data folder, opened as index.html straight from disk.
 // Globals: folders, allChats, categories, metadata and the viewer's render functions
-// Depends on: data.js, written into the data folder by lib/data-file.js
+// Depends on: data.js and chat-markdown.js (generateExportFilename), which lib/data-file.js
+//             writes into the data folder beside it
 // Notes: docs/notes/standalone/app.js.md
 
 let folders = [];
@@ -279,23 +280,6 @@ function renderChatList() {
       if (url) window.open(url, '_blank');
     });
   });
-}
-
-// Sanitize filename - must match chat-exporter.js format
-function sanitizeFilename(name) {
-  return name
-    .replace(/[<>:"/\\|?*]/g, '-')
-    .replace(/\s+/g, '_')
-    .replace(/-+/g, '-')
-    .replace(/_+/g, '_')
-    .substring(0, 80)
-    .trim();
-}
-
-function generateExportFilename(chatId, title) {
-  const prefix = (chatId || 'unknown').substring(0, 8);
-  const safeName = sanitizeFilename(title || 'Untitled');
-  return `${prefix}_${safeName}.md`;
 }
 
 // Open the chat markdown in a viewer. Prefers content embedded in data.js so it

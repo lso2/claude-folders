@@ -103,6 +103,27 @@ body {
   background: var(--button-hover);
 }
 
+.setup-picker-note {
+  max-width: 300px;
+  margin: 8px 0 12px;
+  line-height: 1.5;
+}
+
+.btn-orange {
+  padding: 10px 24px;
+  background: #d97706;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-orange:hover {
+  background: #b45309;
+}
+
 /* Main Screen */
 .popup-header {
   display: flex;

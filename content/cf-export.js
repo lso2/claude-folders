@@ -1,9 +1,9 @@
 // content/cf-export.js
-// Exports the chat or shared chat open in this tab and records each chat's export outcome.
-// Globals: CF_SPIN_ICON, cfSetButtonBusy, handleExportCurrentChat, cfShareProjectName,
-//          handleExportSharePage, markChatAsExported, cfMarkChatUnavailable, cfLoadUnavailableChats
+// Exports the chat, shared chat or Cowork session open in this tab.
+// Globals: CF_SPIN_ICON, cfSetButtonBusy, handleExportCurrentChat, handleExportCoworkPage,
+//          cfShareProjectName, handleExportSharePage
 // Depends on: lib/chat-exporter.js, lib/share-snapshots.js, lib/chat-markdown.js,
-//             lib/storage-keys.js, content/cf-disk.js, content/cf-notify.js
+//             lib/cowork-export.js, content/cf-disk.js, content/cf-notify.js
 // Notes: docs/notes/content/cf-export.js.md
 
 const CF_SPIN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
@@ -39,6 +39,25 @@ async function handleExportCurrentChat(btn) {
   }
 }
 
+// The page belongs to the active organization, which the Cowork endpoints are asked for.
+// With no title passed, the export reads the session's own title.
+async function handleExportCoworkPage(btn, sessionId) {
+  const restore = cfSetButtonBusy(btn, 'Exporting...');
+  try {
+    const orgId = await window.chatExporter.getActiveOrganizationId();
+    const result = await exportCoworkSession(sessionId, null, orgId);
+    if (!result.success) {
+      showNotification('Export failed: ' + result.error, true);
+      return;
+    }
+    cfReportSave(await cfSaveExport(result.filename, result.markdown, sessionId));
+  } catch (e) {
+    showNotification('Export failed: ' + e.message, true);
+  } finally {
+    restore();
+  }
+}
+
 // The project a snapshot was shared into, named for the export header
 async function cfShareProjectName(orgId, projectId) {
   if (!projectId) return '';
@@ -64,40 +83,5 @@ async function handleExportSharePage(btn, snapshotId) {
     showNotification('Export failed: ' + e.message, true);
   } finally {
     restore();
-  }
-}
-
-async function markChatAsExported(chatId) {
-  try {
-    const result = await chrome.storage.local.get(EXPORTED_CHATS_KEY);
-    const exported = result[EXPORTED_CHATS_KEY] || {};
-    exported[chatId] = new Date().toISOString();
-    await chrome.storage.local.set({ [EXPORTED_CHATS_KEY]: exported });
-  } catch (e) {
-    console.log('[EXPORT] Failed to mark as exported:', e.message);
-  }
-}
-
-// Chats missing from the account are recorded once and reported as their own outcome
-async function cfMarkChatUnavailable(chatId, reason) {
-  if (!chatId) return;
-  try {
-    const result = await chrome.storage.local.get('unavailableChats');
-    const unavailable = result.unavailableChats || {};
-    if (!unavailable[chatId]) {
-      unavailable[chatId] = { reason: String(reason || 'unavailable'), since: new Date().toISOString() };
-      await chrome.storage.local.set({ unavailableChats: unavailable });
-    }
-  } catch (e) {
-    console.log('[EXPORT] Could not record an unavailable chat:', e.message);
-  }
-}
-
-async function cfLoadUnavailableChats() {
-  try {
-    const result = await chrome.storage.local.get('unavailableChats');
-    return result.unavailableChats || {};
-  } catch (e) {
-    return {};
   }
 }

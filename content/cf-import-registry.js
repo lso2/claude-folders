@@ -1,8 +1,9 @@
 // content/cf-import-registry.js
 // Remembers which shared chats were imported into this account and finds imports done elsewhere.
 // Globals: CF_RECONCILE_LIMIT, cfLoadImported, cfRecordImported, cfAttachedSnapshotPrefixes,
-//          cfFileReconciledChat, cfReconcileImported
-// Depends on: content/cf-account.js (cfImportedKey), lib/chat-exporter.js
+//          cfFileReconciledChat, cfFileUnfiledImports, cfReconcileImported
+// Depends on: content/cf-account.js (cfImportedKey), content/cf-sync.js (cfHeldChatIds),
+//             lib/chat-exporter.js
 // Notes: docs/notes/content/cf-import-registry.js.md
 
 // Most conversations read while looking for imports this browser has no record of
@@ -62,6 +63,17 @@ async function cfFileReconciledChat(share, convo) {
     });
   } catch (e) {
     console.log('[IMPORT] Could not file', convo.uuid, '-', e.message);
+  }
+}
+
+// An import recorded with a chat that is missing from every folder is filed in its project folder
+async function cfFileUnfiledImports(shares, imported) {
+  const held = cfHeldChatIds();
+  for (const share of shares) {
+    const entry = imported[share.snapshotId];
+    if (entry && entry.chatId && !held.has(entry.chatId)) {
+      await cfFileReconciledChat(share, { uuid: entry.chatId, name: entry.title, created_at: entry.importedAt || entry.recordedAt });
+    }
   }
 }
 

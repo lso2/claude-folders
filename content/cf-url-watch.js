@@ -2,7 +2,7 @@
 // Watches Claude's single-page navigation and puts the injected rows and buttons back after re-renders.
 // Globals: observeUrlChanges
 // Depends on: content/cf-routes.js, content/cf-data.js, content/cf-chat.js,
-//             content/cf-sidebar.js
+//             content/cf-sidebar.js, content/cf-project-import.js, content/cf-cowork-import.js
 // Notes: docs/notes/content/cf-url-watch.js.md
 
 function observeUrlChanges() {
@@ -34,6 +34,8 @@ function observeUrlChanges() {
       if (cfOnConversationPage() && !document.querySelector('.claude-folders-btn')) {
         injectChatButton();
       }
+      cfCheckProjectImport();
+      cfCheckCoworkImport();
     });
   };
 

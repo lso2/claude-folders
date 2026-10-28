@@ -1,8 +1,8 @@
 // content/cf-panel.js
 // Renders the folders flyout panel beside Claude's sidebar and wires its controls.
-// Globals: toggleFoldersPanel, closePanelOnOutsideClick, renderPanelContent
-// Depends on: content/cf-state.js, content/cf-text.js, content/cf-org-filter.js,
-//             content/cf-organize.js, content/cf-export-run.js, content/cf-import.js
+// Globals: toggleFoldersPanel, closePanelOnOutsideClick, cfCoworkTag, renderPanelContent
+// Depends on: lib/cowork-api.js, content/cf-state.js, content/cf-text.js, content/cf-org-filter.js,
+//             content/cf-organize.js, content/cf-export-run.js
 // Notes: docs/notes/content/cf-panel.js.md
 
 function toggleFoldersPanel() {
@@ -50,6 +50,11 @@ function closePanelOnOutsideClick(e) {
     panelExpanded = false;
     document.removeEventListener('click', closePanelOnOutsideClick);
   }
+}
+
+// Rows for Cowork sessions carry a Cowork label
+function cfCoworkTag(chat) {
+  return chat && isCoworkSessionId(chat.id) ? '<span class="folder-chat-org">Cowork</span>' : '';
 }
 
 function renderPanelContent(panel) {
@@ -111,12 +116,6 @@ function renderPanelContent(panel) {
         </svg>
         Apply Claude's Response
       </button>
-      <button class="import-shared-btn" id="importSharedBtn" title="Open every chat shared with you in your projects as a new chat in your account">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
-        </svg>
-        Import Shared Chats
-      </button>
     </div>
     ${cfRenderOrgFilter()}
     <div class="folders-panel-content">
@@ -160,7 +159,7 @@ function renderPanelContent(panel) {
           <div class="folder-chats-list" data-folder-id="${cfEscapeHtml(folder.id)}" data-shown="10" style="display:none;">
             ${shown.slice(0, 10).map(chat => `
               <a href="${cfSafeUrl(chat.url)}" target="_blank" class="folder-chat-link" title="${cfEscapeHtml(chat.title)}">
-                ${cfOrgTag(chat)}${cfEscapeHtml(chat.title)}
+                ${cfCoworkTag(chat)}${cfOrgTag(chat)}${cfEscapeHtml(chat.title)}
               </a>
             `).join('')}
             ${chatCount > 10 ? `<button class="folder-load-more-btn" data-folder-id="${cfEscapeHtml(folder.id)}">Load +${chatCount - 10} more</button>` : ''}
@@ -223,10 +222,6 @@ function renderPanelContent(panel) {
     showApplyCategoriesModal();
   });
 
-  panel.querySelector('#importSharedBtn')?.addEventListener('click', () => {
-    cfImportAllShared();
-  });
-  
   // The setup actions start open; the gear collapses them for more list room
   const toggleSetupBtn = panel.querySelector('.toggle-setup-btn');
   const panelActions = panel.querySelector('.folders-panel-actions');
@@ -289,7 +284,7 @@ function renderPanelContent(panel) {
     const remaining = visible.length - newShown;
     let html = visible.slice(0, newShown).map(chat => `
       <a href="${cfSafeUrl(chat.url)}" target="_blank" class="folder-chat-link" title="${cfEscapeHtml(chat.title)}">
-        ${cfOrgTag(chat)}${cfEscapeHtml(chat.title)}
+        ${cfCoworkTag(chat)}${cfOrgTag(chat)}${cfEscapeHtml(chat.title)}
       </a>
     `).join('');
 

@@ -7,15 +7,14 @@
 // Opens an exported chat from the data folder in a new tab
 async function openMarkdownViewer(chatId, chatTitle) {
   const filename = generateExportFilename(chatId, chatTitle);
-  const content = await readExportFile(filename);
-  
-  if (content) {
-    const viewerWindow = window.open('', '_blank');
-    viewerWindow.document.write(renderMarkdownAsHtml(chatTitle, content));
-    viewerWindow.document.close();
-  } else {
-    alert('File not found: ' + filename);
+  const result = await readExportFileChecked(filename);
+  if (!result.success) {
+    alert(`${filename} could not be read: ${result.error}`);
+    return;
   }
+  const viewerWindow = window.open('', '_blank');
+  viewerWindow.document.write(renderMarkdownAsHtml(chatTitle, result.content));
+  viewerWindow.document.close();
 }
 
 // Render markdown content as styled HTML

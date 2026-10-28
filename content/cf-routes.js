@@ -1,6 +1,6 @@
 // content/cf-routes.js
 // Identifies which Claude page is open and reads the open conversation's title.
-// Globals: cfConversationRef, cfOnConversationPage, cfIsCoworkId, cfCurrentChatTitle
+// Globals: cfConversationRef, cfOnConversationPage, cfCurrentChatTitle
 // Depends on: content/cf-text.js (cfStripGlyphs), lib/share-snapshots.js (shareIdFromPath)
 // Notes: docs/notes/content/cf-routes.js.md
 
@@ -21,16 +21,13 @@ function cfOnConversationPage() {
   return !!cfConversationRef();
 }
 
-// A Cowork session has no conversation endpoint, so its transcript cannot be fetched
-function cfIsCoworkId(id) {
-  return /^cse_/i.test(String(id || ''));
-}
-
-// The header's title control, then an h1, then the document title without Claude's suffix
+// The header's title control, then an h1, then the document title without Claude's suffix.
+// A Cowork title control also holds the linked computer's status after its h2.
 function cfCurrentChatTitle() {
   const split = document.querySelector('[data-testid="chat-title-split"]')
     || document.querySelector('[data-testid="session-title-split"]');
-  const fromHeader = cfStripGlyphs(split && split.textContent);
+  const titleEl = split && (split.querySelector('h2') || split);
+  const fromHeader = cfStripGlyphs(titleEl && titleEl.textContent);
   if (fromHeader) return fromHeader;
 
   const heading = document.querySelector('h1');

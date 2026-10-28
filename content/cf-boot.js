@@ -7,9 +7,13 @@
 // One function from each part, in manifest order; 'undefined' means that file did not load
 const CF_PART_CHECKS = [
   ['lib/chat-markdown.js', typeof convertToMarkdown],
+  ['lib/cowork-api.js', typeof fetchCoworkEvents],
+  ['lib/cowork-markdown.js', typeof coworkToMarkdown],
+  ['lib/cowork-export.js', typeof exportCoworkSession],
   ['lib/chat-exporter.js', typeof fetchConversationData],
   ['lib/share-snapshots.js', typeof fetchSnapshot],
   ['lib/storage-keys.js', typeof QUEUED_EXPORTS_KEY === 'string' ? 'function' : 'undefined'],
+  ['lib/folder-picker.js', typeof cfFolderPickerAvailable],
   ['content/cf-state.js', typeof CF_FOLDER_ICON_PATH === 'string' ? 'function' : 'undefined'],
   ['content/cf-text.js', typeof cfEscapeHtml],
   ['content/cf-routes.js', typeof cfConversationRef],
@@ -25,18 +29,22 @@ const CF_PART_CHECKS = [
   ['content/cf-chat.js', typeof injectChatButton],
   ['content/cf-picker.js', typeof showFolderPicker],
   ['content/cf-url-watch.js', typeof observeUrlChanges],
+  ['content/cf-export-records.js', typeof markChatAsExported],
   ['content/cf-disk.js', typeof cfSaveExport],
   ['content/cf-export.js', typeof handleExportCurrentChat],
   ['content/cf-export-run.js', typeof cfExportChatList],
   ['content/cf-export-messages.js', typeof cfOnExportMessage],
   ['content/cf-organize.js', typeof askClaudeToOrganize],
   ['content/cf-panel-analytics.js', typeof renderPanelAnalytics],
+  ['content/cf-cowork-sync.js', typeof cfCollectCoworkSessions],
   ['content/cf-sync.js', typeof scrapeRecentsPage],
   ['content/cf-sync-summary.js', typeof showSyncSuccessModal],
   ['content/cf-monitor.js', typeof startNewChatMonitor],
   ['content/cf-composer.js', typeof cfComposerReady],
   ['content/cf-import-registry.js', typeof cfReconcileImported],
   ['content/cf-import.js', typeof cfImportSharePage],
+  ['content/cf-cowork-import.js', typeof cfCheckCoworkImport],
+  ['content/cf-project-import.js', typeof cfCheckProjectImport],
   ['content/cf-core.js', typeof init]
 ];
 

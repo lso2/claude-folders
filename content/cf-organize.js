@@ -3,7 +3,7 @@
 // Globals: askClaudeToOrganize, analyzeChatsLocally, cfTokenize, cfEscapeRe, cfNormKw,
 //          cfBuildKeywordIndex, cfScoreText, cfReconcileTokens, cfJaccard, cfReconcile,
 //          applyCategorization, showApplyCategoriesModal
-// Depends on: content/cf-state.js, content/cf-account.js, content/cf-notify.js
+// Depends on: lib/cowork-api.js, content/cf-state.js, content/cf-account.js, content/cf-notify.js
 // Notes: docs/notes/content/cf-organize.js.md
 
 async function askClaudeToOrganize() {
@@ -212,9 +212,11 @@ function applyCategorization(categoryDefs) {
     return f;
   };
   const assignChat = (target, chatId) => {
-    const meta = chatById.get(chatId) || { id: chatId, title: 'Untitled Chat', url: `https://claude.ai/chat/${chatId}`, date: new Date().toISOString().split('T')[0] };
+    const url = isCoworkSessionId(chatId) ? coworkSessionUrl(chatId) : `https://claude.ai/chat/${chatId}`;
+    const meta = chatById.get(chatId) || { id: chatId, title: 'Untitled Chat', url, date: new Date().toISOString().split('T')[0] };
     merged.forEach(f => { if (f.chats) f.chats = f.chats.filter(c => c.id !== chatId); });
-    target.chats.push({ id: chatId, title: meta.title, url: meta.url, date: meta.date, relativeDate: meta.relativeDate, snippet: meta.snippet || '', tags: meta.tags || [], exported: meta.exported });
+    // Every stored field is kept, including the organization and update time
+    target.chats.push({ ...meta, id: chatId, snippet: meta.snippet || '', tags: meta.tags || [] });
   };
 
   // Resolve a chat reference: a 1-based number (from the prompt), numeric string,
@@ -270,7 +272,7 @@ function applyCategorization(categoryDefs) {
   (allChats || []).forEach(c => {
     if (merged.some(f => f.chats?.some(x => x.id === c.id))) return;
     if (!unsorted) { unsorted = { id: 'unsorted', name: 'Unsorted Chats', category: 'Unsorted', chats: [] }; merged.push(unsorted); }
-    unsorted.chats.push({ id: c.id, title: c.title, url: c.url, date: c.date, relativeDate: c.relativeDate, snippet: c.snippet || '', tags: c.tags || [], exported: c.exported });
+    unsorted.chats.push({ ...c, snippet: c.snippet || '', tags: c.tags || [] });
   });
 
   let result = merged.filter(f => (f.chats && f.chats.length > 0) || preExistingIds.has(f.id) || f.id === 'unsorted');

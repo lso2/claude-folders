@@ -19,6 +19,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - **👁️ Offline Viewing**: Read your exported conversations without internet access
 - **🔄 Passive Sync**: Monitors for new chats and shows a sync bar as soon as one is ready to import
 - **📥 Shared Chat Import**: Chats shared with you are imported as new chats in your account, with the transcript attached
+- **Cowork Sessions**: Cowork sessions are synced into folders and exported to markdown, and exports from another account are imported as Cowork tasks
 - **📚 Full Account Import**: Reads every organization your login can reach, not just the active one, and not just the visible rows
 - **📊 Analytics**: View category distribution and folder statistics
 - **💾 Local Storage**: All data stored in a folder you choose on your computer
@@ -36,7 +37,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 ### Markdown Export
 - Export individual chats or bulk export all conversations
 - Full conversation content including all messages and responses
-- Automatic filename generation: `{chatId}_{title}.md`
+- Automatic filename generation: `{first 8 characters of the chat id}_{title}.md`, and `{session id}_{title}.md` for Cowork sessions
 - Skip already-exported files (no duplicates)
 - Exports stored in `/chats/` subfolder within your data directory
 
@@ -44,9 +45,21 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - Shared chats (`claude.ai/share/...`) show **Export** and **Import** at the top right
 - Clicking **Export** saves the shared transcript to `chats/` in your data folder
 - Clicking **Import** exports the transcript, starts a new chat with the file attached, and asks Claude to reconstruct the conversation
-- Clicking **Import Shared Chats** in the Folders panel imports every chat shared with you in your projects, one at a time, after a confirmation showing the count
+- In a project's **Activity** tab, a button appears above the chats others shared. It reads **Import N shared chats** when some are not imported yet, and clicking it imports them one at a time after a confirmation showing the count. With all of them imported it reads **Import shared chats** and offers to import them again
 - Imported chats are filed under the **Shared** category in a folder named for their project
 - Chats already imported are skipped, including imports made in another browser
+
+### Cowork Sessions
+- Cowork sessions (`claude.ai/cowork/...`) show **Export** and **Add to folder** beside the session title
+- Clicking **Export** saves the whole session to `chats/`: your messages, Claude's replies, tool calls and tool results
+- Syncing stores Cowork sessions in the folders beside your chats and exports the new ones. Their rows in the folders panel have a **Cowork** label
+
+### Moving Cowork Sessions to Another Account
+- Export the sessions in the first account with **Export** or a sync
+- In the other account, with the same data folder chosen, open **Chats and tasks**. A button above the list reads **Import N Cowork chats** while the data folder has Cowork exports from another account
+- Clicking it imports them one at a time after a confirmation showing the count. Each one is started as a Cowork task with its export attached and a request for Claude to reconstruct it, then renamed to the session's title and filed in **Imported Cowork chats**
+- Exports of the account's own sessions, and of tasks made by an earlier import, are never offered
+- When the data folder needs access first, the button reads **Import Cowork chats**. Clicking it opens the access window, and the count appears once access is granted
 
 ### Offline Viewing
 - Click "View Offline" to read any exported chat
@@ -55,7 +68,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - Works completely offline after export
 
 ### Passive Chat Monitor
-- Automatically detects new conversations in the sidebar
+- Automatically detects new conversations and Cowork sessions in the sidebar
 - Shows a sync bar as soon as a new chat is available
 - One-click sync to import all new chats
 - Smart skip logic - only imports chats not already in folders
@@ -142,6 +155,7 @@ Or download and extract the ZIP file.
 - Extension watches for new chats in Claude.ai sidebar
 - Orange bar appears once a new chat is detected
 - Click **Sync Now** to import
+- Syncing needs a writable data folder. Without one the bar shows the folder state with **Choose folder** or **Grant access**, and the sync starts after access is granted
 
 **Manual:**
 1. Go to https://claude.ai/recents
@@ -227,7 +241,7 @@ Claude's response here...
 |---------|-----------|-------|
 | Chrome | ✅ 102+ | Full support |
 | Edge | ✅ 102+ | Full support |
-| Brave | ✅ 1.40+ | Full support |
+| Brave | ✅ 1.40+ | Needs the `file-system-access-api` flag (see Troubleshooting) |
 | Opera | ✅ 88+ | Full support |
 | Firefox | ❌ | No File System Access API |
 | Safari | ❌ | No File System Access API |
@@ -257,6 +271,11 @@ Claude's response here...
 - Clicking **Grant access**, then **Allow access** in the Data Folder Access window, then **Allow** in Chrome's prompt writes the queued exports
 - In the organizer, clicking **Export MD** and then **Export** requests folder access from the organizer page
 
+### Brave: no data folder can be selected
+- In Brave the File System Access API is off by default, and `window.showDirectoryPicker` is missing ([Brave's list of disabled features](https://support.brave.app/hc/en-us/articles/36223805247245-What-does-brave-remove-from-the-Chromium-engine))
+- The setup screen, the Data Folder Access window and the sync bar show the reason with an **Open flag** button
+- Setting the `file-system-access-api` flag to **Enabled** and restarting Brave makes folder selection available
+
 ### Export showing "empty chats"
 - Some conversations may have no messages (opened but never used)
 - These are skipped automatically - not an error
@@ -284,29 +303,35 @@ claude-folders-extension/
 │   ├── cf-sidebar.js      # Folders row in Claude's sidebar
 │   ├── cf-panel.js        # Folders flyout panel
 │   ├── cf-chat.js         # Buttons on chat, Cowork and shared-chat pages
-│   ├── cf-export*.js      # Single and bulk exports
+│   ├── cf-export*.js      # Single and bulk exports and their records
 │   ├── cf-disk.js         # Export writes and folder access prompts
 │   ├── cf-import*.js      # Shared chat import and its registry
+│   ├── cf-project-import.js # Import button on a project's Activity tab
 │   ├── cf-composer.js     # Claude's message composer
 │   ├── cf-sync*.js        # Conversation sync and its summary
+│   ├── cf-cowork-sync.js  # Cowork sessions for a sync
+│   ├── cf-cowork-import.js # Import of Cowork exports from another account
 │   ├── cf-monitor.js      # New-chat monitor
 │   └── cf-boot.js         # Boot check and entry point
 ├── lib/                   # Shared by the content scripts and the extension pages
 │   ├── chat-markdown.js   # Markdown format and export filenames
 │   ├── chat-exporter.js   # Conversation reads from Claude's API
-│   ├── share-snapshots.js # Shared chat reads and discovery
+│   ├── cowork-api.js      # Cowork session and event reads
+│   ├── cowork-markdown.js # Cowork event log to markdown
+│   ├── cowork-export.js   # One Cowork session's export
+│   ├── share-snapshots.js # Shared chat and project activity reads
 │   ├── handle-storage.js  # Data folder handle and access state
 │   ├── data-file.js       # data.json and the standalone library
 │   ├── export-files.js    # chats/ folder reads and writes
 │   ├── folder-access.js   # Re-granting access, writing queued exports
 │   ├── storage-keys.js    # Shared storage key names
+│   ├── folder-picker.js   # Folder picker check and the Brave flag page
 │   └── apply-update.js    # Applies files updated on disk
 ├── access/                # Data folder access window
 ├── popup/                 # Toolbar popup
 ├── organizer/             # Full organizer page
 ├── standalone/            # Offline viewer copied into the data folder
-├── tools/check-project.js # Project checker
-└── docs/notes/            # One notes file per source file
+└── tools/check-project.js # Project checker
 ```
 
 ### Key APIs Used

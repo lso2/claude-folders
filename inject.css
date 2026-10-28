@@ -530,21 +530,6 @@ body:has(#claude-folders-sync-notification) .cf-notice-stack {
   z-index: 10000;
 }
 
-.claude-import-btn {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #ffffff;
-}
-
-.claude-import-btn:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-}
-
-.claude-import-btn svg {
-  color: #ffffff;
-}
-
 /* Notices with buttons stay until one is clicked */
 .claude-folders-notification.cf-notice {
   display: flex;
@@ -662,23 +647,31 @@ body:has(#claude-folders-sync-notification) .cf-notice-stack {
   background: #9a3412;
 }
 
-/* Folders panel: Import Shared Chats */
-.import-shared-btn {
+/* Import buttons above a project's shared chats and above the Chats and tasks list.
+   They use the palette of .claude-folders-btn. */
+.cf-project-import,
+.cf-cowork-import {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #ffffff;
-  font-size: 13px;
+  justify-content: flex-start;
+}
+
+.cf-cowork-import {
+  margin: 0 0 12px;
+}
+
+.cf-project-import button,
+.cf-cowork-import button {
+  padding: 8px 16px;
+  border: 1px solid #4d4d4a;
+  border-radius: 8px;
+  background: #3d3d3a;
+  color: #e8e6e3;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
 }
 
-.import-shared-btn:hover {
-  background: #1d4ed8;
+.cf-project-import button:hover,
+.cf-cowork-import button:hover {
+  background: #4d4d4a;
 }

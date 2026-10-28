@@ -57,7 +57,11 @@ async function checkDataFolder() {
 function showSetupScreen() {
   document.getElementById('setupScreen').classList.remove('hidden');
   document.getElementById('mainScreen').classList.add('hidden');
-  
+  if (!cfFolderPickerAvailable()) {
+    showPickerMissing();
+    return;
+  }
+
   document.getElementById('selectFolderBtn').addEventListener('click', async () => {
     try {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });

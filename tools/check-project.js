@@ -9,6 +9,9 @@ const path = require('path');
 const acorn = require('acorn');
 
 const ROOT = path.resolve(__dirname, '..');
+// The notes are kept outside the repository, in the docs folder beside it.
+// Each header's "docs/notes/..." pointer is read from that folder.
+const DOCS_ROOT = path.resolve(ROOT, '..', 'docs');
 const SIZE_LIMIT = 30 * 1024;
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'docs', '.bak', '.complete', '.run', '_scripts', '.not__current']);
 const PAGES = ['popup/popup.html', 'organizer/index.html', 'offscreen.html', 'access/index.html', 'standalone/index.html'];
@@ -16,6 +19,8 @@ const PAGES = ['popup/popup.html', 'organizer/index.html', 'offscreen.html', 'ac
 const NODE_TOOLS = ['tools/check-project.js'];
 // standalone/data.js is written into the user's data folder at runtime, never shipped
 const RUNTIME_GENERATED = ['standalone/data.js'];
+// lib/data-file.js copies these shipped files beside the standalone viewer at runtime
+const RUNTIME_COPIES = { 'standalone/chat-markdown.js': 'lib/chat-markdown.js' };
 
 const problems = [];
 const report = (msg) => problems.push(msg);
@@ -39,7 +44,7 @@ function pageScripts(page) {
   const re = /<script\s+src="([^"]+)"/g;
   let m;
   while ((m = re.exec(html))) list.push(path.posix.normalize(path.posix.join(dir, m[1])));
-  return list;
+  return list.map(file => RUNTIME_COPIES[file] || file);
 }
 
 function topLevelNames(file) {
@@ -105,8 +110,10 @@ for (const file of files) {
   if (head[0].trim() !== `// ${file}`) report(`${file} does not open with its header line "// ${file}"`);
   const notes = head.find(line => /^\/\/ Notes: docs\/notes\//.test(line));
   if (!notes) report(`${file} has no "// Notes: docs/notes/..." pointer in its first 12 lines`);
-  else if (!fs.existsSync(path.join(ROOT, notes.replace(/^\/\/ Notes: /, '').trim()))) report(`${file} points to ${notes.replace(/^\/\/ Notes: /, '').trim()}, which does not exist`);
+  else if (!fs.existsSync(path.join(DOCS_ROOT, notes.replace(/^\/\/ Notes: /, '').trim()))) report(`${file} points to ${notes.replace(/^\/\/ Notes: /, '').trim()}, which does not exist in ${DOCS_ROOT}`);
 }
+
+if (fs.existsSync(path.join(ROOT, 'docs'))) report(`docs/ is inside the repository; the notes belong in ${DOCS_ROOT}`);
 
 checkWorld('content scripts', contentList);
 PAGES.forEach(page => checkWorld(page, loadLists[page].filter(f => !RUNTIME_GENERATED.includes(f))));

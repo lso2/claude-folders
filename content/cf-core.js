@@ -55,6 +55,11 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     cfClearAccessPrompt();
     const written = message.written || 0;
     showNotification(written ? `Folder access granted. ${written} queued export${written === 1 ? '' : 's'} written.` : 'Folder access granted.');
+    cfRefreshSyncBar();
+    cfResetCoworkImport();
+    // The sync this tab asked for before access was granted
+    const request = cfTakeSyncRequest();
+    if (request) scrapeRecentsPage(request.exportAllMissing, request.fullResync);
     sendResponse({ received: true });
     return true;
   }

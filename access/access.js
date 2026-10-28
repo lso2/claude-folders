@@ -3,7 +3,7 @@
 // Globals: accessEls, showResult, logOperation, connectWriter, renderAccessState, finishAccess,
 //          onGrantClick, onChooseClick
 // Depends on: lib/chat-markdown.js, lib/storage-keys.js, lib/handle-storage.js, lib/data-file.js,
-//             lib/export-files.js, lib/folder-access.js, lib/folder-ops.js
+//             lib/export-files.js, lib/folder-access.js, lib/folder-picker.js, lib/folder-ops.js
 // Notes: docs/notes/access/access.js.md
 
 const accessEls = {
@@ -11,6 +11,7 @@ const accessEls = {
   queue: document.getElementById('accessQueue'),
   grant: document.getElementById('accessGrantBtn'),
   choose: document.getElementById('accessChooseBtn'),
+  flag: document.getElementById('accessFlagBtn'),
   result: document.getElementById('accessResult'),
   log: document.getElementById('accessLog')
 };
@@ -55,6 +56,13 @@ async function renderAccessState() {
   accessEls.queue.hidden = queued === 0;
   accessEls.queue.textContent = `${queued} export${queued === 1 ? '' : 's'} waiting to be written.`;
 
+  if (!access.hasHandle && !cfFolderPickerAvailable()) {
+    accessEls.status.textContent = CF_PICKER_MISSING + (cfPickerFlagAvailable() ? ' ' + CF_PICKER_FLAG_HINT : '');
+    accessEls.grant.hidden = true;
+    accessEls.choose.hidden = true;
+    accessEls.flag.hidden = !cfPickerFlagAvailable();
+    return access;
+  }
   if (!access.hasHandle) {
     accessEls.status.textContent = 'No data folder is selected.';
     accessEls.grant.hidden = true;
@@ -116,6 +124,7 @@ async function onChooseClick() {
 
 accessEls.grant.addEventListener('click', onGrantClick);
 accessEls.choose.addEventListener('click', onChooseClick);
+accessEls.flag.addEventListener('click', () => cfOpenPickerFlag());
 connectWriter();
 renderAccessState().then(async (access) => {
   // Opened while access already stands: only the queue needs writing
