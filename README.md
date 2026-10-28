@@ -14,14 +14,15 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 Claude Folders transforms Claude.ai's flat conversation list into an organized folder system with:
 
-- **📁 Folder Organization** - Create folders, assign categories, organize hundreds of chats
-- **📝 Markdown Export** - Automatically export conversations to `.md` files with full content
-- **👁️ Offline Viewing** - Read your exported conversations without internet access
-- **🔄 Passive Sync** - Monitors for new chats and shows a sync bar as soon as one is ready to import
-- **📚 Full Account Import** - Reads every organization your login can reach, not just the active one, and not just the visible rows
-- **📊 Analytics** - View category distribution and folder statistics
-- **💾 Local Storage** - All data stored in a folder you choose on your computer
-- **🎨 Native Feel** - UI integrates seamlessly with Claude.ai's design
+- **📁 Folder Organization**: Create folders, assign categories, organize hundreds of chats
+- **📝 Markdown Export**: Automatically export conversations to `.md` files with full content
+- **👁️ Offline Viewing**: Read your exported conversations without internet access
+- **🔄 Passive Sync**: Monitors for new chats and shows a sync bar as soon as one is ready to import
+- **📥 Shared Chat Import**: Chats shared with you are imported as new chats in your account, with the transcript attached
+- **📚 Full Account Import**: Reads every organization your login can reach, not just the active one, and not just the visible rows
+- **📊 Analytics**: View category distribution and folder statistics
+- **💾 Local Storage**: All data stored in a folder you choose on your computer
+- **🎨 Native Feel**: UI integrates seamlessly with Claude.ai's design
 
 ## Features
 
@@ -38,6 +39,14 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - Automatic filename generation: `{chatId}_{title}.md`
 - Skip already-exported files (no duplicates)
 - Exports stored in `/chats/` subfolder within your data directory
+
+### Shared Chats
+- Shared chats (`claude.ai/share/...`) show **Export** and **Import** at the top right
+- Clicking **Export** saves the shared transcript to `chats/` in your data folder
+- Clicking **Import** exports the transcript, starts a new chat with the file attached, and asks Claude to reconstruct the conversation
+- Clicking **Import Shared Chats** in the Folders panel imports every chat shared with you in your projects, one at a time, after a confirmation showing the count
+- Imported chats are filed under the **Shared** category in a folder named for their project
+- Chats already imported are skipped, including imports made in another browser
 
 ### Offline Viewing
 - Click "View Offline" to read any exported chat
@@ -120,7 +129,7 @@ Or download and extract the ZIP file.
 1. Click **Export MD** button
 2. Choose "All chats" or "Current folder only"
 3. Export runs with progress indicator
-4. Files saved to your data folder and downloaded as ZIP
+4. Files are saved to your data folder, and the exported chats are also downloaded as one combined markdown file
 
 **From Extension Popup:**
 1. Click **Export All to MD**
@@ -241,6 +250,13 @@ Claude's response here...
 - Look for errors in the browser console (F12)
 - A message about reading the page instead of the API means the conversation list request failed, and that run only covers the rows Claude had loaded
 
+### Export says folder access is needed
+- Chrome's folder prompt for this extension has only Allow and Block
+- Exports are saved while the Data Folder Access window is open with access granted
+- With that window closed, single exports are queued, bulk exports stop before the first chat, and the notice shows **Grant access**
+- Clicking **Grant access**, then **Allow access** in the Data Folder Access window, then **Allow** in Chrome's prompt writes the queued exports
+- In the organizer, clicking **Export MD** and then **Export** requests folder access from the organizer page
+
 ### Export showing "empty chats"
 - Some conversations may have no messages (opened but never used)
 - These are skipped automatically - not an error
@@ -254,32 +270,43 @@ Claude's response here...
 ### Project Structure
 ```
 claude-folders-extension/
-├── manifest.json          # Extension configuration
+├── manifest.json          # Extension configuration and the content-script load order
 ├── background.js          # Service worker, message handling
-├── content/               # Content script parts, loaded in manifest order
-│   ├── cf-state.js        # Shared state, escaping, account keys
-│   ├── cf-core.js         # Startup, pending work, data load
-│   ├── cf-styles.js       # Injected stylesheet
-│   ├── cf-sidebar.js      # Sidebar row and folders panel
-│   ├── cf-chat.js         # Per-chat controls and folder picker
-│   ├── cf-organize.js     # Categorization and analytics
-│   ├── cf-sync.js         # Conversation collection and sync
+├── offscreen.html/js      # Data-folder writes
+├── inject.css             # Styles for everything injected into claude.ai
+├── content/               # Content-script parts, loaded in manifest order
+│   ├── cf-state.js        # Shared state
+│   ├── cf-text.js         # Glyph stripping and escaping
+│   ├── cf-routes.js       # Page routes and titles
+│   ├── cf-account.js      # Account key and storage keys
+│   ├── cf-notify.js       # Notices, confirmations, progress readout
+│   ├── cf-data.js         # Folder data load
+│   ├── cf-sidebar.js      # Folders row in Claude's sidebar
+│   ├── cf-panel.js        # Folders flyout panel
+│   ├── cf-chat.js         # Buttons on chat, Cowork and shared-chat pages
+│   ├── cf-export*.js      # Single and bulk exports
+│   ├── cf-disk.js         # Export writes and folder access prompts
+│   ├── cf-import*.js      # Shared chat import and its registry
+│   ├── cf-composer.js     # Claude's message composer
+│   ├── cf-sync*.js        # Conversation sync and its summary
 │   ├── cf-monitor.js      # New-chat monitor
-│   └── cf-boot.js         # Entry point
-├── inject.css             # Styles for injected UI
-├── offscreen.html/js      # File system operations
-├── lib/
-│   ├── chat-exporter.js   # Markdown conversion
-│   └── handle-storage.js  # IndexedDB folder handle storage
-├── popup/
-│   ├── popup.html         # Extension popup UI
-│   ├── popup.js           # Popup logic
-│   └── popup.css          # Popup styles
-├── organizer/
-│   ├── index.html         # Full organizer interface
-│   ├── app.js             # Organizer application logic
-│   └── styles.css         # Organizer styles
-└── icons/                 # Extension icons
+│   └── cf-boot.js         # Boot check and entry point
+├── lib/                   # Shared by the content scripts and the extension pages
+│   ├── chat-markdown.js   # Markdown format and export filenames
+│   ├── chat-exporter.js   # Conversation reads from Claude's API
+│   ├── share-snapshots.js # Shared chat reads and discovery
+│   ├── handle-storage.js  # Data folder handle and access state
+│   ├── data-file.js       # data.json and the standalone library
+│   ├── export-files.js    # chats/ folder reads and writes
+│   ├── folder-access.js   # Re-granting access, writing queued exports
+│   ├── storage-keys.js    # Shared storage key names
+│   └── apply-update.js    # Applies files updated on disk
+├── access/                # Data folder access window
+├── popup/                 # Toolbar popup
+├── organizer/             # Full organizer page
+├── standalone/            # Offline viewer copied into the data folder
+├── tools/check-project.js # Project checker
+└── docs/notes/            # One notes file per source file
 ```
 
 ### Key APIs Used
@@ -314,7 +341,7 @@ GPLv3 - See LICENSE file for details
 
 If Claude Folders has helped you stay organized, consider supporting its development!
 
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/techreader)
+**[Donate](https://plexpixel.com/donate)**
 
 **Why donate?**
 - ☕ Fuel continued development

@@ -1151,7 +1151,7 @@ body {
 }
 
 
-/* Coffee Button & Modal */
+/* Donate Button & Modal */
 .coffee-btn {
   color: #ff5e5b !important;
 }
@@ -1196,7 +1196,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #ff5e5b, #ff8a5b);
+  background: #e0464a;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -1240,4 +1240,42 @@ body {
 
 .btn-organizer-orange svg {
   fill: white !important;
+}
+
+/* Folder access banner, shown when the data folder needs permission again */
+.access-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 12px 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #7c2d12;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.access-banner.hidden {
+  display: none;
+}
+
+.access-banner-text {
+  flex: 1;
+}
+
+.access-banner-btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f1e1d;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.access-banner-btn:hover {
+  background: #f0eee6;
 }

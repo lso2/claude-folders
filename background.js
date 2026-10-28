@@ -1,8 +1,18 @@
-// Background Service Worker - Routes messages and caches per-account data in chrome.storage.local
+// background.js
+// Service worker that answers extension messages against the cached folder data.
+// Globals: cachedData, currentAccountKey, offscreenCreated, accessWindowId, writerPort,
+//          writerRequestId, acctKey, persist, broadcastDataUpdated, broadcastToClaudeTabs,
+//          countChatsInData, overlapRatioWithScraped, ensureOffscreen, askOffscreen,
+//          askWriterWindow, askFolderWorker, syncDataToDisk, openAccessWindow, fileImportedChat,
+//          loadCachedData, countBgChats, handleMessage
+// Notes: docs/notes/background.js.md
 
 let cachedData = null;
 let currentAccountKey = null;
 let offscreenCreated = false;
+let accessWindowId = null;
+let writerPort = null;
+let writerRequestId = 0;
 
 // Each signed-in account keeps its own folders under cfData_<key>. `cachedData`
 // is always a mirror of the active account so the organizer page and the
@@ -16,11 +26,15 @@ async function persist() {
   await chrome.storage.local.set(obj);
 }
 
-async function broadcastDataUpdated() {
+async function broadcastToClaudeTabs(message) {
   const tabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
   for (const tab of tabs) {
-    try { await chrome.tabs.sendMessage(tab.id, { action: 'dataUpdated' }); } catch (e) {}
+    try { await chrome.tabs.sendMessage(tab.id, message); } catch (e) {}
   }
+}
+
+async function broadcastDataUpdated() {
+  await broadcastToClaudeTabs({ action: 'dataUpdated' });
 }
 
 function countChatsIn(data) {
@@ -41,18 +55,13 @@ function overlapRatioWithScraped(scrapedIds) {
   return overlap / haveIds.length;
 }
 
-// Create offscreen document for file operations
+// The offscreen document performs every data-folder write and Chrome can close it between calls
 async function ensureOffscreen() {
-  if (offscreenCreated) return true;
-  
   try {
-    // Check if already exists
-    const existing = await chrome.offscreen.hasDocument();
-    if (existing) {
+    if (await chrome.offscreen.hasDocument()) {
       offscreenCreated = true;
       return true;
     }
-    
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       reasons: ['LOCAL_STORAGE'],
@@ -67,14 +76,108 @@ async function ensureOffscreen() {
   }
 }
 
-// Persist cached data to the user's folder through the offscreen document, which
-// the background creates on demand. This replaces messaging the popup (which is
-// usually closed, so that message had no receiver).
+// Writes the cached data to the data folder
 async function syncDataToDisk() {
-  await ensureOffscreen();
-  const response = await chrome.runtime.sendMessage({ action: 'offscreenSyncToDisk' });
-  console.log('[BG] syncToDisk via offscreen:', response?.success);
+  const response = await askFolderWorker({ action: 'folderSyncToDisk' }, { success: false });
+  console.log('[BG] syncToDisk:', response?.success, response?.error || '');
   return response;
+}
+
+// Sends one folder request to the offscreen document, creating it first when needed
+async function askOffscreen(request, fallback) {
+  const ready = await ensureOffscreen();
+  if (!ready) return { ...fallback, error: 'The offscreen writer could not be created' };
+  const response = await chrome.runtime.sendMessage({ ...request, target: 'offscreen' });
+  return response || { ...fallback, error: 'No response from offscreen' };
+}
+
+// Replies from the open access window are received over its port. Null means no reply within 30 seconds.
+function askWriterWindow(request) {
+  return new Promise((resolve) => {
+    const port = writerPort;
+    if (!port) return resolve(null);
+    const id = ++writerRequestId;
+    const onReply = (msg) => {
+      if (!msg || msg.id !== id) return;
+      clearTimeout(timer);
+      port.onMessage.removeListener(onReply);
+      resolve(msg.result || null);
+    };
+    const timer = setTimeout(() => {
+      port.onMessage.removeListener(onReply);
+      resolve(null);
+    }, 30000);
+    port.onMessage.addListener(onReply);
+    try {
+      port.postMessage({ id, request });
+    } catch (e) {
+      clearTimeout(timer);
+      port.onMessage.removeListener(onReply);
+      resolve(null);
+    }
+  });
+}
+
+// Measured 2026-10-27: the offscreen document kept seeing the folder permission as "prompt"
+// while the access window held the user's grant. The access window, when open, performs
+// folder requests; otherwise the offscreen document does.
+async function askFolderWorker(request, fallback) {
+  if (writerPort) {
+    const viaWindow = await askWriterWindow(request);
+    if (viaWindow) return viaWindow;
+  }
+  return askOffscreen(request, fallback);
+}
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'folder-writer') return;
+  writerPort = port;
+  port.onDisconnect.addListener(() => {
+    if (writerPort === port) writerPort = null;
+  });
+});
+
+// The access window is an extension page, the only place a click can re-grant
+// the File System Access permission for the data folder
+async function openAccessWindow() {
+  if (accessWindowId !== null) {
+    try {
+      await chrome.windows.update(accessWindowId, { focused: true });
+      return;
+    } catch (e) {
+      accessWindowId = null;
+    }
+  }
+  const win = await chrome.windows.create({
+    url: chrome.runtime.getURL('access/index.html'),
+    type: 'popup',
+    width: 460,
+    height: 380,
+    focused: true
+  });
+  accessWindowId = win && typeof win.id === 'number' ? win.id : null;
+}
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (windowId === accessWindowId) accessWindowId = null;
+});
+
+// An imported chat is filed under a folder named for the project it was shared in
+async function fileImportedChat(chat, folderId, folderName, category) {
+  if (!cachedData) await loadCachedData();
+  if (!Array.isArray(cachedData.categories)) cachedData.categories = [];
+  if (!cachedData.categories.includes(category)) cachedData.categories.push(category);
+  let folder = cachedData.folders.find(f => f.id === folderId);
+  if (!folder) {
+    folder = { id: folderId, category, name: folderName, chats: [] };
+    cachedData.folders.push(folder);
+  }
+  cachedData.folders.forEach(f => { f.chats = (f.chats || []).filter(c => c.id !== chat.id); });
+  folder.chats.push(chat);
+  await persist();
+  await syncDataToDisk();
+  await broadcastDataUpdated();
+  return { success: true, folderId: folder.id };
 }
 
 // Load cached data on startup
@@ -281,83 +384,57 @@ async function handleMessage(message, sender, sendResponse) {
         break;
         
       case 'saveExport':
-        // Use offscreen document to write file
-        try {
-          await ensureOffscreen();
-          const offscreenResponse = await chrome.runtime.sendMessage({
-            action: 'offscreenWriteExport',
-            filename: message.filename,
-            content: message.content
-          });
-          sendResponse(offscreenResponse || { success: false, error: 'No response from offscreen' });
-        } catch (e) {
-          console.log('[BG] saveExport failed:', e.message);
-          sendResponse({ success: false, error: e.message });
-        }
+        sendResponse(await askFolderWorker(
+          { action: 'folderWriteExport', filename: message.filename, content: message.content },
+          { success: false, code: 'write' }
+        ));
         break;
-      
+
+      case 'checkWriteAccess':
+        sendResponse(await askFolderWorker({ action: 'folderCheckAccess' }, { success: false }));
+        break;
+
+      case 'openFolderAccess':
+        await openAccessWindow();
+        sendResponse({ success: true });
+        break;
+
+      case 'folderAccessChanged':
+        // Sent by the access window once the folder can be written again
+        await broadcastToClaudeTabs({ action: 'folderAccessChanged', written: message.written || 0, failed: message.failed || 0 });
+        sendResponse({ success: true });
+        break;
+
+      case 'fileImportedChat':
+        sendResponse(await fileImportedChat(message.chat, message.folderId, message.folderName, message.category || 'Shared'));
+        break;
+
       case 'exportChatById':
-        // Export a single chat by ID - fetch from API and save
-        try {
-          await ensureOffscreen();
-          const exportResponse = await chrome.runtime.sendMessage({
-            action: 'offscreenExportChatById',
-            chatId: message.chatId,
-            chatTitle: message.chatTitle,
-            orgId: message.orgId
-          });
-          sendResponse(exportResponse || { success: false, error: 'No response from offscreen' });
-        } catch (e) {
-          console.log('[BG] exportChatById failed:', e.message);
-          sendResponse({ success: false, error: e.message });
-        }
+        sendResponse(await askFolderWorker(
+          { action: 'folderExportChatById', chatId: message.chatId, chatTitle: message.chatTitle, orgId: message.orgId },
+          { success: false }
+        ));
         break;
-      
+
       case 'getExportedChat':
-        // Get content of an exported chat
-        try {
-          await ensureOffscreen();
-          const readResponse = await chrome.runtime.sendMessage({
-            action: 'offscreenReadExport',
-            chatId: message.chatId,
-            chatTitle: message.chatTitle
-          });
-          sendResponse(readResponse || { success: false, error: 'No response from offscreen' });
-        } catch (e) {
-          console.log('[BG] getExportedChat failed:', e.message);
-          sendResponse({ success: false, error: e.message });
-        }
+        sendResponse(await askFolderWorker(
+          { action: 'folderReadExport', chatId: message.chatId, chatTitle: message.chatTitle },
+          { success: false }
+        ));
         break;
-      
+
       case 'listExports':
-        // One directory read for the whole sync, so checking 1,700 chats against
-        // disk costs a single message instead of one per chat
-        try {
-          await ensureOffscreen();
-          const listResponse = await chrome.runtime.sendMessage({ action: 'offscreenListExports' });
-          sendResponse(listResponse || { success: false, files: [] });
-        } catch (e) {
-          console.log('[BG] listExports failed:', e.message);
-          sendResponse({ success: false, files: [], error: e.message });
-        }
+        // One directory read for the whole sync, not one message per chat
+        sendResponse(await askFolderWorker({ action: 'folderListExports' }, { success: false, files: [] }));
         break;
 
       case 'checkExportExists':
-        // Check if an exported chat file exists
-        try {
-          await ensureOffscreen();
-          const existsResponse = await chrome.runtime.sendMessage({
-            action: 'offscreenCheckExportExists',
-            chatId: message.chatId,
-            chatTitle: message.chatTitle
-          });
-          sendResponse(existsResponse || { success: false, exists: false });
-        } catch (e) {
-          console.log('[BG] checkExportExists failed:', e.message);
-          sendResponse({ success: false, exists: false });
-        }
+        sendResponse(await askFolderWorker(
+          { action: 'folderCheckExportExists', chatId: message.chatId, chatTitle: message.chatTitle },
+          { success: false, exists: false }
+        ));
         break;
-        
+
       case 'openOrganizer':
         let url = chrome.runtime.getURL('organizer/index.html');
         if (message.folderId) url += `?folder=${message.folderId}`;

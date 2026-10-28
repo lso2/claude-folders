@@ -2,6 +2,64 @@
 
 All notable changes to Claude Folders.
 
+## 1.3.4
+
+- Missing chats are counted as "not found on the account" in export and sync summaries.
+- The boot log line shows the extension version.
+- Reworded the access window note, the Import Shared Chats confirmation and the import failure reasons.
+
+## 1.3.3
+
+- The sync bar count is limited to chats outside every folder.
+
+## 1.3.2
+
+- Exports, syncs and organizer downloads are saved to the data folder while the access window is open.
+- The access window shows each saved export.
+
+## 1.3.1
+
+- Imported chats have the shared chat's title.
+- Imported chats missing from the folders are filed in their project folder on the next Import Shared Chats run.
+- Notices are stacked in one column above the progress readout and the sync bar.
+- The folder access notice shows the permission state.
+- The access window is left open after access is granted.
+
+## 1.3.0
+
+**Exporting**
+
+- Fixed Export on regular chats.
+- Shared chats have an Export button.
+- Export notices show the reason a file was not written.
+- Exports made while the data folder needs permission are queued and written once access is granted.
+- Clicking Grant access opens the folder access window.
+- Folder access is checked before folder, popup, organizer and sync exports.
+- Each chat in folder and popup exports is fetched from the organization that owns it.
+- In organizer exports, files are written only for exported chats.
+- Exports contain tool results, thinking, attachment names and only the branch shown on screen.
+
+**Importing shared chats**
+
+- Shared chats have an Import button for opening the transcript as a new chat in your account with a request to reconstruct it.
+- Import Shared Chats in the Folders panel is for importing every chat shared with you in your projects.
+- Imported chats are filed under Shared in a folder named for their project.
+- Shared chats already imported are recognized, including imports made in another browser.
+
+**Donations**
+
+- Donate links and buttons go to https://plexpixel.com/donate.
+
+**Updates**
+
+- Opening the popup or the organizer applies extension files updated on disk.
+
+**Internal**
+
+- Every source file is under 30 KB and has a header and a notes file under `docs/notes/`.
+- Added `node tools/check-project.js` for checking load lists, syntax, file sizes, headers and duplicate names.
+- The markdown format, export filenames and folder access code are shared by every page.
+
 ## 1.2.0
 
 Claude rebuilt its sidebar and chat header without the elements this extension anchored to, and the conversation list now comes from Claude's own web endpoint instead of the rendered page.

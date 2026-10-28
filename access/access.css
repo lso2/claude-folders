@@ -1,0 +1,115 @@
+/* access/access.css
+   Styles the data folder access window opened from Claude's page.
+   Notes: docs/notes/access/access.css.md */
+
+:root {
+  --bg: #ffffff;
+  --text: #1f1e1d;
+  --muted: #5e5d59;
+  --accent: #c2410c;
+  --accent-hover: #9a3412;
+  --light-bg: #f5f4ef;
+  --light-hover: #e8e6dc;
+  --error-bg: #991b1b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #262624;
+    --text: #f5f4ef;
+    --muted: #b7b5a9;
+    --light-bg: #f5f4ef;
+    --light-hover: #e8e6dc;
+    --error-bg: #7f1d1d;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.access {
+  padding: 24px;
+  max-width: 420px;
+}
+
+.access-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.access-status,
+.access-queue {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.access-queue {
+  color: var(--muted);
+}
+
+.access-actions {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.access-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.access-btn:hover {
+  background: var(--accent-hover);
+}
+
+.access-btn-light {
+  background: var(--light-bg);
+  color: #1f1e1d;
+}
+
+.access-btn-light:hover {
+  background: var(--light-hover);
+}
+
+.access-result {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.access-note {
+  margin: 16px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.access-result.error {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--error-bg);
+  color: #ffffff;
+}
+
+.access-log {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}

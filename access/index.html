@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Claude Folders: Data Folder Access</title>
+  <link rel="stylesheet" href="access.css">
+</head>
+<body>
+  <main class="access">
+    <h1 class="access-title">Data Folder Access</h1>
+    <p class="access-status" id="accessStatus">Checking the data folder...</p>
+    <p class="access-queue" id="accessQueue" hidden></p>
+    <div class="access-actions">
+      <button class="access-btn" id="accessGrantBtn" hidden>Allow access</button>
+      <button class="access-btn access-btn-light" id="accessChooseBtn" hidden>Choose folder</button>
+    </div>
+    <p class="access-result" id="accessResult" hidden></p>
+    <p class="access-note">Chrome's folder prompt for this extension has only Allow and Block. Exports are saved while this window is open with access granted.</p>
+    <ul class="access-log" id="accessLog" hidden></ul>
+  </main>
+  <script src="../lib/apply-update.js"></script>
+  <script src="../lib/chat-markdown.js"></script>
+  <script src="../lib/storage-keys.js"></script>
+  <script src="../lib/handle-storage.js"></script>
+  <script src="../lib/data-file.js"></script>
+  <script src="../lib/export-files.js"></script>
+  <script src="../lib/folder-access.js"></script>
+  <script src="../lib/folder-ops.js"></script>
+  <script src="access.js"></script>
+</body>
+</html>

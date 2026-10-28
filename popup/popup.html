@@ -30,10 +30,8 @@
       <header class="popup-header">
         <h1>Folders</h1>
         <div class="header-actions">
-          <button id="coffeeBtn" class="icon-btn coffee-btn" title="Support this project">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 3H4v10a4 4 0 004 4h6a4 4 0 004-4v-3h2a3 3 0 000-6zm0 4h-2V5h2a1 1 0 010 2zM2 21h20v2H2z"/>
-            </svg>
+          <button id="coffeeBtn" class="icon-btn coffee-btn" title="Donate">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
           </button>
           <button id="analyticsBtn" class="icon-btn" title="Analytics">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -73,6 +71,11 @@
           </button>
         </div>
       </header>
+
+      <div id="folderAccessBanner" class="access-banner hidden">
+        <span id="folderAccessText" class="access-banner-text"></span>
+        <button id="folderAccessBtn" class="access-banner-btn">Allow access</button>
+      </div>
 
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -290,32 +293,39 @@ Create 5-10 categories, group chats meaningfully.</div>
       </div>
     </div>
 
-    <!-- Coffee Modal -->
+    <!-- Donate Modal -->
     <div id="coffeeModal" class="modal hidden">
       <div class="modal-content coffee-modal-content">
         <div class="modal-header">
-          <h2>☕ Support Claude Folders</h2>
+          <h2>Support Claude Folders</h2>
           <button class="close-modal" data-modal="coffeeModal">×</button>
         </div>
         <div class="modal-body" style="text-align: center;">
           <p style="color: var(--text-secondary); margin-bottom: 16px;">
-            If this extension helps you stay organized, consider buying me a coffee!
+            Claude Folders is free. Donations fund its development.
           </p>
-          <a href="https://ko-fi.com/techreader" target="_blank" class="coffee-link-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20 3H4v10a4 4 0 004 4h6a4 4 0 004-4v-3h2a3 3 0 000-6zm0 4h-2V5h2a1 1 0 010 2zM2 21h20v2H2z"/>
-            </svg>
-            Buy me a coffee on Ko-fi
+          <a href="https://plexpixel.com/donate" target="_blank" rel="noopener" class="coffee-link-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            Donate
           </a>
-          <p style="font-size: 11px; color: var(--text-secondary); margin-top: 16px; opacity: 0.7;">
-            Your support keeps this project alive! 💖
-          </p>
         </div>
       </div>
     </div>
   </div>
 
+  <script src="../lib/apply-update.js"></script>
+  <script src="../lib/storage-keys.js"></script>
+  <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
+  <script src="../lib/data-file.js"></script>
+  <script src="../lib/export-files.js"></script>
+  <script src="../lib/folder-access.js"></script>
+  <script src="popup-access.js"></script>
   <script src="popup.js"></script>
+  <script src="popup-folders.js"></script>
+  <script src="popup-import.js"></script>
+  <script src="popup-organize.js"></script>
+  <script src="popup-analytics.js"></script>
+  <script src="popup-export.js"></script>
 </body>
 </html>

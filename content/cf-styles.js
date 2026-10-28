@@ -1,4 +1,7 @@
-// Claude Folders content script - injected stylesheet for the panel and modals
+// content/cf-styles.js
+// Adds the runtime stylesheet for the folders panel and its modals to Claude's page.
+// Globals: injectStyles
+// Notes: docs/notes/content/cf-styles.js.md
 
 function injectStyles() {
   if (document.getElementById('claude-folders-styles')) return;
@@ -393,28 +396,6 @@ function injectStyles() {
     }
     .create-folder-btn:hover {
       background: #c98040;
-    }
-    .claude-folders-notification {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: #2a2a28;
-      border: 1px solid #3d3d3a;
-      padding: 12px 24px;
-      border-radius: 8px;
-      color: #e8e6e3;
-      font-size: 14px;
-      z-index: 10002;
-      transition: transform 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .claude-folders-notification.show {
-      transform: translateX(-50%) translateY(0);
-    }
-    .claude-folders-notification.error {
-      border-color: #b85050;
-      background: #3a2020;
     }
     .categories-modal-overlay {
       position: fixed;

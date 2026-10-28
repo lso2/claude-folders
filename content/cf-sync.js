@@ -1,4 +1,11 @@
-// Claude Folders content script - conversation collection, sync and export runs
+// content/cf-sync.js
+// Collects the account's conversations into the folders store and exports the ones missing on disk.
+// Globals: cfRelativeToISODate, CF_SYNC_OVERLAP_DAYS, CF_SYNC_CLEAN_PAGES, cfParseChatLink,
+//          cfFindScroller, CF_MORE_CONTROL, cfIsOwnUi, cfAdvanceChatList, cfCollectChatsByScrolling,
+//          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCollectAllChats, scrapeAllChats,
+//          scrapeRecentsPage
+// Depends on: lib/chat-exporter.js, content/cf-export-run.js, content/cf-sync-summary.js
+// Notes: docs/notes/content/cf-sync.js.md
 
 // Convert a relative label like "3 hours ago" / "Yesterday" to an ISO date
 function cfRelativeToISODate(relativeDate) {
@@ -284,23 +291,6 @@ async function scrapeAllChats() {
   await loadData();
 }
 
-// Read the export folder once and key it by chat-id prefix, which is the part of
-// the filename that never changes when a chat is renamed
-async function cfLoadExportedPrefixes() {
-  const prefixes = new Set();
-  try {
-    const response = await chrome.runtime.sendMessage({ action: 'listExports' });
-    (response?.files || []).forEach(name => {
-      const match = String(name).match(/^([a-f0-9]{8})_/i);
-      if (match) prefixes.add(match[1].toLowerCase());
-    });
-    console.log('[SCRAPER] Found', prefixes.size, 'chats already exported to disk');
-  } catch (e) {
-    console.log('[SCRAPER] Could not list exports:', e.message);
-  }
-  return prefixes;
-}
-
 // Scrape specifically from the recents page (not sidebar)
 // exportAllMissing: true = check ALL chats for missing MD (popup manual sync)
 //                   false = only export newly scraped chats (passive 30 notification)
@@ -380,261 +370,26 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
     await chrome.storage.local.set({ [cfMonitorKey()]: [] });
   }
   
-  // Now export chats to markdown
-  let exportSuccess = 0;
-  let exportSkipped = 0;
-  let exportEmpty = 0;
-  let exportFail = 0;
-  let exportUnavailable = 0;
-  
-  // Determine which chats to check for MD export
+  // Exports for the chats this run covers, written by the shared export runner
   let chatsToExport = [];
   if (exportAllMissing) {
-    // Manual sync from popup: check ALL chats in folders for missing MD
-    folders.forEach(f => {
-      if (f.chats) {
-        f.chats.forEach(c => chatsToExport.push(c));
-      }
-    });
+    folders.forEach(f => (f.chats || []).forEach(c => chatsToExport.push(c)));
   } else {
-    // Passive sync (30 notification): only export newly scraped chats
     chatsToExport = scrapedChats;
   }
-  
-  // Every reason an export did not produce a file, counted by reason. The loop
-  // used to fold a thrown error, a refused disk write and a genuinely empty chat
-  // into one "empty chats" number, which named the wrong cause for every failure
-  // that was not emptiness.
-  const failureReasons = new Map();
-  const noteFailure = (reason) => {
-    const key = String(reason || 'unknown').slice(0, 120);
-    failureReasons.set(key, (failureReasons.get(key) || 0) + 1);
-  };
 
-  if (chatsToExport.length > 0 && window.chatExporter) {
+  let outcome = null;
+  if (chatsToExport.length > 0) {
     showSyncProgressBar(`Checking ${chatsToExport.length} chats for missing exports...`);
-
-    // One directory read instead of one message per chat, and matching on the id
-    // prefix rather than the whole filename so a chat whose title changed since
-    // its export is recognized as already on disk rather than written again
-    const exportedPrefixes = await cfLoadExportedPrefixes();
-    const unavailable = await cfLoadUnavailableChats();
-
-    for (let i = 0; i < chatsToExport.length; i++) {
-      const chat = chatsToExport[i];
-      const chatId = String(chat && chat.id || '');
-      const chatTitle = String(chat && chat.title || 'Untitled');
-      showSyncProgressBar(`Exporting ${i + 1} of ${chatsToExport.length}: ${chatTitle.substring(0, 30)}`);
-
-      if (chatId.length < 8) {
-        exportUnavailable++;
-        await cfMarkChatUnavailable(chatTitle, 'stored record has no id');
-        continue;
+    outcome = await cfExportChatList(chatsToExport, {
+      onProgress: (done, total, chat) => {
+        showSyncProgressBar(`Exporting ${done} of ${total}: ${String(chat.title || 'Untitled').substring(0, 30)}`);
       }
-
-      if (unavailable[chatId]) {
-        exportUnavailable++;
-        continue;
-      }
-
-      if (cfIsCoworkId(chatId)) {
-        // A Cowork session has no conversation endpoint, so there is no transcript
-        // to write. Counted as unavailable rather than attempted and failed.
-        exportUnavailable++;
-        continue;
-      }
-
-      try {
-        if (exportedPrefixes.has(chatId.substring(0, 8).toLowerCase())) {
-          exportSkipped++;
-          await markChatAsExported(chatId);
-          continue;
-        }
-
-        const result = await window.chatExporter.exportChatById(chatId, chatTitle, chat && chat.orgId);
-
-        if (result.success && result.markdown) {
-          const saveResponse = await chrome.runtime.sendMessage({
-            action: 'saveExport',
-            filename: result.filename,
-            content: result.markdown
-          });
-
-          if (saveResponse?.success) {
-            exportSuccess++;
-            exportedPrefixes.add(chatId.substring(0, 8).toLowerCase());
-            await markChatAsExported(chatId);
-          } else {
-            exportFail++;
-            const reason = 'disk write: ' + (saveResponse?.error || 'no response from the writer');
-            noteFailure(reason);
-            console.log('[SCRAPER]', reason, '-', chatId, chatTitle);
-          }
-        } else {
-          // A chat with no messages is not a failure; anything else is
-          const reason = result.error || 'no markdown returned';
-          if (/no messages/i.test(reason)) {
-            exportEmpty++; // counted on its own line, so it is not repeated in the tally
-          } else if (/in any of the \d+ readable organizations/i.test(reason)) {
-            // The account no longer has this conversation, so it is recorded once
-            // rather than retried on every sync from here on
-            exportUnavailable++;
-            await cfMarkChatUnavailable(chatId, reason);
-            console.log('[SCRAPER] No longer on the account:', chatId, chatTitle);
-          } else {
-            exportFail++;
-            noteFailure(reason);
-            console.log('[SCRAPER] No file for', chatId, chatTitle, '-', reason);
-          }
-        }
-      } catch (e) {
-        exportFail++;
-        noteFailure(e.message || 'threw without a message');
-        console.log('[SCRAPER] Export threw for', chatId, chatTitle, '-', e.message);
-      }
-
-      // Rate limit
-      await new Promise(r => setTimeout(r, 300));
-    }
-
-    if (failureReasons.size) {
-      console.log('[SCRAPER] Export outcomes by reason:', Array.from(failureReasons.entries()).map(([r, n]) => n + ' x ' + r).join(' | '));
-    }
-  } else if (chatsToExport.length > 0) {
-    noteFailure('the export module was not loaded on this page');
-    console.log('[SCRAPER] window.chatExporter missing, nothing was exported');
+    });
   }
-  
+
   // Mark sync complete
   syncInProgress = false;
   
-  // Show success modal
-  showSyncSuccessModal(scrapedChats.length, exportSuccess, exportSkipped, exportEmpty, accountTotal || collected.length, exportFail, failureReasons, orgSummaries, exportUnavailable);
-}
-
-function showSyncSuccessModal(totalChats, exportSuccess, exportSkipped, exportEmpty, scannedTotal, exportFail, failureReasons, orgSummaries, exportUnavailable) {
-  // One login can hold several organizations, and Claude's own list page shows only
-  // the active one, so a single total invites arithmetic by hand. The breakdown says
-  // where the number comes from.
-  const orgLines = (orgSummaries || [])
-    .filter(org => org && !org.error)
-    .map(org => `${cfEscapeHtml(org.name)}: ${org.accountTotal}`);
-  // Surface the actual reasons in the summary, so a run that wrote nothing says
-  // why instead of reporting every chat as empty
-  const reasonLines = Array.from((failureReasons || new Map()).entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([reason, count]) => `${count} x ${cfEscapeHtml(reason)}`);
-  // Remove progress bar
-  const progressBar = document.getElementById('cf-sync-progress');
-  if (progressBar) progressBar.remove();
-  
-  const existing = document.querySelector('.sync-success-modal');
-  if (existing) existing.remove();
-  
-  const modal = document.createElement('div');
-  modal.className = 'sync-success-modal';
-  modal.innerHTML = `
-    <div style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.7);
-      z-index: 100000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    ">
-      <div style="
-        background: #2a2a28;
-        border: 1px solid #3d3d3a;
-        border-radius: 16px;
-        padding: 32px;
-        max-width: 400px;
-        text-align: center;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      ">
-        <div style="
-          width: 64px;
-          height: 64px;
-          background: linear-gradient(135deg, #10b981, #059669);
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 20px;
-        ">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
-            <path d="M20 6L9 17l-5-5"/>
-          </svg>
-        </div>
-        <h2 style="color: #e8e6e3; margin: 0 0 12px; font-size: 24px;">Sync Complete!</h2>
-        <div style="color: #9c9a92; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
-          <div style="margin-bottom: 8px;">
-            <span style="color: #10b981; font-weight: 600;">${totalChats}</span> new chats imported${scannedTotal ? ` of ${scannedTotal}${orgLines.length > 1 ? ` across ${orgLines.length} organizations` : ' on the account'}` : ''}
-          </div>
-          <div style="margin-bottom: 8px;">
-            <span style="color: #10b981; font-weight: 600;">${exportSuccess}</span> exported to markdown
-          </div>
-          ${exportSkipped > 0 ? `
-            <div style="margin-bottom: 8px; color: #9c9a92;">
-              ${exportSkipped} already exported (skipped)
-            </div>
-          ` : ''}
-          ${exportEmpty > 0 ? `
-            <div style="margin-bottom: 8px; color: #9c9a92;">
-              ${exportEmpty} empty chats (no content)
-            </div>
-          ` : ''}
-          ${exportUnavailable > 0 ? `
-            <div style="margin-bottom: 8px; color: #9c9a92;">
-              ${exportUnavailable} no longer on the account
-            </div>
-          ` : ''}
-          ${exportFail > 0 ? `
-            <div style="margin-bottom: 8px; color: #f59e0b;">
-              ${exportFail} did not produce a file
-            </div>
-          ` : ''}
-          ${orgLines.length > 1 ? `
-            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #3d3d3a; color: #9c9a92; font-size: 13px; text-align: left;">
-              ${orgLines.map(line => `<div style="margin-bottom: 4px;">${line}</div>`).join('')}
-            </div>
-          ` : ''}
-          ${reasonLines.length ? `
-            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #3d3d3a; color: #9c9a92; font-size: 13px; text-align: left;">
-              ${reasonLines.map(line => `<div style="margin-bottom: 4px;">${line}</div>`).join('')}
-            </div>
-          ` : ''}
-        </div>
-        <button id="syncSuccessClose" style="
-          background: linear-gradient(135deg, #d97706, #b45309);
-          border: none;
-          color: white;
-          padding: 12px 32px;
-          border-radius: 8px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: transform 0.15s;
-        ">Done</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  modal.querySelector('#syncSuccessClose').addEventListener('click', () => {
-    modal.remove();
-  });
-  
-  // Also close on backdrop click
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal.firstElementChild) {
-      modal.remove();
-    }
-  });
+  showSyncSuccessModal(scrapedChats.length, accountTotal || collected.length, outcome, orgSummaries);
 }

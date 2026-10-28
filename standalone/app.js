@@ -1,4 +1,9 @@
-// Standalone viewer for Claude Folders - loads from data.js
+// standalone/app.js
+// Offline library viewer copied into the data folder, opened as index.html straight from disk.
+// Globals: folders, allChats, categories, metadata and the viewer's render functions
+// Depends on: data.js, written into the data folder by lib/data-file.js
+// Notes: docs/notes/standalone/app.js.md
+
 let folders = [];
 let allChats = [];
 let categories = [];

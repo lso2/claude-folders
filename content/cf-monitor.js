@@ -1,4 +1,10 @@
-// Claude Folders content script - new-chat monitor and popup-driven exports
+// content/cf-monitor.js
+// Watches Claude's sidebar for chats not yet imported and offers a one-click sync.
+// Globals: monitoredNewChats, syncNotificationEl, syncInProgress, CF_SYNC_NOTIFY_THRESHOLD,
+//          startNewChatMonitor, scanForNewChats, checkSyncThreshold, showSyncNotification,
+//          hideSyncNotification, runSyncAndClear, observeUrlForSync
+// Depends on: content/cf-state.js, content/cf-account.js, content/cf-sync.js
+// Notes: docs/notes/content/cf-monitor.js.md
 
 // ============ PASSIVE NEW CHAT MONITOR ============
 let monitoredNewChats = new Set();
@@ -40,6 +46,15 @@ function scanForNewChats() {
     if (f.chats) f.chats.forEach(c => knownIds.add(c.id));
   });
   
+  // Chats filed after detection, by an import or Add to folder, leave the waiting set
+  let changed = false;
+  for (const id of Array.from(monitoredNewChats)) {
+    if (knownIds.has(id)) {
+      monitoredNewChats.delete(id);
+      changed = true;
+    }
+  }
+
   // Find chat links in sidebar
   const chatLinks = document.querySelectorAll('a[href*="/chat/"]');
   let foundNew = false;
@@ -65,16 +80,13 @@ function scanForNewChats() {
   
   console.log('[MONITOR] Scanned', scanned, 'chat links on this page,', knownIds.size, 'already stored,', monitoredNewChats.size, 'waiting to import');
 
-  if (foundNew) {
-    // Save to storage
+  if (foundNew || changed) {
     chrome.storage.local.set({ [cfMonitorKey()]: [...monitoredNewChats] });
     checkSyncThreshold();
   }
 }
 
-// How many unimported chats the monitor waits for before it shows the sync bar.
-// At 1 the bar appears for a single new chat; the scan log reports what each pass
-// saw, so a hidden bar can be read as "nothing left to import" rather than guessed at.
+// Unimported chats needed before the sync bar appears; each scan logs what it saw
 const CF_SYNC_NOTIFY_THRESHOLD = 1;
 
 function checkSyncThreshold() {
@@ -218,144 +230,4 @@ function observeUrlForSync() {
       checkSyncThreshold();
     }
   }, 1000);
-}
-
-// Start URL observer for sync notification
-observeUrlForSync();
-
-// ========== MESSAGE LISTENER FOR EXPORT ==========
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === 'startBulkExport') {
-    // Start the bulk export process
-    const allChats = message.chats || [];
-    if (allChats.length > 0) {
-      startBulkExportFromPopup(allChats);
-    }
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  if (message.action === 'exportChatById') {
-    // Export a single chat by ID (called from organizer)
-    handleExportChatByIdMessage(message.chatId, message.title)
-      .then(result => sendResponse(result))
-      .catch(e => sendResponse({ success: false, error: e.message }));
-    return true; // Keep channel open for async response
-  }
-  
-  return true;
-});
-
-// Handle export request from organizer
-async function handleExportChatByIdMessage(chatId, title) {
-  if (!window.chatExporter) {
-    return { success: false, error: 'Chat exporter not available' };
-  }
-  
-  try {
-    const result = await window.chatExporter.exportChatById(chatId, title);
-    return result;
-  } catch (e) {
-    console.log('[EXPORT] handleExportChatByIdMessage error:', e.message);
-    return { success: false, error: e.message };
-  }
-}
-
-// Bulk export triggered from popup
-async function startBulkExportFromPopup(chats) {
-  const existing = document.querySelector('.export-progress-modal');
-  if (existing) existing.remove();
-  
-  const modal = document.createElement('div');
-  modal.className = 'export-progress-modal';
-  modal.innerHTML = `
-    <div class="export-progress-content">
-      <div class="export-progress-title">Exporting All Chats</div>
-      <div class="export-progress-bar-container">
-        <div class="export-progress-bar" style="width: 0%"></div>
-      </div>
-      <div class="export-progress-text">Preparing... 0 / ${chats.length}</div>
-      <div class="export-progress-current">Starting export...</div>
-      <button class="export-cancel-btn">Cancel</button>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  
-  let cancelled = false;
-  modal.querySelector('.export-cancel-btn').addEventListener('click', () => {
-    cancelled = true;
-    modal.remove();
-    showNotification('Export cancelled');
-  });
-  
-  // Run the export
-  const progressBar = modal.querySelector('.export-progress-bar');
-  const progressText = modal.querySelector('.export-progress-text');
-  const currentText = modal.querySelector('.export-progress-current');
-  
-  let successCount = 0;
-  let skippedCount = 0;
-  let emptyCount = 0;
-  
-  for (let i = 0; i < chats.length; i++) {
-    if (cancelled) break;
-    
-    const chat = chats[i];
-    const percent = ((i + 1) / chats.length * 100).toFixed(0);
-    
-    progressBar.style.width = `${percent}%`;
-    progressText.textContent = `Exporting... ${i + 1} / ${chats.length}`;
-    currentText.textContent = `${chat.folderName}: ${chat.title}`;
-    
-    try {
-      // Check if already exported
-      const existsCheck = await chrome.runtime.sendMessage({
-        action: 'checkExportExists',
-        chatId: chat.id,
-        chatTitle: chat.title
-      });
-      
-      if (existsCheck?.exists) {
-        skippedCount++;
-        await new Promise(r => setTimeout(r, 10));
-        continue;
-      }
-      
-      if (window.chatExporter) {
-        const result = await window.chatExporter.exportChatById(chat.id, chat.title);
-        
-        if (result.success && result.markdown) {
-          // Send to background to write file
-          const saveResponse = await chrome.runtime.sendMessage({
-            action: 'saveExport',
-            filename: result.filename,
-            content: result.markdown
-          });
-          
-          if (saveResponse?.success) {
-            successCount++;
-            await markChatAsExported(chat.id);
-          } else {
-            emptyCount++;
-          }
-        } else {
-          emptyCount++;
-        }
-      }
-    } catch (e) {
-      emptyCount++;
-    }
-    
-    // Rate limit
-    await new Promise(r => setTimeout(r, 500));
-  }
-  
-  if (!cancelled) {
-    modal.remove();
-    const parts = [];
-    if (successCount > 0) parts.push(`${successCount} exported`);
-    if (skippedCount > 0) parts.push(`${skippedCount} skipped (already exist)`);
-    if (emptyCount > 0) parts.push(`${emptyCount} empty chats`);
-    showNotification(`Export complete! ${parts.join(', ')}`);
-  }
 }

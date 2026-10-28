@@ -45,6 +45,12 @@ Your-Data-Folder/
 5. Extension reads the full conversation list from your account
 6. Wait for completion notification
 
+### Shared Chats
+1. Open a chat someone shared with you (`claude.ai/share/...`)
+2. Click **Import** at the top right
+3. A new chat is opened with the transcript attached and a request for Claude to reconstruct it
+4. To import every chat shared with you in your projects, click **Folders** in Claude's sidebar, then **Import Shared Chats**
+
 ### Passive Monitor
 - Extension automatically detects new chats as you browse Claude.ai
 - Orange bar appears once a new chat is detected
@@ -71,7 +77,7 @@ Your-Data-Folder/
 ### Extension Popup
 
 **Header Icons (left to right):**
-- ☕ Coffee - Support the project
+- ♥ Heart - Donate
 - 📊 Analytics - View category charts
 - ✓ Apply - Apply Claude's organization JSON
 - 🔄 Sync (orange) - Import chats from Claude.ai
@@ -213,10 +219,11 @@ All data stored in `data.json`:
 - Check console for errors
 
 ### Export Fails
-- Check folder permissions
-- Verify chats/ subfolder exists
-- Look for errors in console
-- Try exporting single chat first
+- The notice shows the reason
+- "Saving exports needs access to the folder": click **Grant access**, then **Allow access**, then **Allow** in Chrome's prompt
+- Exports are saved while the Data Folder Access window is open with access granted
+- "No data folder is selected": click **Choose folder**
+- Exports made while access was missing are written once access is granted
 
 ### Organizer Button Not Orange
 - Hard refresh the extension (disable/enable)
@@ -260,4 +267,4 @@ All data stored in `data.json`:
 ## Support
 
 - GitHub: https://github.com/lso1/claude-folders
-- Ko-fi: https://ko-fi.com/techreader
+- Donate: https://plexpixel.com/donate
