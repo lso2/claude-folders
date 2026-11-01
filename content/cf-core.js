@@ -26,6 +26,10 @@ function init() {
   });
 
   checkPendingOrganizeData();
+  cfResumeOrganizeAuto();
+  cfStartShellCapture();
+  cfWatchShellClicks();
+  cfTakeTabRequest().then(cfRunTabRequest);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => setTimeout(injectUI, 1000));
@@ -47,7 +51,7 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     return true;
   }
   if (message.action === 'startScrape') {
-    scrapeRecentsPage(true);
+    scrapeRecentsPage();
     sendResponse({ received: true });
     return true;
   }
@@ -56,10 +60,9 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     const written = message.written || 0;
     showNotification(written ? `Folder access granted. ${written} queued export${written === 1 ? '' : 's'} written.` : 'Folder access granted.');
     cfRefreshSyncBar();
-    cfResetCoworkImport();
     // The sync this tab asked for before access was granted
     const request = cfTakeSyncRequest();
-    if (request) scrapeRecentsPage(request.exportAllMissing, request.fullResync);
+    if (request) scrapeRecentsPage(request.fullResync);
     sendResponse({ received: true });
     return true;
   }

@@ -83,8 +83,7 @@ async function renderAccessState() {
 
 // Writes the queue and sends folderAccessChanged to the Claude tabs. The window is left open for later writes.
 async function finishAccess() {
-  const flushed = await flushQueuedExports();
-  await chrome.runtime.sendMessage({ action: 'folderAccessChanged', written: flushed.written, failed: flushed.failed }).catch(() => {});
+  const flushed = await announceFolderAccess();
   await renderAccessState();
   if (flushed.failed) {
     showResult(`${flushed.written} written, ${flushed.failed} still waiting: ${flushed.lastError}`, true);

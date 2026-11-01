@@ -1,0 +1,227 @@
+/* settings/settings.css
+   Styles the extension's settings page.
+   Notes: docs/notes/settings/settings.css.md */
+
+:root {
+  --bg: #f5f4ef;
+  --card: #ffffff;
+  --text: #1f1e1d;
+  --muted: #5e5d59;
+  --line: #e2e0d6;
+  --accent: #c2410c;
+  --accent-hover: #9a3412;
+  --light-bg: #f0eee6;
+  --light-hover: #e2e0d6;
+  --error-bg: #991b1b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1e1d;
+    --card: #262624;
+    --text: #f5f4ef;
+    --muted: #b7b5a9;
+    --line: #3d3d3a;
+    --light-bg: #f5f4ef;
+    --light-hover: #e2e0d6;
+    --error-bg: #7f1d1d;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.settings {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 32px 16px 48px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.settings-logo {
+  border-radius: 8px;
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.settings-card {
+  margin: 0 0 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.settings-heading {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-subheading {
+  margin: 20px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-text {
+  margin: 0 0 8px;
+}
+
+.settings-muted {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: var(--accent-hover);
+}
+
+.btn-light {
+  background: var(--light-bg);
+  color: #1f1e1d;
+}
+
+.btn-danger {
+  background: #b91c1c;
+}
+
+.btn-danger:hover {
+  background: #991b1b;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-confirm {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.btn-light:hover {
+  background: var(--light-hover);
+}
+
+.settings-result {
+  margin: 12px 0 0;
+}
+
+.settings-result.error {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--error-bg);
+  color: #ffffff;
+}
+
+.settings-table-wrap {
+  overflow-x: auto;
+}
+
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.settings-table th,
+.settings-table td {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.settings-table th {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.settings-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.settings-radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 8px;
+}
+
+.settings-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.settings-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.settings-list dt {
+  color: var(--muted);
+}
+
+.settings-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

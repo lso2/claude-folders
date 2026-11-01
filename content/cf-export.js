@@ -1,9 +1,10 @@
 // content/cf-export.js
 // Exports the chat, shared chat or Cowork session open in this tab.
-// Globals: CF_SPIN_ICON, cfSetButtonBusy, handleExportCurrentChat, handleExportCoworkPage,
-//          cfShareProjectName, handleExportSharePage
+// Globals: CF_SPIN_ICON, cfSetButtonBusy, cfExportTarget, cfPageExportClick, handleExportCurrentChat,
+//          handleExportCoworkPage, cfShareProjectName, handleExportSharePage
 // Depends on: lib/chat-exporter.js, lib/share-snapshots.js, lib/chat-markdown.js,
-//             lib/cowork-export.js, content/cf-disk.js, content/cf-notify.js
+//             lib/cowork-export.js, content/cf-disk.js, content/cf-notify.js, content/cf-reveal.js,
+//             content/cf-export-state.js
 // Notes: docs/notes/content/cf-export.js.md
 
 const CF_SPIN_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
@@ -19,7 +20,34 @@ function cfSetButtonBusy(btn, label) {
   };
 }
 
-async function handleExportCurrentChat(btn) {
+// Export Update writes over the file the conversation was exported to, whatever title the
+// conversation has now. A new export uses the name built from the current title.
+async function cfExportTarget(chatId, overwrite, builtName) {
+  if (!overwrite) return builtName;
+  if (overwrite.filename) return overwrite.filename;
+  const found = await chrome.runtime.sendMessage({ action: 'findExport', chatId }).catch((e) => {
+    console.log('[EXPORT] Export file lookup failed:', e.message);
+    return null;
+  });
+  return (found && found.success && found.filename) || builtName;
+}
+
+// The page's export button: Export, Show in folder or Export Update by its state. An up-to-date export
+// without the helper (state current) and Export Update write over the conversation's file. A recorded
+// export starts a new state read (cfOnExportRecorded), applied once the button is enabled again.
+async function cfPageExportClick(btn, ref) {
+  const state = btn.dataset.cfState || 'export';
+  if (state === 'show') {
+    await cfRevealExport(ref.id, btn.dataset.cfFilename || null);
+    return;
+  }
+  const overwrite = state === 'update' || state === 'current' ? { filename: btn.dataset.cfFilename || null } : null;
+  if (ref.kind === 'cowork') await handleExportCoworkPage(btn, ref.id, overwrite);
+  else await handleExportCurrentChat(btn, overwrite);
+  await cfRefreshPageExportButton();
+}
+
+async function handleExportCurrentChat(btn, overwrite) {
   if (!window.chatExporter) {
     showNotification('Export module not loaded', true);
     return;
@@ -31,7 +59,8 @@ async function handleExportCurrentChat(btn) {
       showNotification('Export failed: ' + result.error, true);
       return;
     }
-    cfReportSave(await cfSaveExport(result.filename, result.markdown, currentChatId));
+    const filename = await cfExportTarget(currentChatId, overwrite, result.filename);
+    cfReportSave(await cfSaveExport(filename, result.markdown, currentChatId, result.mark));
   } catch (e) {
     showNotification('Export error: ' + e.message, true);
   } finally {
@@ -39,9 +68,9 @@ async function handleExportCurrentChat(btn) {
   }
 }
 
-// The page belongs to the active organization, which the Cowork endpoints are asked for.
-// With no title passed, the export reads the session's own title.
-async function handleExportCoworkPage(btn, sessionId) {
+// The page belongs to the active organization, and the Cowork endpoints are asked for that one.
+// With no title passed, the session's own title is read for the export.
+async function handleExportCoworkPage(btn, sessionId, overwrite) {
   const restore = cfSetButtonBusy(btn, 'Exporting...');
   try {
     const orgId = await window.chatExporter.getActiveOrganizationId();
@@ -50,7 +79,8 @@ async function handleExportCoworkPage(btn, sessionId) {
       showNotification('Export failed: ' + result.error, true);
       return;
     }
-    cfReportSave(await cfSaveExport(result.filename, result.markdown, sessionId));
+    const filename = await cfExportTarget(sessionId, overwrite, result.filename);
+    cfReportSave(await cfSaveExport(filename, result.markdown, sessionId, result.mark));
   } catch (e) {
     showNotification('Export failed: ' + e.message, true);
   } finally {

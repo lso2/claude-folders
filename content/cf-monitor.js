@@ -130,7 +130,7 @@ function showSyncNotification(count) {
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
-        background: linear-gradient(135deg, #d97706, #b45309);
+        background: #b45309;
         color: white;
         padding: 12px 20px;
         border-radius: 12px;
@@ -157,18 +157,18 @@ function showSyncNotification(count) {
         height: 20px;
       }
       #claude-folders-sync-notification .sync-btn {
-        background: rgba(255,255,255,0.2);
+        background: #d97706;
         border: none;
-        color: white;
+        color: #ffffff;
         padding: 6px 14px;
         border-radius: 6px;
         cursor: pointer;
         font-size: 13px;
-        font-weight: 500;
+        font-weight: 600;
         transition: background 0.15s;
       }
       #claude-folders-sync-notification .sync-btn:hover {
-        background: rgba(255,255,255,0.3);
+        background: #e5850b;
       }
       #claude-folders-sync-notification .dismiss-btn {
         background: none;
@@ -236,7 +236,7 @@ async function cfSyncBarClick() {
     return;
   }
   if (access.code !== 'no-folder' && access.code !== 'permission') return;
-  cfRememberSyncRequest(false, false);
+  cfRememberSyncRequest(false);
   cfFolderAccessAction(access.code, access.folderName, access.permission).run();
 }
 

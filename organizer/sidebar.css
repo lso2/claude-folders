@@ -1,0 +1,413 @@
+/* organizer/sidebar.css
+   The organizer page's frame: the full-height sidebar with Claude's rows and account menu,
+   the drag divider, and the main column with its footer.
+   Notes: docs/notes/organizer/sidebar.css.md */
+
+.app-layout {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    position: relative;
+    width: 260px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid #40403c;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 12px 10px 18px;
+    min-height: 56px;
+}
+
+.logo-text {
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--icon-color);
+    font-family: Georgia, 'Times New Roman', serif;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Inside .sidebar-scroll, which has the 8px side padding */
+.sidebar-nav {
+    padding: 0 0 6px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 10px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 1px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--icon-color);
+}
+
+.nav-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Claude's icon glyphs are stored as white images and drawn in the text color through a mask */
+.shell-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    background-color: currentColor;
+    -webkit-mask: var(--icon) center / 20px 20px no-repeat;
+    mask: var(--icon) center / 20px 20px no-repeat;
+}
+
+.shell-icon-blank {
+    background: none;
+}
+
+/* An icon claude.ai draws after the label, such as the external link arrow */
+.shell-icon-after {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    -webkit-mask-size: 16px 16px;
+    mask-size: 16px 16px;
+}
+
+.nav-item svg {
+    flex: 0 0 20px;
+    color: var(--icon-color);
+}
+
+.sidebar-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px 8px 8px;
+}
+
+.sidebar-section {
+    margin-top: 10px;
+}
+
+.section-label {
+    padding: 8px 10px 6px;
+    font-size: 12px;
+    color: var(--recents-label);
+    font-weight: 500;
+}
+
+.recent-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.recent-item {
+    padding: 6px 10px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 1px;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.account-area {
+    position: relative;
+    margin-top: auto;
+    padding: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.user-profile {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.user-profile:hover,
+.user-profile[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    border-radius: 50%;
+    background: var(--button-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.user-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name,
+.user-team {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-name {
+    font-size: 13px;
+    color: var(--sidebar-text);
+    font-weight: 500;
+}
+
+.user-team {
+    font-size: 12px;
+    color: var(--recents-label);
+}
+
+.user-chevron {
+    flex: 0 0 12px;
+    color: var(--recents-label);
+}
+
+/* The account menu opens upward from the account button */
+.account-menu {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: calc(100% - 2px);
+    min-width: 230px;
+    padding: 6px;
+    background: #2b2b29;
+    border: 1px solid #3d3d3a;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    z-index: 60;
+}
+
+.account-menu[hidden] {
+    display: none;
+}
+
+.menu-header {
+    padding: 6px 10px 8px;
+    font-size: 13px;
+    color: var(--recents-label);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.menu-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    color: var(--title-color);
+    font-size: 14px;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible,
+.menu-item.open {
+    background: rgba(255, 255, 255, 0.06);
+    outline: none;
+}
+
+.menu-chevron {
+    margin-left: auto;
+    color: var(--recents-label);
+}
+
+.menu-sep {
+    height: 1px;
+    margin: 6px 4px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.submenu {
+    position: absolute;
+    left: calc(100% + 8px);
+    bottom: -7px;
+    min-width: 230px;
+    padding: 6px;
+    background: #2b2b29;
+    border: 1px solid #3d3d3a;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    display: none;
+}
+
+.menu-item.open > .submenu {
+    display: block;
+}
+
+/* The divider is dragged to set the width; collapsed shows icons only */
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: -5px;
+    width: 9px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 30;
+}
+
+.sidebar-resizer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 4px;
+    width: 2px;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after,
+.sidebar.resizing .sidebar-resizer::after {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+body.sidebar-resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+.sidebar.collapsed {
+    width: 60px !important;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .sidebar-lists,
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .user-chevron,
+.sidebar.collapsed .sidebar-resizer {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 14px 0 10px;
+}
+
+.sidebar.collapsed .nav-item,
+.sidebar.collapsed .user-profile {
+    justify-content: center;
+}
+
+.sidebar.collapsed .account-menu {
+    right: auto;
+    width: 250px;
+}
+
+.main-column {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--body-bg);
+}
+
+.app-footer {
+    flex: 0 0 auto;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--body-bg);
+    border-top: 1px solid var(--input-border);
+}
+
+.footer-name {
+    opacity: 0.7;
+}
+
+.footer-sep {
+    opacity: 0.4;
+}
+
+.footer-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.footer-link:hover {
+    color: var(--title-color);
+}

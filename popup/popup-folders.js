@@ -1,9 +1,14 @@
 // popup/popup-folders.js
 // Renders the popup's folder list, category filters and folder menu, and edits categories.
 // Globals: showEditCategoriesModal, renderCategoriesList, renderCategoryFilters, renderFolders,
-//          showFolderMenu, updateStats
-// Depends on: popup/popup.js (state, saveData)
+//          showFolderMenu, showRenameFolderModal, showDeleteFolderModal, updateStats, popupEsc
+// Depends on: popup/popup.js (state, saveData), popup/popup.html (renameFolderModal, confirmDeleteModal)
 // Notes: docs/notes/popup/popup-folders.js.md
+
+// Names come from the folder data and Claude's answers, and are inserted as text
+function popupEsc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
 
 function showEditCategoriesModal() {
   const modal = document.getElementById('editCategoriesModal');
@@ -28,7 +33,7 @@ function renderCategoriesList() {
   if (!list) return;
   list.innerHTML = categories.map((cat, idx) => `
     <div class="edit-list-item">
-      <span>${cat}</span>
+      <span>${popupEsc(cat)}</span>
       <button class="btn-icon-delete" data-index="${idx}">×</button>
     </div>
   `).join('');
@@ -47,11 +52,12 @@ function renderCategoryFilters() {
   const container = document.getElementById('filterPills');
   if (!container) return;
   
-  let html = '<button class="filter-pill active" data-filter="all">All</button>';
-  categories.forEach(cat => {
-    html += `<button class="filter-pill" data-filter="${cat}">${cat}</button>`;
-  });
-  container.innerHTML = html;
+  // Each pill counts its folders; categories with folders keep their order, and empty ones follow them, dimmed
+  const counts = new Map();
+  folders.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
+  const ordered = categories.filter(cat => counts.get(cat)).concat(categories.filter(cat => !counts.get(cat)));
+  const pill = (value, label, count, active) => `<button class="filter-pill${active ? ' active' : ''}${count ? '' : ' empty'}" data-filter="${popupEsc(value)}">${popupEsc(label)} <span class="pill-count">(${count})</span></button>`;
+  container.innerHTML = pill('all', 'All', folders.length, true) + ordered.map(cat => pill(cat, cat, counts.get(cat) || 0, false)).join('');
   
   container.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -65,24 +71,7 @@ function renderCategoryFilters() {
 
 function renderFolders() {
   const container = document.getElementById('folderList');
-  const setupInstructions = document.getElementById('setupInstructions');
-  const toggleSetupBtn = document.getElementById('toggleSetupBtn');
   if (!container) return;
-  
-  // Check if we have any organized folders (exclude unsorted)
-  const organizedFolders = folders.filter(f => f.id !== 'unsorted');
-  const hasOrganizedData = organizedFolders.length > 0 && categories.length > 0;
-  
-  // Show/hide setup instructions and toggle button
-  if (setupInstructions && toggleSetupBtn) {
-    if (hasOrganizedData) {
-      setupInstructions.classList.add('hidden');
-      toggleSetupBtn.classList.remove('hidden');
-    } else {
-      setupInstructions.classList.remove('hidden');
-      toggleSetupBtn.classList.add('hidden');
-    }
-  }
   
   let filtered = folders;
   if (currentFilter !== 'all') {
@@ -119,22 +108,22 @@ function renderFolders() {
     const totalChats = catFolders.reduce((sum, f) => sum + (f.chats?.length || 0), 0);
     html += `
       <div class="folder-category-group collapsed">
-        <div class="folder-category-header" data-category="${cat}">
-          <span>${cat} (${totalChats})</span>
+        <div class="folder-category-header" data-category="${popupEsc(cat)}">
+          <span>${popupEsc(cat)} (${totalChats})</span>
           <svg class="category-toggle-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
             <path d="M6 4l4 4-4 4"/>
           </svg>
         </div>
         <div class="folder-category-content">
           ${catFolders.map(folder => `
-            <div class="folder-item" data-folder-id="${folder.id}">
+            <div class="folder-item" data-folder-id="${popupEsc(folder.id)}">
               <div class="folder-header">
                 <div class="folder-info">
-                  <span class="folder-name">${folder.name}</span>
+                  <span class="folder-name">${popupEsc(folder.name)}</span>
                 </div>
                 <div class="folder-actions">
                   <span class="folder-count">${folder.chats?.length || 0}</span>
-                  <button class="folder-menu-btn" data-folder-id="${folder.id}">⋮</button>
+                  <button class="folder-menu-btn" data-folder-id="${popupEsc(folder.id)}">⋮</button>
                 </div>
               </div>
             </div>
@@ -169,6 +158,48 @@ function renderFolders() {
   });
 }
 
+// The Rename Folder modal in popup.html, with the folder's name and category
+function showRenameFolderModal(folderId) {
+  const folder = folders.find(f => f.id === folderId);
+  if (!folder) return;
+  const modal = document.getElementById('renameFolderModal');
+  const input = document.getElementById('renameFolderInput');
+  const select = document.getElementById('renameFolderCategory');
+  input.value = folder.name;
+  select.innerHTML = categories.map(c => `<option value="${popupEsc(c)}"${c === folder.category ? ' selected' : ''}>${popupEsc(c)}</option>`).join('');
+  modal.classList.remove('hidden');
+  input.focus();
+  input.select();
+  document.getElementById('confirmRenameFolder').onclick = async () => {
+    const name = input.value.trim();
+    if (!name) return;
+    folder.name = name;
+    folder.category = select.value || folder.category;
+    modal.classList.add('hidden');
+    await saveData();
+    renderCategoryFilters();
+    renderFolders();
+  };
+}
+
+// The Confirm Delete modal in popup.html
+function showDeleteFolderModal(folderId) {
+  const folder = folders.find(f => f.id === folderId);
+  if (!folder) return;
+  const count = (folder.chats || []).length;
+  document.getElementById('deleteMessage').textContent =
+    `Delete the folder "${folder.name}"? Its ${count} chat${count === 1 ? '' : 's'} leave your folders and stay on claude.ai.`;
+  const modal = document.getElementById('confirmDeleteModal');
+  modal.classList.remove('hidden');
+  document.getElementById('confirmDeleteBtn').onclick = async () => {
+    modal.classList.add('hidden');
+    folders = folders.filter(f => f.id !== folderId);
+    await saveData();
+    renderFolders();
+    updateStats();
+  };
+}
+
 function showFolderMenu(btn, folderId) {
   document.querySelectorAll('.context-menu').forEach(m => m.remove());
   
@@ -189,21 +220,8 @@ function showFolderMenu(btn, folderId) {
     item.addEventListener('click', async () => {
       const action = item.dataset.action;
       menu.remove();
-      if (action === 'rename') {
-        const folder = folders.find(f => f.id === folderId);
-        const newName = prompt('New name:', folder.name);
-        if (newName) {
-          folder.name = newName;
-          await saveData();
-          renderFolders();
-        }
-      } else if (action === 'delete') {
-        if (confirm('Delete this folder?')) {
-          folders = folders.filter(f => f.id !== folderId);
-          await saveData();
-          renderFolders();
-        }
-      }
+      if (action === 'rename') showRenameFolderModal(folderId);
+      else if (action === 'delete') showDeleteFolderModal(folderId);
     });
   });
   

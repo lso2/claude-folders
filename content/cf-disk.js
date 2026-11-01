@@ -3,7 +3,7 @@
 // Globals: cfWriteExport, cfSaveExport, cfQueueExport, cfCheckWriteAccess, cfFolderAccessAction,
 //          cfPromptFolderAccess, cfReportSave
 // Depends on: lib/storage-keys.js, lib/folder-picker.js, content/cf-notify.js,
-//             content/cf-export-records.js (markChatAsExported)
+//             content/cf-export-records.js (markChatAsExported), content/cf-reveal.js (cfNotifySaved)
 // Notes: docs/notes/content/cf-disk.js.md
 
 // One write through the offscreen writer, returning its { success, code, error } as given
@@ -17,27 +17,28 @@ async function cfWriteExport(filename, content) {
 }
 
 // A single export is kept in the queue when folder access is missing, and the
-// access window writes it once access is granted
-async function cfSaveExport(filename, content, chatId) {
+// access window writes it once access is granted. The mark is the conversation's
+// state at export (lib/export-state.js).
+async function cfSaveExport(filename, content, chatId, mark) {
   const res = await cfWriteExport(filename, content);
   if (res.success) {
-    if (chatId) await markChatAsExported(chatId);
-    return { saved: true, filename };
+    if (chatId) await markChatAsExported(chatId, { filename, mark });
+    return { saved: true, filename, chatId: chatId || null };
   }
   if (res.code === 'no-folder' || res.code === 'permission') {
-    const queued = await cfQueueExport(filename, content, chatId);
+    const queued = await cfQueueExport(filename, content, chatId, mark);
     cfPromptFolderAccess(res.code, res.folderName, res.permission);
     return { saved: false, queued, code: res.code, error: res.error, filename };
   }
   return { saved: false, queued: false, code: res.code, error: res.error, filename };
 }
 
-async function cfQueueExport(filename, content, chatId) {
+async function cfQueueExport(filename, content, chatId, mark) {
   try {
     const stored = await chrome.storage.local.get(QUEUED_EXPORTS_KEY);
     const queue = (Array.isArray(stored[QUEUED_EXPORTS_KEY]) ? stored[QUEUED_EXPORTS_KEY] : [])
       .filter(item => item.filename !== filename);
-    queue.push({ filename, content, chatId: chatId || null, queuedAt: new Date().toISOString() });
+    queue.push({ filename, content, chatId: chatId || null, mark: mark || null, queuedAt: new Date().toISOString() });
     await chrome.storage.local.set({ [QUEUED_EXPORTS_KEY]: queue });
     return true;
   } catch (e) {
@@ -95,9 +96,10 @@ function cfPromptFolderAccess(code, folderName, permission) {
   cfNotifyAction('access', action.message, action.label ? [{ label: action.label, primary: true, onClick: action.run }] : []);
 }
 
+// A saved file gets a notice that stays until closed, with the file name opening its folder
 function cfReportSave(outcome) {
   if (outcome.saved) {
-    showNotification(`Saved: ${outcome.filename}`);
+    cfNotifySaved(outcome.filename, outcome.chatId);
   } else if (!outcome.queued) {
     showNotification('Could not save: ' + (outcome.error || 'the writer returned no reason'), true);
   }

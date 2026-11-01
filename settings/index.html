@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!-- settings/index.html
+     The extension's settings page: data folder, accounts, the Folders panel's account view,
+     the Claude Folders Helper, the running version and clearing a login's folders.
+     Opened from the extension's options, the popup, the Folders panel and the organizer.
+     Notes: docs/notes/settings/index.html.md -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Folders Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main class="settings">
+    <header class="settings-header">
+      <img src="../icons/icon48.png" alt="" class="settings-logo" width="40" height="40">
+      <div>
+        <h1 class="settings-title">Claude Folders Settings</h1>
+        <p class="settings-muted" id="aboutLine"></p>
+      </div>
+    </header>
+
+    <section class="settings-card" aria-labelledby="folderHeading">
+      <h2 class="settings-heading" id="folderHeading">Data folder</h2>
+      <p class="settings-text" id="folderStatus">Checking the data folder...</p>
+      <p class="settings-muted" id="folderQueue" hidden></p>
+      <div class="settings-actions">
+        <button class="btn" id="folderGrant" hidden>Open access window</button>
+        <button class="btn btn-light" id="folderChoose" hidden>Choose folder</button>
+        <button class="btn" id="folderFlag" hidden>Open flag</button>
+      </div>
+      <p class="settings-result" id="folderResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="accountsHeading">
+      <h2 class="settings-heading" id="accountsHeading">Accounts</h2>
+      <p class="settings-text" id="accountsStatus">Reading the accounts...</p>
+      <div class="settings-table-wrap">
+        <table class="settings-table" id="accountsTable" hidden>
+          <thead><tr><th>Account</th><th>Chats</th><th>Folders</th><th>Organizations</th><th>Read from</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <h3 class="settings-subheading">Data files</h3>
+      <p class="settings-muted" id="filesStatus"></p>
+      <div class="settings-table-wrap">
+        <table class="settings-table" id="filesTable" hidden>
+          <thead><tr><th>File</th><th>Account</th><th>Size</th><th>Modified</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <h3 class="settings-subheading">Folders panel</h3>
+      <div class="settings-radios" role="radiogroup" aria-label="Folders panel opens on">
+        <label class="settings-radio"><input type="radio" name="accountView" value="this"> This login's folders</label>
+        <label class="settings-radio"><input type="radio" name="accountView" value="all"> All accounts' folders</label>
+      </div>
+      <p class="settings-muted">The account dropdown in the Folders panel changes the view for each login. Saving a choice here resets those changes.</p>
+      <p class="settings-result" id="viewResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="migrateHeading">
+      <h2 class="settings-heading" id="migrateHeading">Import from another account</h2>
+      <p class="settings-text">Clicking Import from another account in the Folders panel or the organizer opens the import dialog. Each chat of the chosen account with an export in the data folder is started as a new chat here, with its transcript attached and this request:</p>
+      <div class="settings-radios" role="radiogroup" aria-label="Request sent with each imported chat">
+        <label class="settings-radio"><input type="radio" name="migrationRequest" value="full"> Full reconstruction: Claude summarizes the chat and lists its facts, decisions and open questions</label>
+        <label class="settings-radio"><input type="radio" name="migrationRequest" value="short"> Short request: Claude reads the transcript and replies with one line</label>
+      </div>
+      <p class="settings-muted">The import dialog has the same choice, and a choice made there is saved here. The Cowork chats imported from the Chats and tasks page get the same request.</p>
+      <p class="settings-result" id="migrationResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helperHeading">
+      <h2 class="settings-heading" id="helperHeading">Claude Folders Helper</h2>
+      <p class="settings-text" id="helperStatus">Checking the helper...</p>
+      <p class="settings-muted" id="helperHint" hidden></p>
+      <div class="settings-actions">
+        <button class="btn btn-light" id="helperCheck">Check again</button>
+      </div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="aboutHeading">
+      <h2 class="settings-heading" id="aboutHeading">Version</h2>
+      <dl class="settings-list" id="aboutList"></dl>
+    </section>
+
+    <section class="settings-card" aria-labelledby="clearHeading">
+      <h2 class="settings-heading" id="clearHeading">Clear folder data</h2>
+      <p class="settings-text" id="clearStatus">Reading the signed-in login...</p>
+      <p class="settings-muted">Chats on claude.ai and the exported files in the chats folder are not changed.</p>
+      <div class="settings-actions" id="clearStart">
+        <button class="btn btn-danger" id="clearBtn" disabled>Clear folders</button>
+      </div>
+      <div class="settings-confirm" id="clearConfirm" hidden>
+        <p class="settings-text" id="clearQuestion"></p>
+        <div class="settings-actions">
+          <button class="btn btn-danger" id="clearYes">Clear all folders</button>
+          <button class="btn btn-light" id="clearNo">Cancel</button>
+        </div>
+      </div>
+      <p class="settings-result" id="clearResult" hidden></p>
+    </section>
+  </main>
+  <script src="../lib/build-reload.js"></script>
+  <script src="../lib/apply-update.js"></script>
+  <script src="../lib/storage-keys.js"></script>
+  <script src="../lib/handle-storage.js"></script>
+  <script src="../lib/export-files.js"></script>
+  <script src="../lib/export-state.js"></script>
+  <script src="../lib/folder-access.js"></script>
+  <script src="../lib/folder-picker.js"></script>
+  <script src="settings-format.js"></script>
+  <script src="settings-folder.js"></script>
+  <script src="settings-accounts.js"></script>
+  <script src="settings-helper.js"></script>
+  <script src="settings-about.js"></script>
+  <script src="settings-clear.js"></script>
+  <script src="settings-migration.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

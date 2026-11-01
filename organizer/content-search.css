@@ -1,0 +1,130 @@
+/* organizer/content-search.css
+   The chats listed under the search box by organizer/content-search.js.
+   Notes: docs/notes/organizer/content-search.css.md */
+
+.content-search {
+    margin: 0 0 20px;
+    padding: 16px 18px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+}
+
+.content-search[hidden] {
+    display: none;
+}
+
+.content-search-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-bottom: 6px;
+}
+
+.content-search-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--title-color);
+}
+
+.content-search-status {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* A search of the exports that did not run: white text on dark red */
+.content-search-status.error {
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #7f1d1d;
+    color: #ffffff;
+}
+
+.content-search-access[hidden],
+.content-search-more[hidden] {
+    display: none;
+}
+
+.content-search-list {
+    max-height: 440px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+/* Rows are divided by a line in the page color, the divider of the folder's chat list */
+.content-search-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--divider);
+}
+
+.content-search-row:last-child {
+    border-bottom: none;
+}
+
+.content-search-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.content-search-chat {
+    font-size: 14px;
+    color: var(--chat-title);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+a.content-search-chat:hover {
+    text-decoration: underline;
+}
+
+.content-search-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.content-search-tag {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--title-color);
+}
+
+.content-search-snippet {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--body-text);
+    overflow-wrap: anywhere;
+}
+
+.content-search-snippet:empty {
+    display: none;
+}
+
+/* The matched words: white and bold, with no background */
+.content-search-snippet mark {
+    background: transparent;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.content-search-view {
+    flex-shrink: 0;
+}
+
+.content-search-more {
+    margin-top: 10px;
+}

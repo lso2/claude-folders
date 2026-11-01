@@ -1,9 +1,8 @@
 // organizer/app.js
 // Starts the organizer page: loads folder data from the data folder or cache and wires the controls.
 // Globals: folders, allChats, categories, metadata, currentCategory, currentFolder, currentView,
-//          currentSort, searchTerm, currentTab, sidebarState, esc, safeUrl, countChats,
-//          loadAllData, runBuildLibrary, saveData, renderUserProfile, renderCategoryFilters,
-//          setupEventListeners, toggleSidebar
+//          currentSort, searchTerm, currentTab, esc, safeUrl, countChats, loadAllData, refreshView,
+//          saveData, renderCategoryFilters, showFolderListView, setupEventListeners
 // Depends on: the lib/ files and organizer parts listed in organizer/index.html
 // Notes: docs/notes/organizer/app.js.md
 
@@ -17,7 +16,6 @@ let currentView = 'list';
 let currentSort = 'activity';
 let searchTerm = '';
 let currentTab = 'chats';
-let sidebarState = 'normal';
 
 // Escape user content before it goes into innerHTML
 function esc(value) {
@@ -47,6 +45,9 @@ function countChats(data) {
 document.addEventListener('DOMContentLoaded', async () => {
   const footerName = document.querySelector('.footer-name');
   if (footerName) footerName.textContent = 'Claude Folders v' + chrome.runtime.getManifest().version;
+  await loadSidebarLayout();
+  applySidebarLayout();
+  setupSidebar();
   await loadAllData();
   setupEventListeners();
   
@@ -85,35 +86,21 @@ async function loadAllData() {
   const fileChats = countChats(fileData);
   const cacheChats = countChats(cacheData);
   
-  // Use whichever has more data
-  let data = null;
-  if (cacheChats > fileChats && cacheData) {
-    console.log('[ORGANIZER] Cache has more data - using cache and writing to file');
-    data = cacheData;
-    // Write cache to file so they're in sync
-    const writeSuccess = await writeDataFile(cacheData);
-    console.log('[ORGANIZER] Write to file result:', writeSuccess);
-  } else if (fileData && fileChats > 0) {
-    console.log('[ORGANIZER] Using file data');
-    data = fileData;
-  } else if (cacheData) {
-    console.log('[ORGANIZER] File empty, using cache');
-    data = cacheData;
-    await writeDataFile(cacheData);
-  } else {
-    console.log('[ORGANIZER] No data anywhere');
-    data = fileData;
-  }
+  // The cache wins unless the file holds more chats. Data read from a fuller file goes to the
+  // background below, which keeps it and writes the data file through the folder writer.
+  const fileNewer = !!fileData && fileChats > cacheChats;
+  const data = fileNewer ? fileData : (cacheData || fileData);
+  console.log('[ORGANIZER] Using', fileNewer ? 'the data file' : (cacheData ? 'the cache' : 'no data'));
   
   if (!data || !data.folders) {
     folders = [];
     categories = ['Personal', 'Work', 'Projects'];
-    metadata = { userName: 'James', userInitial: 'J', userTeam: '' };
+    metadata = {};
     allChats = [];
   } else {
     folders = data.folders || [];
     categories = data.categories || ['Personal', 'Work', 'Projects'];
-    metadata = data.metadata || { userName: 'James', userInitial: 'J', userTeam: '' };
+    metadata = data.metadata || {};
     allChats = [];
     const seenChatIds = new Set();
     folders.forEach(f => {
@@ -133,90 +120,47 @@ async function loadAllData() {
     ...f,
     lastActivity: f.chats && f.chats.length > 0 ? Math.max(...f.chats.map(c => new Date(c.date || 0).getTime())) : 0
   }));
-  
-  renderUserProfile();
+
+  if (fileNewer) await saveData();
+  await Promise.all([loadOrganizerShell(), loadOrganizerAccounts()]);
+  renderSidebarShell();
+  refreshView();
+}
+
+// Redraws everything that depends on the folders shown: the account dropdown, the category pills,
+// the folder grid and the recent chats
+function refreshView() {
+  buildViewFolders();
+  renderAccountSelect();
   renderCategoryFilters();
   renderFolderList();
   renderRecentChats();
 }
 
-// Writes the data, refreshes the viewer files and embeds every exported chat into data.js
-async function runBuildLibrary() {
-  const btn = document.getElementById('buildLibraryBtn');
-  const original = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
-  try {
-    if (typeof buildLibrary !== 'function') {
-      alert('Library builder unavailable - reload the page and try again.');
-      return;
-    }
-    const data = { folders, categories, metadata };
-    const result = await buildLibrary(data, (done, total) => {
-      if (btn) btn.textContent = `Embedding ${done}/${total}...`;
-    });
-    if (result.success) {
-      alert(`Library built in your data folder.\n\nEmbedded ${result.embedded} of ${result.total} chats for offline reading.\n\nOpen index.html from that folder to browse everything offline.`);
-    } else {
-      alert('Could not build library: ' + (result.error || 'unknown error'));
-    }
-  } catch (e) {
-    alert('Build library failed: ' + e.message);
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = original; }
-  }
-}
-
+// The background stores the change and writes the data file through the folder writer
 async function saveData() {
   const data = { folders, categories, metadata };
-  let success = false;
-  
   try {
-    success = await writeDataFile(data);
+    const answer = await chrome.runtime.sendMessage({ action: 'updateCache', data });
+    if (answer && answer.success && !answer.written) console.log('[ORGANIZER] Saved in the extension; the data file was not written:', answer.error);
   } catch (e) {
-    console.log('[ORGANIZER] File write failed:', e.message);
-  }
-  
-  try {
-    await chrome.storage.local.set({ cachedData: data });
-    console.log('[ORGANIZER] Cache updated');
-  } catch (e) {
-    console.log('[ORGANIZER] Cache update failed:', e.message);
-  }
-  
-  if (success) {
-    try {
-      await chrome.runtime.sendMessage({ action: 'updateCache', data });
-    } catch (e) {
-      console.log('[ORGANIZER] Could not notify background:', e.message);
-    }
+    console.log('[ORGANIZER] The change was not saved:', e.message);
   }
 }
 
-function renderUserProfile() {
-  const avatar = document.getElementById('userAvatar');
-  const name = document.getElementById('userName');
-  const team = document.getElementById('userTeam');
-  if (avatar) avatar.textContent = metadata.userInitial || 'J';
-  if (name) name.textContent = metadata.userName || 'James';
-  if (team) {
-    if (metadata.userTeam) {
-      team.textContent = metadata.userTeam;
-      team.style.display = 'block';
-    } else {
-      team.style.display = 'none';
-    }
-  }
-}
-
+// This login's categories, then the categories of other accounts' folders the view shows. Each pill counts
+// the view's folders in it; categories with folders keep their order, and empty ones follow them, dimmed.
 function renderCategoryFilters() {
   const filterPills = document.getElementById('filterPills');
   if (!filterPills) return;
-  
-  let html = '<button class="filter-pill active" data-filter="all">All Folders</button>';
-  categories.forEach(cat => {
-    html += `<button class="filter-pill" data-filter="${cat}">${cat}</button>`;
-  });
-  filterPills.innerHTML = html;
+  const shown = [...new Set([...categories, ...viewFolders.map(f => f.category)].filter(Boolean))];
+  if (currentCategory !== 'all' && !shown.includes(currentCategory)) currentCategory = 'all';
+  const counts = new Map();
+  viewFolders.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
+  const ordered = shown.filter(cat => counts.get(cat)).concat(shown.filter(cat => !counts.get(cat)));
+
+  const pill = (value, label, count) => `<button class="filter-pill${currentCategory === value ? ' active' : ''}${count ? '' : ' empty'}" data-filter="${esc(value)}">${esc(label)} <span class="pill-count">(${count})</span></button>`;
+  filterPills.innerHTML = pill('all', 'All Folders', viewFolders.length) + ordered.map(cat => pill(cat, cat, counts.get(cat) || 0)).join('');
   
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -234,9 +178,11 @@ function setupEventListeners() {
     renderFolderList();
   });
   
+  // Folders filter as each key is typed. Chats are listed after a pause (organizer/content-search.js).
   document.getElementById('searchInput')?.addEventListener('input', (e) => {
     searchTerm = e.target.value;
     renderFolderList();
+    scheduleContentSearch(searchTerm);
   });
   
   document.getElementById('backBtn')?.addEventListener('click', () => {
@@ -270,18 +216,17 @@ function setupEventListeners() {
   });
   
   document.getElementById('newFolderBtn')?.addEventListener('click', showNewFolderModal);
-  document.getElementById('sidebarToggle')?.addEventListener('click', toggleSidebar);
+  document.getElementById('organizeBtn')?.addEventListener('click', startOrganizerOneClick);
   document.getElementById('exportBtn')?.addEventListener('click', exportData);
   document.getElementById('importBtn')?.addEventListener('click', showImportModal);
-  document.getElementById('clearBtn')?.addEventListener('click', clearData);
+  document.getElementById('settingsBtn')?.addEventListener('click', () => chrome.runtime.openOptionsPage());
   
   // Analytics
   document.getElementById('analyticsBtn')?.addEventListener('click', showAnalyticsView);
   document.getElementById('analyticsBackBtn')?.addEventListener('click', hideAnalyticsView);
   
-  // Export MD
-  document.getElementById('exportMdBtn')?.addEventListener('click', showExportMdModal);
-  document.getElementById('buildLibraryBtn')?.addEventListener('click', runBuildLibrary);
+  // The sync of the Folders panel, run in the claude.ai tab (organizer/run-start.js)
+  document.getElementById('syncBtn')?.addEventListener('click', startOrganizerSync);
   
   // Category search
   document.getElementById('categorySearchInput')?.addEventListener('input', (e) => {
@@ -289,25 +234,10 @@ function setupEventListeners() {
   });
 }
 
-function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  const main = document.getElementById('mainContent');
-  
-  if (sidebarState === 'normal') {
-    sidebarState = 'collapsed';
-    sidebar.classList.add('collapsed');
-    sidebar.classList.remove('expanded');
-    main.classList.add('sidebar-collapsed');
-    main.classList.remove('sidebar-expanded');
-  } else if (sidebarState === 'collapsed') {
-    sidebarState = 'expanded';
-    sidebar.classList.remove('collapsed');
-    sidebar.classList.add('expanded');
-    main.classList.remove('sidebar-collapsed');
-    main.classList.add('sidebar-expanded');
-  } else {
-    sidebarState = 'normal';
-    sidebar.classList.remove('collapsed', 'expanded');
-    main.classList.remove('sidebar-collapsed', 'sidebar-expanded');
-  }
+// The Folders row in the sidebar returns to the folder grid from a folder or the analytics
+function showFolderListView() {
+  document.getElementById('folderDetailView')?.classList.add('hidden');
+  document.getElementById('analyticsView')?.classList.add('hidden');
+  document.getElementById('folderListView')?.classList.remove('hidden');
+  currentFolder = null;
 }

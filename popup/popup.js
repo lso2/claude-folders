@@ -1,8 +1,8 @@
 // popup/popup.js
 // Starts the toolbar popup: checks the data folder, loads folder data and wires the header controls.
 // Globals: folders, categories, allChats, metadata, currentFilter, searchTerm, init, checkDataFolder,
-//          showSetupScreen, copyOrganizerFiles, showMainScreen, countChatsInData, loadData, saveData,
-//          setupEventListeners
+//          showSetupScreen, showMainScreen, countChatsInData, loadData, saveData, setupEventListeners,
+//          setStepsOpen, showStepsWhenUnorganized
 // Depends on: the lib/ files and popup parts listed in popup/popup.html
 // Notes: docs/notes/popup/popup.js.md
 
@@ -18,31 +18,12 @@ document.addEventListener('DOMContentLoaded', init);
 function init() {
   console.log('[POPUP] init');
   
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('[POPUP] Message:', message.action);
-    
-    if (message.action === 'getData') {
-      sendResponse({ 
-        success: true, 
-        folders: folders, 
-        categories: categories, 
-        allChats: allChats 
-      });
-      return true;
-    }
-    
-    if (message.action === 'reloadData') {
-      loadData().then(() => sendResponse({ success: true }));
-      return true;
-    }
-  });
-  
   checkDataFolder().then(hasFolder => {
     if (hasFolder) {
       showMainScreen();
       loadData().then(() => {
         setupEventListeners();
-        processPendingExports(); // Process any pending exports
+        showStepsWhenUnorganized();
       });
     } else {
       showSetupScreen();
@@ -67,43 +48,19 @@ function showSetupScreen() {
       const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
       await saveFolderHandle(handle);
       
-      // Copy organizer files to the data folder for standalone viewing
-      await copyOrganizerFiles(handle);
+      // The library page and its scripts go into the new data folder (lib/data-file.js)
+      await refreshLibraryFiles(handle);
       
       showMainScreen();
       await loadData();
       setupEventListeners();
+      showStepsWhenUnorganized();
     } catch (error) {
       if (error.name !== 'AbortError') {
-        alert('Error: ' + error.message);
+        cfPageAlert('Data folder not set up', `${error.name}: ${error.message}`);
       }
     }
   });
-}
-
-async function copyOrganizerFiles(folderHandle) {
-  // Copy standalone viewer files from extension
-  const files = [
-    { name: 'index.html', path: 'standalone/index.html' },
-    { name: 'styles.css', path: 'standalone/styles.css' },
-    { name: 'app.js', path: 'standalone/app.js' }
-  ];
-  
-  for (const file of files) {
-    try {
-      const url = chrome.runtime.getURL(file.path);
-      const response = await fetch(url);
-      const content = await response.text();
-      
-      const fileHandle = await folderHandle.getFileHandle(file.name, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      console.log('[POPUP] Copied', file.name);
-    } catch (e) {
-      console.log('[POPUP] Failed to copy', file.name, e.message);
-    }
-  }
 }
 
 function showMainScreen() {
@@ -145,34 +102,14 @@ async function loadData() {
   const cacheFolders = cacheData?.folders?.length || 0;
   console.log('[POPUP] File has', fileChats, 'chats in', fileFolders, 'folders, cache has', cacheChats, 'chats in', cacheFolders, 'folders');
   
-  let data = null;
-  // Use cache if it has more chats OR more folders (organized data)
-  if (cacheChats > fileChats || cacheFolders > fileFolders) {
-    console.log('[POPUP] Using cache (more data or more folders)');
-    data = cacheData;
-    // Sync cache to file
-    if (cacheData) {
-      writeDataFile(cacheData).catch(e => console.log('[POPUP] Sync failed:', e));
-    }
-  } else if (fileChats > 0) {
-    data = fileData;
-  } else if (cacheData) {
-    data = cacheData;
-  } else {
-    data = fileData;
-  }
+  // The cache wins unless the file holds more chats or more folders
+  const fileNewer = fileChats > cacheChats || fileFolders > cacheFolders;
+  const data = fileNewer ? fileData : (cacheData || fileData);
   
   if (data) {
     folders = data.folders || [];
     categories = data.categories || ['Personal', 'Work', 'Projects'];
     metadata = data.metadata || {};
-    
-    // ALWAYS write to file when we have data from cache
-    if (folders.length > 0 || countChatsInData(data) > 0) {
-      console.log('[POPUP] Writing data to file...');
-      const writeSuccess = await writeDataFile({ folders, categories, metadata });
-      console.log('[POPUP] Write result:', writeSuccess);
-    }
   } else {
     folders = [];
     categories = ['Personal', 'Work', 'Projects'];
@@ -187,10 +124,8 @@ async function loadData() {
   console.log('[POPUP] folders:', folders.length);
   console.log('[POPUP] allChats:', allChats.length);
   
-  await chrome.runtime.sendMessage({ 
-    action: 'updateCache', 
-    data: { folders, categories, metadata } 
-  });
+  // Data read from a file holding more than the cache goes to the background, which keeps it
+  if (fileNewer) await saveData();
   
   console.log('[POPUP] ===== loadData END =====');
   
@@ -199,15 +134,17 @@ async function loadData() {
   updateStats();
 }
 
+// The background stores the change and writes the data file through the folder writer
 async function saveData() {
-  console.log('[POPUP] saveData');
   const data = { folders, categories, metadata };
-  const success = await writeDataFile(data);
-  if (success) {
-    // Update cache
-    await chrome.runtime.sendMessage({ action: 'updateCache', data });
+  try {
+    const answer = await chrome.runtime.sendMessage({ action: 'updateCache', data });
+    if (answer && answer.success && !answer.written) console.log('[POPUP] Saved in the extension; the data file was not written:', answer.error);
+    return !!(answer && answer.success);
+  } catch (e) {
+    console.log('[POPUP] The change was not saved:', e.message);
+    return false;
   }
-  return success;
 }
 
 function setupEventListeners() {
@@ -216,42 +153,43 @@ function setupEventListeners() {
     renderFolders();
   });
   
-  document.getElementById('importBtn')?.addEventListener('click', showImportModal);
-  
-  document.getElementById('exportAllBtn')?.addEventListener('click', showExportAllModal);
-  
   document.getElementById('openOrganizerBtn')?.addEventListener('click', async () => {
     await chrome.runtime.sendMessage({ action: 'openOrganizer' });
   });
   
   document.getElementById('editCategoriesBtn')?.addEventListener('click', showEditCategoriesModal);
   
-  // New organize buttons
-  document.getElementById('askClaudeBtn')?.addEventListener('click', askClaudeToOrganize);
+  // The steps pane: Ask Claude to Organize, then Apply Claude's Response
+  document.getElementById('organizeAutoBtn')?.addEventListener('click', () => askClaudeToOrganize(true));
+  document.getElementById('askClaudeBtn')?.addEventListener('click', () => askClaudeToOrganize(false));
   document.getElementById('applyCategoriesBtn')?.addEventListener('click', showApplyCategoriesModal);
-  document.getElementById('applyHeaderBtn')?.addEventListener('click', showApplyCategoriesModal);
+  document.getElementById('toggleSetupBtn')?.addEventListener('click', () => setStepsOpen(document.getElementById('setupInstructions').classList.contains('hidden')));
   
-  // Analytics toggle
   document.getElementById('analyticsBtn')?.addEventListener('click', toggleAnalytics);
+  document.getElementById('settingsBtn')?.addEventListener('click', () => chrome.runtime.openOptionsPage());
   document.getElementById('backToFoldersBtn')?.addEventListener('click', hideAnalytics);
   
-  // Coffee/support button
   document.getElementById('coffeeBtn')?.addEventListener('click', () => {
     document.getElementById('coffeeModal')?.classList.remove('hidden');
   });
   
-  // Toggle setup instructions button
-  document.getElementById('toggleSetupBtn')?.addEventListener('click', () => {
-    const setupInstructions = document.getElementById('setupInstructions');
-    if (setupInstructions) {
-      setupInstructions.classList.toggle('hidden');
-    }
-  });
-  
-  document.querySelectorAll('.close-modal').forEach(btn => {
+  // The × of each modal and the Cancel buttons of the Rename and Delete modals close them
+  document.querySelectorAll('.close-modal, .modal-actions [data-modal]').forEach(btn => {
     btn.addEventListener('click', () => {
       const modalId = btn.dataset.modal;
       document.getElementById(modalId)?.classList.add('hidden');
     });
   });
+}
+
+// The square-check button shows and hides the steps pane
+function setStepsOpen(open) {
+  document.getElementById('setupInstructions')?.classList.toggle('hidden', !open);
+  document.getElementById('toggleSetupBtn')?.setAttribute('aria-expanded', String(open));
+}
+
+// Without organized folders the popup opens with the steps showing
+function showStepsWhenUnorganized() {
+  const organized = folders.some(f => f.id !== 'unsorted') && categories.length > 0;
+  setStepsOpen(!organized);
 }

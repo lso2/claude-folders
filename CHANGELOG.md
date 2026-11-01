@@ -2,6 +2,160 @@
 
 All notable changes to Claude Folders.
 
+## 1.5.0
+
+**Organize**
+
+- Added Organize in One Click to the Folders panel and the popup. Clicking Organize in the organizer runs it too.
+- Fixed the false "organize request was not pasted" notice.
+- Fixed the plural for 1 chat in the organize request and preview.
+- Empty word and phrase lists are left out of the organize request.
+- Organize in One Click is orange.
+- Fixed the "Expected property name" and "Bad control character" errors when previewing Claude's organize answer.
+- Organize in One Click reads Claude's answer from the chat's API.
+- Organize in One Click sends the request as a chat.
+- The organize request asks Claude to place every chat in a folder.
+
+**Import from another account**
+
+- Added the import dialog, with the account choice, the request style and the counts to import.
+- Added Pause and Resume to the import.
+- Added an optional pause after each batch of chats.
+- Added Import from another account to the organizer.
+- The Folders panel shows Import from another account whenever another account has chats.
+- The popup and the organizer show the import's progress and result.
+- Removed the Import Cowork chats button from Chats and tasks. Import from another account imports Cowork sessions.
+
+**Folders panel**
+
+- The setup steps button shows the check-through-square icon, in the popup too.
+- Clicking a folder opens its chats in a second pane with full titles.
+- The ends of the folder list and the folder pane are visible above the sync and progress bars.
+
+**Organizer**
+
+- Searching also matches the text of exported chats.
+- The sidebar is one scroll area.
+- Category pills are a full-width row.
+- The Import modal fits in the window.
+- Fixed the #cf-run address shown when opening sidebar and account menu items.
+- Removed the download of a run's exports as one file.
+- The run result has square corners and closes on a click outside it.
+- The sync result reports whether the offline library's data.js was written.
+- Fixed the GitHub link.
+- View Offline opens renamed chats and Cowork sessions.
+
+**Popup**
+
+- Added the Folders title back to the header.
+- Fixed new chats missing from a sync's exports while the popup was open.
+- Fixed folder and category names with HTML characters.
+
+**Other**
+
+- Category pills in the organizer and the popup show folder counts, with empty categories last.
+- Replaced the browser's alerts, confirmations and prompts with designed dialogs.
+- Light buttons on notices, dialogs, the popup and the sync bar are orange with white text.
+
+## 1.4.0
+
+**Sync**
+
+- Sync in the popup, the organizer and the sync bar is one run in a claude.ai tab.
+- The popup and the organizer show each sync's progress and result.
+- Added a download of each sync's files to the organizer.
+- Added Export folder to this login's folders in the organizer.
+- Exporting a large Cowork session is faster, and its progress shows the event count.
+- Fixed slow exports and "not found" errors when several logins share an organization.
+
+**Accounts**
+
+- Each Claude login has its own folders.
+- Chats of another account are listed only under that account.
+- Added importing another account's chats and Cowork sessions from the Folders panel into matching folders.
+- Added the choice between a short request and a full reconstruction for imported chats to Options.
+
+**Organizer**
+
+- The sidebar shows Claude's sidebar items and account menu.
+- The sidebar spans the full height and can be collapsed or resized.
+- Added the account dropdown, Sync and Settings.
+- Moved Clear to the Options page.
+- The offline library shows new exports with no Build Library step.
+
+**Folders panel**
+
+- The square-check shows and hides the setup steps, and the gear opens Options.
+
+**Popup**
+
+- Rebuilt the header with Organizer, donate, analytics, setup steps and Options buttons.
+- Added the last sync time and a Sync button.
+- Removed the Sync dialog and Export All.
+- Fixed the width, the category chevrons and the active category pill.
+- Fixed the folder access banner appearing while access was granted.
+
+**Ask Claude to Organize**
+
+- Fixed the delay after clicking it.
+- The request from the popup is pasted into the new chat.
+- Fixed missing chat details after applying Claude's response in the popup.
+
+**Other**
+
+- Import runs can be stopped.
+- Fixed popup and organizer changes that were not saved to the data file.
+- Fixed a constant loop on the Chats and tasks page.
+- Buttons, badges, modals and progress bars have solid colors.
+
+## 1.3.15
+
+**Accounts**
+
+- Every organized chat records the account it belongs to.
+- Each account's data file records the account's email and name.
+- Added the account dropdown to the Folders panel, with each account's organizations under it.
+- Removed the organization chips.
+- All accounts shows the folders of every account in the data folder together.
+- Chats stored without their organization get it at the next sync.
+
+**Settings**
+
+- Added a settings page for the data folder, accounts, the Folders panel's default view, Claude Folders Helper and the version.
+- Added Settings buttons to the popup and the Folders panel.
+
+## 1.3.14
+
+**Show in folder**
+
+- Added Claude Folders Helper for Windows, a program with its own setup.
+- Removed the PowerShell helper.
+- The file name link and Show in folder appear only with the helper installed.
+- Without the helper, an exported chat shows Export, which writes over the same file.
+
+**Updates**
+
+- Fixed "Unknown action" errors after the browser restarted with newer extension files.
+
+## 1.3.13
+
+- Show in folder and Export Update appear sooner on chat and Cowork pages.
+
+## 1.3.12
+
+- Fixed Export Update for exports made before 1.3.11.
+
+## 1.3.11
+
+**Exports**
+
+- The Saved notice stays open until closed, and its file name opens the file's folder in File Explorer.
+- An exported chat or Cowork session shows Show in folder in place of Export.
+- A chat or Cowork session with messages newer than its export shows Export Update. Export Update writes over the same file.
+- Every sync exports the stored chats and Cowork sessions missing from the data folder.
+- Added the Claude Folders helper for Windows for Show in folder.
+- Fixed the organizer's single Download through the offscreen writer.
+
 ## 1.3.10
 
 - Importing Cowork chats asks for data folder access when it is missing.

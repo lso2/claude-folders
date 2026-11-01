@@ -1,8 +1,10 @@
 // organizer/chats.js
 // Renders the chats inside an organizer folder with their offline, download and move controls.
 // Globals: renderChatList, checkExportFileExists, downloadSingleChat, renderActivityTab,
-//          renderRecentChats, formatRelativeDate, showChatMenu, showMoveChatModal, moveChat, deleteChat
-// Depends on: organizer/app.js, organizer/viewer.js, lib/export-files.js, lib/chat-markdown.js
+//          renderRecentChats, formatRelativeDate, showChatMenu, showMoveChatModal, ownFolderOfView,
+//          reopenCurrentFolder, moveChat, deleteChat
+// Depends on: organizer/app.js, organizer/accounts.js (viewFolders), organizer/viewer.js, lib/export-files.js,
+//             lib/chat-markdown.js, lib/export-state.js (recordExports), lib/page-dialog.js (cfPageConfirm)
 // Notes: docs/notes/organizer/chats.js.md
 
 async function renderChatList(searchFilter = '') {
@@ -38,12 +40,15 @@ async function renderChatList(searchFilter = '') {
   
   container.innerHTML = chats.map(chat => {
     const hasExport = exportedChats[chat.id];
-    return `
-    <div class="chat-item" data-chat-id="${esc(chat.id)}" data-url="${safeUrl(chat.url)}">
-      <div class="chat-item-buttons">
+    // Another account's chat cannot be read from this login, so it has no Download button
+    const other = !!chat.cfAccountLabel;
+    const offlineBtn = hasExport || !other ? `
         <button class="view-offline-btn ${hasExport ? '' : 'download-btn'}" data-chat-id="${esc(chat.id)}" data-title="${esc(chat.title)}" title="${hasExport ? 'View exported markdown' : 'Download chat as markdown'}">
           ${hasExport ? 'VIEW OFFLINE' : 'DOWNLOAD'}
-        </button>
+        </button>` : '';
+    return `
+    <div class="chat-item" data-chat-id="${esc(chat.id)}" data-url="${safeUrl(chat.url)}">
+      <div class="chat-item-buttons">${offlineBtn}
         <button class="view-chat-btn" data-url="${safeUrl(chat.url)}" title="Open chat on Claude">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -54,7 +59,7 @@ async function renderChatList(searchFilter = '') {
         </button>
       </div>
       <div class="chat-item-content">
-        <div class="chat-item-title">${esc(chat.title)}</div>
+        <div class="chat-item-title">${other ? `<span class="chat-account-tag" title="${esc(chat.cfAccountLabel)}">${esc(chat.cfAccountLabel)}</span>` : ''}${esc(chat.title)}</div>
         ${chat.snippet ? `<div class="chat-item-snippet">${esc(chat.snippet)}</div>` : ''}
         ${chat.tags && chat.tags.length ? `
           <div class="chat-item-tags">
@@ -64,7 +69,7 @@ async function renderChatList(searchFilter = '') {
       </div>
       <div class="chat-item-actions">
         <div class="chat-item-date">${esc(chat.relativeDate || formatRelativeDate(chat.date))}</div>
-        <button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>
+        ${currentFolder.own && !other ? `<button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>` : ''}
       </div>
     </div>
   `}).join('');
@@ -124,6 +129,7 @@ async function checkExportFileExists(chatId, chatTitle) {
 }
 
 // The background asks the offscreen writer to fetch and save this one chat
+// The folder worker writes the file. This page records it, since the offscreen writer has no chrome.storage.
 async function downloadSingleChat(chatId, chatTitle) {
   try {
     const response = await chrome.runtime.sendMessage({
@@ -131,8 +137,14 @@ async function downloadSingleChat(chatId, chatTitle) {
       chatId: chatId,
       chatTitle: chatTitle
     });
-    return response?.success || false;
+    if (!response || !response.success) {
+      console.log('[ORGANIZER] Not downloaded:', chatTitle, '-', (response && response.error) || 'the response was empty');
+      return false;
+    }
+    await recordExports([{ chatId, filename: response.filename, mark: response.mark }]);
+    return true;
   } catch (e) {
+    console.log('[ORGANIZER] Not downloaded:', chatTitle, '-', e.message);
     return false;
   }
 }
@@ -168,11 +180,14 @@ function renderActivityTab() {
   `).join('');
 }
 
+// The newest chats of the folders the account view shows
 function renderRecentChats() {
   const recentList = document.getElementById('recentChats');
   if (!recentList) return;
   
-  const sorted = [...allChats].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const shown = new Map();
+  viewFolders.forEach(f => (f.chats || []).forEach(c => { if (!shown.has(c.id)) shown.set(c.id, c); }));
+  const sorted = [...shown.values()].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const recent = sorted.slice(0, 50);
   
   if (recent.length === 0) {
@@ -225,7 +240,9 @@ function showChatMenu(btn, chatId) {
       if (action === 'move') {
         showMoveChatModal(chatId);
       } else if (action === 'delete') {
-        if (confirm('Remove this chat from folder?')) {
+        const chat = (currentFolder && currentFolder.chats || []).find(c => c.id === chatId);
+        const title = chat ? `"${chat.title}"` : 'This chat';
+        if (await cfPageConfirm('Remove this chat from the folder?', `${title} is removed from this folder. The chat on claude.ai is unchanged.`, 'Remove', true)) {
           await deleteChat(chatId);
         }
       }
@@ -292,13 +309,27 @@ function showMoveChatModal(chatId) {
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
 
+// The open folder as this login stores it. The page draws a copy built for the account view.
+function ownFolderOfView() {
+  return currentFolder && currentFolder.own ? folders.find(f => f.id === currentFolder.id) : null;
+}
+
+// After a change to this login's folders, the view is built again and the open folder redrawn from it
+function reopenCurrentFolder() {
+  const id = currentFolder && currentFolder.id;
+  refreshView();
+  currentFolder = viewFolders.find(f => f.id === id) || null;
+  if (currentFolder) renderChatList();
+}
+
 async function moveChat(chatId, toFolderId) {
-  if (!currentFolder || !currentFolder.chats) return;
+  const from = ownFolderOfView();
+  if (!from || !from.chats) return;
   
-  const chat = currentFolder.chats.find(c => c.id === chatId);
+  const chat = from.chats.find(c => c.id === chatId);
   if (!chat) return;
   
-  currentFolder.chats = currentFolder.chats.filter(c => c.id !== chatId);
+  from.chats = from.chats.filter(c => c.id !== chatId);
   
   const toFolder = folders.find(f => f.id === toFolderId);
   if (toFolder) {
@@ -306,27 +337,21 @@ async function moveChat(chatId, toFolderId) {
     toFolder.chats.push(chat);
   }
   
-  await saveData();
-  
   folders = folders.map(f => ({
     ...f,
     lastActivity: f.chats && f.chats.length > 0 ? Math.max(...f.chats.map(c => new Date(c.date || 0).getTime())) : 0
   }));
-  
-  currentFolder = folders.find(f => f.id === currentFolder.id);
-  renderChatList();
+  await saveData();
+  reopenCurrentFolder();
 }
 
 async function deleteChat(chatId) {
-  if (!currentFolder || !currentFolder.chats) return;
+  const from = ownFolderOfView();
+  if (!from || !from.chats) return;
   
-  currentFolder.chats = currentFolder.chats.filter(c => c.id !== chatId);
+  from.chats = from.chats.filter(c => c.id !== chatId);
   allChats = allChats.filter(c => c.id !== chatId);
   
   await saveData();
-  
-  currentFolder = folders.find(f => f.id === currentFolder.id);
-  
-  renderChatList();
-  renderRecentChats();
+  reopenCurrentFolder();
 }

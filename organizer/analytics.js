@@ -2,7 +2,7 @@
 // Draws the organizer's category chart, legend, totals and per-category breakdown.
 // Globals: CHART_COLORS, showAnalyticsView, hideAnalyticsView, getCategoryData, renderAnalytics,
 //          renderDonutChart, renderAnalyticsLegend, renderAnalyticsStats, renderAnalyticsBreakdown
-// Depends on: organizer/app.js (folders)
+// Depends on: organizer/accounts.js (viewFolders, the folders the account view shows)
 // Notes: docs/notes/organizer/analytics.js.md
 
 const CHART_COLORS = ['#d97706', '#0891b2', '#7c3aed', '#059669', '#dc2626', '#2563eb', '#c026d3', '#ea580c'];
@@ -21,7 +21,7 @@ function hideAnalyticsView() {
 
 function getCategoryData() {
   const catCounts = {};
-  folders.forEach(f => {
+  viewFolders.forEach(f => {
     const cat = f.category || 'Uncategorized';
     if (!catCounts[cat]) catCounts[cat] = { folders: 0, chats: 0 };
     catCounts[cat].folders++;
@@ -108,7 +108,7 @@ function renderAnalyticsStats() {
   
   const data = getCategoryData();
   const totalChats = data.reduce((sum, d) => sum + d.chats, 0);
-  const totalFolders = folders.length;
+  const totalFolders = viewFolders.length;
   const totalCategories = data.length;
   const avgChatsPerFolder = totalFolders > 0 ? Math.round(totalChats / totalFolders) : 0;
   

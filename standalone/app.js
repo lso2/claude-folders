@@ -1,8 +1,8 @@
 // standalone/app.js
 // Offline library viewer copied into the data folder, opened as index.html straight from disk.
 // Globals: folders, allChats, categories, metadata and the viewer's render functions
-// Depends on: data.js and chat-markdown.js (generateExportFilename), which lib/data-file.js
-//             writes into the data folder beside it
+// Depends on: data.js, chat-markdown.js, library-files.js and page-dialog.js (cfPageAlert), which
+//             lib/data-file.js writes into the data folder beside it
 // Notes: docs/notes/standalone/app.js.md
 
 let folders = [];
@@ -223,9 +223,9 @@ function renderChatList() {
   
   const embedded = (typeof claudeFoldersData !== 'undefined') && claudeFoldersData.content;
   container.innerHTML = chats.map(chat => {
-    // Offline content is available if the chat was exported or its markdown is
-    // embedded in data.js (the latter works even when opened straight from disk)
-    const hasExport = !!(chat.exported || (embedded && embedded[chat.id]));
+    // Offline content is the chat's file in the chats folder (standalone/library-files.js), or its
+    // markdown embedded in data.js by versions before 1.4.0
+    const hasExport = !!((embedded && embedded[chat.id]) || libraryExports.has(libraryExportPrefix(chat.id)));
     return `
     <div class="chat-item" data-chat-id="${esc(chat.id)}" data-url="${safeUrl(chat.url)}">
       <div class="chat-item-buttons">
@@ -267,7 +267,7 @@ function renderChatList() {
       if (hasExport) {
         openMarkdownViewer(chatId, chatTitle);
       } else {
-        alert('No offline export available for this chat.\n\nUse the extension to export chats to markdown files.');
+        cfPageAlert('No export yet', 'This chat has no file in the chats folder yet. A sync in the Claude Folders extension exports it.');
       }
     });
   });
@@ -282,28 +282,24 @@ function renderChatList() {
   });
 }
 
-// Open the chat markdown in a viewer. Prefers content embedded in data.js so it
-// works when index.html is opened directly from disk (file://), where fetching
-// the chats/*.md files is blocked by the browser. Falls back to fetch when the
-// library is served over http.
+// Opens the chat's markdown in a viewer: content embedded in data.js by an older build, else the
+// chat's file read through the library folder's access
 async function openMarkdownViewer(chatId, chatTitle) {
   let content = null;
-
   const embedded = (typeof claudeFoldersData !== 'undefined') && claudeFoldersData.content;
   if (embedded && embedded[chatId]) {
     content = embedded[chatId];
   } else {
     try {
-      const filename = generateExportFilename(chatId, chatTitle);
-      const response = await fetch(`chats/${filename}`);
-      if (response.ok) content = await response.text();
+      content = await libraryReadExport(chatId);
     } catch (e) {
-      console.log('Fetch fallback failed:', e.message);
+      cfPageAlert('Export not opened', `The chat's file could not be read: ${e.name}: ${e.message}`);
+      return;
     }
   }
 
   if (!content) {
-    alert('No offline copy of this chat yet.\n\nOpen the extension and run a sync / Build Library to export it.');
+    cfPageAlert('No export yet', 'This chat has no file in the chats folder yet. A sync in the Claude Folders extension exports it.');
     return;
   }
 
@@ -366,7 +362,7 @@ function renderMarkdownAsHtml(title, markdown) {
     p { margin: 16px 0; }
     strong { color: #d97706; }
     .header-bar {
-      background: linear-gradient(135deg, #d97706, #b45309);
+      background: #b45309;
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
@@ -569,8 +565,46 @@ function renderAnalyticsBreakdown() {
   `).join('');
 }
 
+// Reading the chats folder needs the person to allow it once per visit, from a click
+async function renderLibraryAccess() {
+  const bar = document.getElementById('libraryAccess');
+  const text = document.getElementById('libraryAccessText');
+  const btn = document.getElementById('libraryAccessBtn');
+  const state = await libraryAccessState();
+  if (state === 'granted') {
+    try {
+      await libraryListExports();
+    } catch (e) {
+      console.log('[LIBRARY] The chats folder was not listed:', e.message);
+    }
+    bar.hidden = true;
+    if (currentFolder) renderChatList();
+    return;
+  }
+  if (state === 'unsupported') {
+    text.textContent = 'This browser cannot read the chats folder from a page opened from disk. Chrome and Edge can.';
+    btn.hidden = true;
+  } else {
+    text.textContent = state === 'none'
+      ? 'Chat texts are read from the chats folder of this library. Choose the folder that holds this page to read them here.'
+      : 'Chat texts are read from the chats folder of this library, and this visit needs your permission.';
+    btn.textContent = state === 'none' ? 'Choose folder' : 'Allow reading';
+    btn.hidden = false;
+    btn.onclick = async () => {
+      try {
+        await libraryOpenFolder();
+      } catch (e) {
+        if (e.name !== 'AbortError') cfPageAlert('Library folder not opened', `${e.name}: ${e.message}`);
+      }
+      renderLibraryAccess();
+    };
+  }
+  bar.hidden = false;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   loadAllData();
+  renderLibraryAccess();
   
   document.getElementById('sortSelect').addEventListener('change', (e) => {
     currentSort = e.target.value;

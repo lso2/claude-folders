@@ -3,9 +3,9 @@
 // Globals: cfRelativeToISODate, CF_SYNC_OVERLAP_DAYS, CF_SYNC_CLEAN_PAGES, cfParseChatLink,
 //          cfFindScroller, CF_MORE_CONTROL, cfIsOwnUi, cfAdvanceChatList, cfCollectChatsByScrolling,
 //          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCollectAllChats, scrapeAllChats,
-//          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, scrapeRecentsPage
+//          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, scrapeRecentsPage, cfSyncProgress
 // Depends on: lib/chat-exporter.js, content/cf-disk.js, content/cf-export-run.js,
-//             content/cf-sync-summary.js, content/cf-cowork-sync.js
+//             content/cf-sync-summary.js, content/cf-cowork-sync.js, content/cf-run-state.js
 // Notes: docs/notes/content/cf-sync.js.md
 
 // Convert a relative label like "3 hours ago" / "Yesterday" to an ISO date
@@ -221,6 +221,9 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
   if (window.chatExporter?.listConversationsAllOrgs) {
     try {
       const held = cfHeldChatIds();
+      // A held chat without its organization counts as new. The listing reaches it once, and
+      // the background records the organization from it (scrapedChats).
+      folders.forEach(f => (f.chats || []).forEach(c => { if (!c.orgId) held.delete(c.id); }));
       const result = await window.chatExporter.listConversationsAllOrgs((count, total) => {
         if (onProgress) onProgress(count, total, 'api');
       }, {
@@ -301,8 +304,8 @@ async function scrapeAllChats() {
 // and started by the folderAccessChanged broadcast
 const CF_SYNC_AFTER_ACCESS_KEY = 'cf-sync-after-access';
 
-function cfRememberSyncRequest(exportAllMissing, fullResync) {
-  sessionStorage.setItem(CF_SYNC_AFTER_ACCESS_KEY, JSON.stringify({ exportAllMissing: !!exportAllMissing, fullResync: !!fullResync }));
+function cfRememberSyncRequest(fullResync) {
+  sessionStorage.setItem(CF_SYNC_AFTER_ACCESS_KEY, JSON.stringify({ fullResync: !!fullResync }));
 }
 
 function cfTakeSyncRequest() {
@@ -315,16 +318,17 @@ function cfTakeSyncRequest() {
   }
 }
 
-// Scrape specifically from the recents page (not sidebar)
-// exportAllMissing: true = check ALL chats for missing MD (popup manual sync)
-//                   false = only export newly scraped chats (passive 30 notification)
-async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
+// Every stored chat and Cowork session is checked against the files on disk, and the
+// ones missing there are exported
+async function scrapeRecentsPage(fullResync = false) {
   // A sync runs only with a writable data folder. A request made without one is
   // kept and started once access is granted.
   const access = await cfCheckWriteAccess();
   if (!access.ok) {
-    cfRememberSyncRequest(exportAllMissing, fullResync);
+    cfRememberSyncRequest(fullResync);
     console.log('[SCRAPER] Sync waiting for folder access:', access.error);
+    cfRunStart('sync', 'Checking folder access');
+    cfRunFinish([], [], 'The sync is queued in the claude.ai tab until folder access is granted: ' + access.error);
     if (access.code === 'no-folder' || access.code === 'permission') {
       cfPromptFolderAccess(access.code, access.folderName, access.permission);
     } else {
@@ -361,6 +365,7 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
   }
   
   console.log('[SCRAPER] Sync starting');
+  cfRunStart('sync', 'Reading your conversation list');
   showSyncProgressBar('Reading your conversation list');
 
   // Get existing IDs from all folders
@@ -374,7 +379,7 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
   const mainContent = document.querySelector('main') || document.body;
 
   const { chats: collected, source, stoppedEarly, accountTotal, orgs: orgSummaries, coworkCount } = await cfCollectAllChats(mainContent, (count, total) => {
-    showSyncProgressBar(total ? `Reading ${count} of ${total} chats...` : `Reading... ${count} chats found`);
+    cfSyncProgress(total ? `Reading ${count} of ${total} chats...` : `Reading... ${count} chats found`);
   }, fullResync);
   // scrapedChats = the genuinely new ones (used below for passive export + counts)
   const scrapedChats = collected.filter(c => !existingIds.has(c.id));
@@ -383,10 +388,12 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
     showNotification(`Read the page instead of the conversation list, so this run covers only the ${collected.length} rows Claude had rendered`, true);
   }
 
-  // Send everything: background adds new chats and refreshes changed metadata
+  // Send everything: background adds new chats and refreshes changed metadata, then writes the library's data.js
+  let libraryWritten = null;
   if (collected.length > 0) {
     try {
-      await chrome.runtime.sendMessage({ action: 'scrapedChats', chats: collected });
+      const stored = await chrome.runtime.sendMessage({ action: 'scrapedChats', chats: collected });
+      libraryWritten = !!(stored && stored.libraryWritten);
       // Update known IDs so the passive monitor doesn't re-flag these
       collected.forEach(c => knownChatIds.add(c.id));
       await chrome.storage.local.set({ [cfKnownKey()]: Array.from(knownChatIds) });
@@ -408,28 +415,31 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
     await chrome.storage.local.set({ [cfMonitorKey()]: [] });
   }
   
-  // Exports for the chats this run covers, written by the shared export runner
-  let chatsToExport = [];
-  if (exportAllMissing) {
-    folders.forEach(f => (f.chats || []).forEach(c => chatsToExport.push(c)));
-  } else {
-    chatsToExport = scrapedChats;
-  }
+  // Exports for every stored conversation missing on disk, written by the shared export runner
+  const chatsToExport = [];
+  folders.forEach(f => (f.chats || []).forEach(c => chatsToExport.push(c)));
 
   // The organizations this run read are the ones this login can export from
   const readableOrgIds = orgSummaries && orgSummaries.some(org => !org.error)
     ? new Set(orgSummaries.filter(org => !org.error).map(org => org.id))
     : null;
 
+  // A listing that read every organization to the end names every chat of this login. A stored chat
+  // it did not name goes to the account whose data holds it (content/cf-export-run.js).
+  const listedAll = source === 'api' && !stoppedEarly && orgSummaries && orgSummaries.every(org => !org.error);
+  const listedIds = new Set(collected.map(c => c.id));
+  const notListed = listedAll ? new Set(chatsToExport.map(c => c.id).filter(id => !listedIds.has(id))) : null;
+
   let outcome = null;
   if (chatsToExport.length > 0) {
     outcome = await cfExportChatList(chatsToExport, {
       readableOrgIds,
+      notListed,
       onCheck: (count) => {
-        showSyncProgressBar(`Checking ${count} chat${count === 1 ? '' : 's'} against the files on disk...`);
+        cfSyncProgress(`Checking ${count} chat${count === 1 ? '' : 's'} against the files on disk...`);
       },
-      onProgress: (done, total, chat) => {
-        showSyncProgressBar(`Exporting ${done} of ${total}: ${String(chat.title || 'Untitled').substring(0, 30)}`);
+      onProgress: (done, total, chat, detail) => {
+        cfSyncProgress(`Exporting ${done} of ${total}${detail ? `, ${detail}` : ''}: ${String(chat.title || 'Untitled').substring(0, 30)}`);
       }
     });
   }
@@ -439,5 +449,13 @@ async function scrapeRecentsPage(exportAllMissing = false, fullResync = false) {
   
   // The account total counts conversations; Cowork sessions are added to it
   const chatTotal = accountTotal || (collected.length - coworkCount);
-  showSyncSuccessModal(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount);
+  const summary = cfSyncSummaryLines(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount, libraryWritten);
+  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], null);
+  showSyncSuccessModal(summary);
+}
+
+// The progress bar on this page and the run record the popup and organizer read (content/cf-run-state.js)
+function cfSyncProgress(text) {
+  showSyncProgressBar(text);
+  cfRunProgress(text);
 }

@@ -1,7 +1,7 @@
 // content/cf-panel-analytics.js
 // Draws the category chart and totals in the folders panel's analytics view.
 // Globals: PANEL_CHART_COLORS, renderPanelAnalytics
-// Depends on: content/cf-state.js (folders)
+// Depends on: content/cf-account-view.js (cfViewFolders)
 // Notes: docs/notes/content/cf-panel-analytics.js.md
 
 // Chart colors - distinct hues with good contrast
@@ -26,10 +26,11 @@ function renderPanelAnalytics(panel) {
   // Get category data
   const byCategory = {};
   let total = 0;
-  // Counts follow the account filter, so the chart cannot disagree with the list
-  folders.forEach(f => {
+  // Counts follow the account view, so the chart cannot disagree with the list
+  const viewFolders = cfViewFolders();
+  viewFolders.forEach(f => {
     const cat = f.category || 'Uncategorized';
-    const count = cfVisibleChats(f).length;
+    const count = f.rows.length;
     byCategory[cat] = (byCategory[cat] || 0) + count;
     total += count;
   });
@@ -100,7 +101,7 @@ function renderPanelAnalytics(panel) {
     </div>
     <div class="panel-stat-row">
       <span class="panel-stat-label">Folders</span>
-      <span class="panel-stat-value">${folders.length}</span>
+      <span class="panel-stat-value">${viewFolders.length}</span>
     </div>
   `;
   statsEl.innerHTML = statsHtml;

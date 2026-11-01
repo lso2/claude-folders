@@ -1,12 +1,13 @@
 // content/cf-import.js
 // Imports each queued shared chat or Cowork export into this account with its transcript attached.
-// Globals: CF_IMPORT_OWNER_KEY, CF_REPLY_WAIT_MS, cfImportOwnerToken, cfLoadImportQueue,
-//          cfSaveImportQueue, cfImportPrompt, cfImportSourceId, cfShareImportSource,
-//          cfImportSource, cfImportSharePage, cfStartImportRun, cfResumeImport, cfRunImportStep,
-//          cfRenameImportedChat, cfFinishImportStep, cfAdvanceImport, cfFinishImportRun
+// Globals: CF_IMPORT_OWNER_KEY, CF_REPLY_WAIT_MS, cfImportOwnerToken, cfLoadImportQueue, cfSaveImportQueue,
+//          cfImportPrompt, cfImportSourceId, cfShareImportSource, cfImportSource, cfImportSharePage,
+//          cfStartImportRun, cfResumeImport, cfRunImportStep, cfRenameImportedChat, cfFinishImportStep,
+//          cfAdvanceImport, cfImportNoun, cfFinishImportRun
 // Depends on: lib/share-snapshots.js, lib/chat-markdown.js, lib/cowork-api.js, content/cf-composer.js,
-//             content/cf-import-registry.js, content/cf-cowork-import.js, content/cf-disk.js,
-//             content/cf-notify.js
+//             content/cf-import-registry.js, content/cf-cowork-import.js, content/cf-migrate-source.js,
+//             content/cf-disk.js, content/cf-notify.js, content/cf-panel.js (cfClosePanel), content/cf-import-controls.js,
+//             content/cf-import-record.js (cfImportRunFinish)
 // Notes: docs/notes/content/cf-import.js.md
 
 // A run is resumed only in the tab whose sessionStorage has this token
@@ -45,9 +46,11 @@ function cfImportPrompt(item, snapshot) {
     'Then treat that conversation as ours and continue from where it ended.';
 }
 
-// The key an import is recorded under: the snapshot id or the Cowork session id
+// The key an import is recorded under: the Cowork session id, the other account's chat id, or the snapshot id
 function cfImportSourceId(item) {
-  return item.kind === 'cowork' ? item.sessionId : item.snapshotId;
+  if (item.kind === 'cowork') return item.sessionId;
+  if (item.kind === 'migrate') return item.sourceId;
+  return item.snapshotId;
 }
 
 // A shared chat is exported and attached as the same file, and its copy is filed in
@@ -76,7 +79,9 @@ async function cfShareImportSource(item) {
 }
 
 async function cfImportSource(item) {
-  return item.kind === 'cowork' ? cfCoworkImportSource(item) : cfShareImportSource(item);
+  if (item.kind === 'cowork') return cfCoworkImportSource(item);
+  if (item.kind === 'migrate') return cfMigrateImportSource(item);
+  return cfShareImportSource(item);
 }
 
 // The Import button on a /share/ page
@@ -116,7 +121,10 @@ async function cfImportSharePage(btn, snapshotId) {
   }
 }
 
-async function cfStartImportRun(items) {
+// options.batchSize: the run pauses after each batch of this many items. Without it the run goes to the end.
+async function cfStartImportRun(items, options) {
+  sessionStorage.removeItem(CF_IMPORT_STOP_KEY);
+  sessionStorage.removeItem(CF_IMPORT_PAUSE_KEY);
   const queue = {
     owner: cfImportOwnerToken(true),
     items,
@@ -124,11 +132,12 @@ async function cfStartImportRun(items) {
     stage: 'compose',
     chatId: null,
     results: [],
+    batchSize: (options && options.batchSize) || 0,
+    paused: null,
     startedAt: new Date().toISOString()
   };
   await cfSaveImportQueue(queue);
-  document.querySelector('.claude-folders-panel')?.remove();
-  panelExpanded = false;
+  cfClosePanel();
   if (window.location.pathname === '/new') await cfRunImportStep(queue);
   else window.location.assign('/new');
 }
@@ -137,6 +146,10 @@ async function cfStartImportRun(items) {
 async function cfResumeImport() {
   const queue = await cfLoadImportQueue();
   if (!queue || queue.owner !== cfImportOwnerToken(false)) return;
+  if (queue.paused) {
+    cfShowImportPaused(queue);
+    return;
+  }
   const path = window.location.pathname;
   if (queue.stage === 'compose') {
     if (path === '/new') await cfRunImportStep(queue);
@@ -157,10 +170,19 @@ async function cfResumeImport() {
 }
 
 async function cfRunImportStep(queue) {
+  // A Stop or Pause clicked while the next page loaded takes effect before anything is sent
+  if (cfImportStopRequested()) {
+    await cfFinishImportRun(queue);
+    return;
+  }
+  if (cfImportPauseRequested()) {
+    await cfPauseImport(queue, 'request');
+    return;
+  }
   const item = queue.items[queue.index];
   const position = `${queue.index + 1} of ${queue.items.length}`;
   syncInProgress = true;
-  showSyncProgressBar(`Importing ${position}: ${item.title}`);
+  cfImportProgress(`Importing ${position}: ${item.title}`);
   try {
     const source = await cfImportSource(item);
     // A shared chat is saved to the data folder first. A Cowork export is already there.
@@ -173,11 +195,11 @@ async function cfRunImportStep(queue) {
     composer = await cfComposerReady(10000);
     if (!composer) throw new Error(`the message composer disappeared after choosing ${surfaceName}`);
     if (!await cfAttachFile(composer.file, source.filename, source.attachMarkdown)) throw new Error('no attachment thumbnail appeared within 20 seconds');
-    if (!cfInsertPrompt(composer.input, source.prompt)) throw new Error('the request could not be typed into the composer');
+    if (!cfInsertPrompt(composer.input, source.prompt)) throw new Error("the composer's insertText command returned false");
 
     queue.stage = 'sending';
     await cfSaveImportQueue(queue);
-    if (!await cfSendWhenReady(60000)) throw new Error('the send button was missing or disabled for 60 seconds');
+    if (!await cfSendWhenReady(60000, composer.input, source.prompt)) throw new Error('for 60 seconds, the send button was missing or disabled, or the message box did not show the request');
     const chatId = await cfWaitForNewConversation(60000);
     if (!chatId) throw new Error('the page address did not change to a new chat or Cowork task within 60 seconds of sending');
     const cowork = isCoworkSessionId(chatId);
@@ -186,7 +208,7 @@ async function cfRunImportStep(queue) {
     queue.chatId = chatId;
     await cfSaveImportQueue(queue);
     const now = new Date().toISOString();
-    await cfRecordImported(source.sourceId, { chatId, title: item.title, via: 'import', importedAt: now });
+    await cfRecordImported(source.sourceId, { chatId, title: item.title, via: item.migrated ? 'migration' : 'import', importedAt: now });
     await chrome.runtime.sendMessage({
       action: 'fileImportedChat',
       folderId: source.folderId,
@@ -242,7 +264,7 @@ async function cfRenameImportedChat(orgId, chatId, title) {
 async function cfFinishImportStep(queue) {
   const item = queue.items[queue.index];
   const cowork = isCoworkSessionId(queue.chatId);
-  showSyncProgressBar(`Waiting for Claude's reply to ${item.title}`);
+  cfImportProgress(`Waiting for Claude's reply to ${item.title}`);
   const done = cowork
     ? await cfWaitForCoworkTurn(queue.chatId, item.orgId, CF_REPLY_WAIT_MS)
     : await cfWaitForReplyDone(CF_REPLY_WAIT_MS);
@@ -260,16 +282,33 @@ async function cfAdvanceImport(queue) {
   queue.index++;
   queue.stage = 'compose';
   queue.chatId = null;
-  if (queue.index >= queue.items.length) {
+  if (queue.index >= queue.items.length || cfImportStopRequested()) {
     await cfFinishImportRun(queue);
+    return;
+  }
+  if (cfImportPauseRequested()) {
+    await cfPauseImport(queue, 'request');
+    return;
+  }
+  if (queue.batchSize > 0 && queue.index % queue.batchSize === 0) {
+    await cfPauseImport(queue, 'batch');
     return;
   }
   await cfSaveImportQueue(queue);
   window.location.assign('/new');
 }
 
+function cfImportNoun(items) {
+  if (items.every(item => item.migrated)) return 'chats from the other account';
+  if (items.every(item => item.kind === 'cowork')) return 'Cowork chats';
+  return 'shared chats';
+}
+
 async function cfFinishImportRun(queue) {
   await cfSaveImportQueue(null);
+  const stopped = cfImportStopRequested() && queue.index < queue.items.length;
+  sessionStorage.removeItem(CF_IMPORT_STOP_KEY);
+  sessionStorage.removeItem(CF_IMPORT_PAUSE_KEY);
   syncInProgress = false;
   hideSyncProgressBar();
   const done = queue.results.filter(r => r.chatId);
@@ -278,11 +317,14 @@ async function cfFinishImportRun(queue) {
   const total = queue.items.length;
   const cowork = queue.items.every(item => item.kind === 'cowork');
   let message;
-  if (total === 1 && done.length === 1) {
+  if (stopped) {
+    message = `Stopped. Imported ${done.length} of ${total} ${cfImportNoun(queue.items)}, and ${total - queue.index} were not started. Starting the import again skips the imported ones.`;
+  } else if (total === 1 && done.length === 1) {
     message = cowork ? `Imported "${done[0].title}" as a Cowork task.` : `Imported "${done[0].title}" as a new chat.`;
   } else {
-    message = cowork ? `Imported ${done.length} of ${total} Cowork chats.` : `Imported ${done.length} of ${total} shared chats.`;
+    message = `Imported ${done.length} of ${total} ${cfImportNoun(queue.items)}.`;
   }
   if (failed.length) message += ` ${failed.length} failed: ${failed[0].title}: ${failed[0].error}`;
+  cfImportRunFinish([message], stopped ? 'stopped in the claude.ai tab' : null);
   cfNotifyAction('import', message, [], failed.length > 0);
 }

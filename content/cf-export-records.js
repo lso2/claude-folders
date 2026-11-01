@@ -1,18 +1,19 @@
 // content/cf-export-records.js
 // Records each chat's export outcome in extension storage.
 // Globals: markChatAsExported, cfMarkChatsExported, cfMarkChatUnavailable, cfLoadUnavailableChats
-// Depends on: lib/storage-keys.js (EXPORTED_CHATS_KEY)
+// Depends on: lib/storage-keys.js (EXPORTED_CHATS_KEY), lib/export-state.js (recordExports),
+//             content/cf-export-state.js (cfOnExportRecorded)
 // Notes: docs/notes/content/cf-export-records.js.md
 
-async function markChatAsExported(chatId) {
+// details: { filename, mark } of the file just written. The file is on disk whether or not its
+// record was written, and the state of the page's export button is read again.
+async function markChatAsExported(chatId, details) {
   try {
-    const result = await chrome.storage.local.get(EXPORTED_CHATS_KEY);
-    const exported = result[EXPORTED_CHATS_KEY] || {};
-    exported[chatId] = new Date().toISOString();
-    await chrome.storage.local.set({ [EXPORTED_CHATS_KEY]: exported });
+    await recordExports([{ chatId, filename: details && details.filename, mark: details && details.mark }]);
   } catch (e) {
     console.log('[EXPORT] Failed to mark as exported:', e.message);
   }
+  cfOnExportRecorded(chatId);
 }
 
 // One storage write for every chat found already on disk. An earlier export time is kept.

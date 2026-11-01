@@ -4,8 +4,14 @@
 //          writerRequestId, acctKey, persist, broadcastDataUpdated, broadcastToClaudeTabs,
 //          countChatsInData, overlapRatioWithScraped, ensureOffscreen, setUpOffscreen, askOffscreen,
 //          askWriterWindow, askFolderWorker, syncDataToDisk, openAccessWindow, fileImportedChat,
-//          reloadClaudeTabs, loadCachedData, countBgChats, handleMessage
+//          reloadClaudeTabs, loadCachedData, countBgChats, handleMessage, CF_BACKGROUND_FILES
 // Notes: docs/notes/background.js.md
+
+// The background's other files, run in this order before the code below
+const CF_BACKGROUND_FILES = ['lib/build-reload.js', 'lib/background-build.js', 'lib/helper-host.js', 'lib/storage-keys.js',
+  'lib/account-identity.js', 'lib/account-migrate.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
+  'lib/shell-address.js', 'lib/claude-tab.js'];
+importScripts(...CF_BACKGROUND_FILES);
 
 let cachedData = null;
 let currentAccountKey = null;
@@ -100,29 +106,30 @@ async function askOffscreen(request, fallback) {
   return response || { ...fallback, error: 'No response from offscreen' };
 }
 
-// Replies from the open access window are received over its port. Null means no reply within 30 seconds.
+// Replies from the open access window are received over its port. Null means no reply within 30 seconds,
+// or the window closed before replying.
 function askWriterWindow(request) {
   return new Promise((resolve) => {
     const port = writerPort;
     if (!port) return resolve(null);
     const id = ++writerRequestId;
-    const onReply = (msg) => {
-      if (!msg || msg.id !== id) return;
+    const finish = (result) => {
       clearTimeout(timer);
       port.onMessage.removeListener(onReply);
-      resolve(msg.result || null);
+      port.onDisconnect.removeListener(onGone);
+      resolve(result);
     };
-    const timer = setTimeout(() => {
-      port.onMessage.removeListener(onReply);
-      resolve(null);
-    }, 30000);
+    const onReply = (msg) => {
+      if (msg && msg.id === id) finish(msg.result || null);
+    };
+    const onGone = () => finish(null);
+    const timer = setTimeout(() => finish(null), 30000);
     port.onMessage.addListener(onReply);
+    port.onDisconnect.addListener(onGone);
     try {
       port.postMessage({ id, request });
     } catch (e) {
-      clearTimeout(timer);
-      port.onMessage.removeListener(onReply);
-      resolve(null);
+      finish(null);
     }
   });
 }
@@ -183,6 +190,7 @@ async function fileImportedChat(chat, folderId, folderName, category) {
   }
   cachedData.folders.forEach(f => { f.chats = (f.chats || []).filter(c => c.id !== chat.id); });
   folder.chats.push(chat);
+  cfTagChats(cachedData, currentAccountKey);
   await persist();
   await syncDataToDisk();
   await broadcastDataUpdated();
@@ -248,29 +256,43 @@ async function handleMessage(message, sender, sendResponse) {
       case 'setAccount': {
         // Switch the active account. Each account gets only its own folders.
         const key = message.accountKey || 'default';
-        if (key === currentAccountKey && cachedData && cachedData.folders && cachedData.folders.length) {
-          sendResponse({ success: true }); break;
+        const switched = !(key === currentAccountKey && cachedData && cachedData.folders && cachedData.folders.length);
+        let adopted = null;
+        if (switched) {
+          const nonEmpty = d => d && Array.isArray(d.folders) && d.folders.length;
+          const slot = await chrome.storage.local.get(acctKey(key));
+          let data = slot[acctKey(key)];
+          // A login keyed by its organization before 1.4.0 moves to its own key (lib/account-migrate.js)
+          if (!nonEmpty(data)) {
+            adopted = await cfAdoptLegacySlot(key, message.legacyKey || null, message.account || null);
+            if (adopted) data = adopted;
+          }
+          if (!nonEmpty(data)) {
+            // Folders saved before per-account slots existed go to the first account that signs in.
+            // Once another account has its own slot, a new account starts empty.
+            const all = await chrome.storage.local.get(null);
+            const otherAccounts = Object.keys(all).filter(k => k.startsWith('cfData_') && k !== acctKey(key) && k !== 'cfData_default' && nonEmpty(all[k]));
+            const legacy = nonEmpty(all.cfData_default) ? all.cfData_default : (nonEmpty(all.cachedData) ? all.cachedData : null);
+            data = !otherAccounts.length && legacy ? legacy : (data || { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} });
+            console.log('[BG] Account', key, 'has no folders yet:', otherAccounts.length ? `starting empty beside ${otherAccounts.length} other account slots` : (legacy ? 'adopting folders saved before account slots' : 'starting empty'));
+          }
+          currentAccountKey = key;
+          cachedData = data;
+          // The offscreen writer has no page context, so the key it needs to name
+          // this account's data file is persisted here
+          await chrome.storage.local.set({ activeAccountKey: key });
+          console.log('[BG] Account', key, '-', countChatsIn(cachedData), 'chats');
         }
-        const nonEmpty = d => d && Array.isArray(d.folders) && d.folders.length;
-        const slot = await chrome.storage.local.get(acctKey(key));
-        let data = slot[acctKey(key)];
-        if (!nonEmpty(data)) {
-          // Folders saved before per-account slots existed go to the first account that signs in.
-          // Once another account has its own slot, a new account starts empty.
-          const all = await chrome.storage.local.get(null);
-          const otherAccounts = Object.keys(all).filter(k => k.startsWith('cfData_') && k !== acctKey(key) && k !== 'cfData_default' && nonEmpty(all[k]));
-          const legacy = nonEmpty(all.cfData_default) ? all.cfData_default : (nonEmpty(all.cachedData) ? all.cachedData : null);
-          data = !otherAccounts.length && legacy ? legacy : (data || { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} });
-          console.log('[BG] Account', key, 'has no folders yet:', otherAccounts.length ? `starting empty beside ${otherAccounts.length} other account slots` : (legacy ? 'adopting folders saved before account slots' : 'starting empty'));
+        // The account's email and name in its data, and its key on each chat (lib/account-identity.js)
+        const identified = cfApplyAccountIdentity(cachedData, key, message.account || null);
+        if (switched || identified) await persist();
+        if (adopted) {
+          await syncDataToDisk();
+          await cfRetireLegacyFile(message.legacyKey, message.account && message.account.uuid);
+        } else if (identified) {
+          syncDataToDisk();
         }
-        currentAccountKey = key;
-        cachedData = data;
-        // The offscreen writer has no page context, so the key it needs to name
-        // this account's data file is persisted here
-        await chrome.storage.local.set({ activeAccountKey: key });
-        console.log('[BG] Account', key, '-', countChatsIn(cachedData), 'chats');
-        await persist();
-        await broadcastDataUpdated();
+        if (switched) await broadcastDataUpdated();
         sendResponse({ success: true });
         break;
       }
@@ -294,6 +316,7 @@ async function handleMessage(message, sender, sendResponse) {
         // Called by content-script after organizing - update cache and trigger file sync
         console.log('[BG] saveData received');
         cachedData = message.data;
+        cfTagChats(cachedData, currentAccountKey);
         await persist();
         console.log('[BG] Cache updated:', cachedData.folders?.length, 'folders');
         // Write to the user's folder via the offscreen document
@@ -302,14 +325,18 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ success: true });
         break;
       
-      case 'updateCache':
-        // Called by popup/organizer after writing to JSON file
+      case 'updateCache': {
+        // A change saved in the popup or the organizer. The data file is written through the folder writer,
+        // the one place holding the folder grant.
         cachedData = message.data;
+        cfTagChats(cachedData, currentAccountKey);
         await persist();
         console.log('[BG] Cache updated:', cachedData.folders?.length, 'folders');
+        const written = await syncDataToDisk();
         await broadcastDataUpdated();
-        sendResponse({ success: true });
+        sendResponse({ success: true, written: !!(written && written.success), error: (written && written.error) || null });
         break;
+      }
 
       case 'dataUpdated':
         await broadcastDataUpdated();
@@ -319,6 +346,7 @@ async function handleMessage(message, sender, sendResponse) {
       case 'createFolder':
         if (!cachedData) await loadCachedData();
         cachedData.folders.push(message.folder);
+        cfTagChats(cachedData, currentAccountKey);
         await persist();
         // Tell popup to sync to disk
         syncDataToDisk();
@@ -334,6 +362,7 @@ async function handleMessage(message, sender, sendResponse) {
             f.chats = f.chats.filter(c => c.id !== message.chat.id);
           });
           folder.chats.push(message.chat);
+          cfTagChats(cachedData, currentAccountKey);
           await persist();
           // Tell popup to sync to disk
           syncDataToDisk();
@@ -360,6 +389,7 @@ async function handleMessage(message, sender, sendResponse) {
 
         let newCount = 0;
         let updatedCount = 0;
+        let orgTagged = 0;
         for (const incoming of message.chats) {
           const current = existingById.get(incoming.id);
           if (current) {
@@ -369,6 +399,9 @@ async function handleMessage(message, sender, sendResponse) {
             if (incoming.date) current.date = incoming.date;
             if (incoming.relativeDate) current.relativeDate = incoming.relativeDate;
             if (incoming.url) current.url = incoming.url;
+            // A chat stored before chats carried their organization gets it from the listing
+            if (incoming.orgId && !current.orgId) { current.orgId = incoming.orgId; orgTagged++; }
+            if (incoming.orgId && incoming.orgId === current.orgId && incoming.orgName) current.orgName = incoming.orgName;
           } else {
             // Genuinely new: drop it into Unsorted and remember it
             unsorted.chats.push(incoming);
@@ -376,16 +409,17 @@ async function handleMessage(message, sender, sendResponse) {
             newCount++;
           }
         }
-        console.log('[BG] scrapedChats: received', message.chats.length, ', new:', newCount, ', updated:', updatedCount);
+        cfTagChats(cachedData, currentAccountKey);
+        console.log('[BG] scrapedChats: received', message.chats.length, ', new:', newCount, ', updated:', updatedCount, ', organization added:', orgTagged);
         console.log('[BG] unsorted folder now has', unsorted.chats.length, 'chats');
         
         // Save to storage first
         await persist();
         console.log('[BG] Saved to chrome.storage.local');
 
-        // Write to the user's folder via the offscreen document
-        await syncDataToDisk();
-        sendResponse({ success: true, count: newCount, updated: updatedCount });
+        // Write to the user's folder via the offscreen document. The sync summary reports whether data.js was written.
+        const libraryWrite = await syncDataToDisk();
+        sendResponse({ success: true, count: newCount, updated: updatedCount, orgTagged, libraryWritten: !!(libraryWrite && libraryWrite.success) });
         break;
       
       case 'updateMetadata':
@@ -456,9 +490,89 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse(await askFolderWorker({ action: 'folderReadExportFile', filename: message.filename, maxBytes: message.maxBytes }, { success: false }));
         break;
 
+      // The organizer's content search brings its index up to date one time slice at a time (lib/search-build.js)
+      case 'indexExports':
+        sendResponse(await askFolderWorker({ action: 'folderIndexExports', after: typeof message.after === 'string' ? message.after : null }, { success: false }));
+        break;
+
       case 'listExports':
         // One directory read for the whole sync, not one message per chat
         sendResponse(await askFolderWorker({ action: 'folderListExports' }, { success: false, files: [] }));
+        break;
+
+      case 'findExport':
+        sendResponse(await askFolderWorker({ action: 'folderFindExport', chatId: message.chatId, filename: message.filename || null }, { success: false }));
+        break;
+
+      case 'helperStatus':
+        sendResponse(await helperStatus(message.fresh === true));
+        break;
+
+      case 'revealExport':
+        sendResponse(await revealWithHelper(message.filename, message.prefix));
+        break;
+
+      // Pages compare this with their manifest version (lib/apply-update.js, content/cf-build-check.js)
+      case 'backgroundBuild':
+        sendResponse({ success: true, build: CF_BACKGROUND_BUILD });
+        break;
+
+      // The accounts with folder data (lib/accounts.js). The settings page asks without folders.
+      case 'listAccounts':
+        sendResponse(await listAccounts(message.withFolders !== false));
+        break;
+
+      // Chats an export pass could not read, released to the accounts that hold them (lib/accounts.js)
+      case 'releaseForeignChats':
+        sendResponse(await releaseForeignChats(message.ids || []));
+        break;
+
+      // The settings page's Clear: this login's folders and categories are emptied, its account record stays
+      case 'clearFolderData': {
+        if (!cachedData) await loadCachedData();
+        const account = cachedData.metadata && cachedData.metadata.account;
+        cachedData = { folders: [], categories: [], metadata: account ? { account } : {} };
+        await persist();
+        const written = await syncDataToDisk();
+        await broadcastDataUpdated();
+        sendResponse({ success: true, accountKey: currentAccountKey, written: !!(written && written.success) });
+        break;
+      }
+
+      // Ask Claude to Organize opens /new and stores the request under that tab's id (lib/organize-tabs.js).
+      // With auto, the tab sends it and opens the answer for applying (content/cf-organize-auto.js).
+      case 'startOrganizePrompt':
+        sendResponse(await cfStartOrganizeTab(message.prompt, message.auto));
+        break;
+
+      case 'getOrganizePrompt':
+        sendResponse(await cfOrganizePromptFor(sender.tab && sender.tab.id));
+        break;
+
+      case 'organizePromptPasted':
+        await cfForgetOrganizePrompt(sender.tab && sender.tab.id);
+        sendResponse({ success: true });
+        break;
+
+      // An organizer row or menu item without an address runs in a new claude.ai tab (content/cf-shell-replay.js)
+      case 'runShellItem':
+        sendResponse({ success: true, tabId: await cfOpenTabWithHandoff('shell', message.request, CF_SHELL_ADDRESS_PAGE) });
+        break;
+
+      // Clicking the organizer's import button opens the import dialog in a new claude.ai tab (content/cf-import-dialog.js)
+      case 'openImportDialog':
+        sendResponse({ success: true, tabId: await cfOpenTabWithHandoff('import', { accountKey: message.accountKey || null }, 'https://claude.ai/new') });
+        break;
+
+      // The content script of a tab opened for a shell item or the import dialog asks for its request once, on load
+      // (content/cf-tab-request.js)
+      case 'takeTabRequest':
+        sendResponse({ success: true, handoff: await cfTakeHandoff(sender.tab && sender.tab.id, ['shell', 'import']) });
+        break;
+
+      case 'openSettings':
+        await chrome.runtime.openOptionsPage();
+        sendResponse({ success: true });
         break;
 
       case 'checkExportExists':
@@ -475,48 +589,14 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ success: true });
         break;
         
-      case 'startAutoScrape': {
-        // Sync no longer needs the recents page, so any open Claude tab is used
-        // and the active one is preferred. A new tab is created only when Claude
-        // is not open at all, which is what used to force a second recents tab
-        // and a fresh scroll every time.
-        const claudeTabs = await chrome.tabs.query({ url: 'https://claude.ai/*' });
-        let tab = claudeTabs.find(t => t.active) || claudeTabs[0];
-
-        if (!tab) {
-          tab = await chrome.tabs.create({ url: 'https://claude.ai/recents', active: true });
-          await new Promise((resolve) => {
-            const listener = (tabId, info) => {
-              if (tabId === tab.id && info.status === 'complete') {
-                chrome.tabs.onUpdated.removeListener(listener);
-                resolve();
-              }
-            };
-            chrome.tabs.onUpdated.addListener(listener);
-            setTimeout(resolve, 15000);
-          });
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        } else {
-          console.log('[BG] Reusing the open Claude tab', tab.id, 'for this sync');
-        }
-
-        let retries = 5;
-        while (retries > 0) {
-          try {
-            await chrome.tabs.sendMessage(tab.id, { action: 'startScrape' });
-            sendResponse({ success: true, reusedTab: claudeTabs.length > 0 });
-            return;
-          } catch (error) {
-            retries--;
-            if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            } else {
-              sendResponse({ success: false, error: 'The Claude tab did not answer. Reload claude.ai and try again.' });
-            }
-          }
-        }
+      // A sync or a folder export runs in a claude.ai tab (lib/claude-tab.js)
+      case 'startAutoScrape':
+        sendResponse(await cfStartRunInClaudeTab({ action: 'startScrape' }));
         break;
-      }
+
+      case 'startFolderExport':
+        sendResponse(await cfStartRunInClaudeTab({ action: 'startBulkExport', chats: message.chats || [], title: message.title || 'Exporting chats' }));
+        break;
 
       default:
         sendResponse({ error: 'Unknown action: ' + message.action });

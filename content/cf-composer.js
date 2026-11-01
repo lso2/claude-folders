@@ -1,6 +1,6 @@
 // content/cf-composer.js
-// Drives Claude's message composer on /new for an import run.
-// Globals: CF_COMPOSER, cfSleep, cfWaitFor, cfComposerReady, cfSelectSurface, cfAttachFile,
+// Drives Claude's message composer on /new for an import run and the organize request.
+// Globals: CF_COMPOSER, cfSleep, cfWaitFor, cfComposerReady, cfSelectSurface, cfSurfaceChecked, cfAttachFile,
 //          cfInsertPrompt, cfSendWhenReady, cfWaitForNewConversation, cfWaitForReplyDone
 // Depends on: content/cf-text.js (cfStripGlyphs)
 // Notes: docs/notes/content/cf-composer.js.md
@@ -53,6 +53,14 @@ function cfSelectSurface(label) {
   return true;
 }
 
+// True once the Surface group shows the label as checked, or when the page has no Surface group
+function cfSurfaceChecked(label) {
+  const group = document.querySelector(CF_COMPOSER.surface);
+  if (!group) return label === 'chat';
+  return Array.from(group.querySelectorAll('[role="radio"]'))
+    .some(el => cfStripGlyphs(el.textContent).toLowerCase() === label && el.getAttribute('aria-checked') === 'true');
+}
+
 // Sets the file on Claude's own upload input; the page's change handler attaches it
 async function cfAttachFile(fileInput, filename, text) {
   const before = document.querySelectorAll(CF_COMPOSER.thumbnail).length;
@@ -64,17 +72,23 @@ async function cfAttachFile(fileInput, filename, text) {
   return !!attached;
 }
 
+// The result is the browser's own answer for the insert: false means the text was not inserted.
+// On a /new tab that had just loaded, Claude's editor drew the inserted text 100 ms after insertText
+// returned true (measured 2026-10-31). The box's text is therefore not read back to judge the insert.
 function cfInsertPrompt(input, text) {
   input.focus();
-  document.execCommand('insertText', false, text);
-  return cfStripGlyphs(input.innerText).startsWith(cfStripGlyphs(text).slice(0, 40));
+  return document.execCommand('insertText', false, text);
 }
 
-// The send button is disabled while an attachment upload is in progress
-async function cfSendWhenReady(timeoutMs) {
+// Sends once the send button is enabled and the message box shows the typed request. The button is
+// disabled while an attachment uploads; with an attachment it is enabled before the editor has drawn
+// the request, and a click then sent the attachment alone (harness, 2026-11-01).
+async function cfSendWhenReady(timeoutMs, input, text) {
+  const start = cfStripGlyphs(text || '').slice(0, 40);
   const send = await cfWaitFor(() => {
     const btn = document.querySelector(CF_COMPOSER.send);
-    return btn && !btn.disabled ? btn : null;
+    const shown = !start || cfStripGlyphs(input.innerText).startsWith(start);
+    return btn && !btn.disabled && shown ? btn : null;
   }, timeoutMs, 300);
   if (!send) return false;
   send.click();

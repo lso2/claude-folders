@@ -1,15 +1,32 @@
 // organizer/viewer.js
 // Shows an exported chat's markdown as a readable page in a new tab.
 // Globals: openMarkdownViewer, renderMarkdownAsHtml
-// Depends on: organizer/app.js (esc), lib/export-files.js, lib/chat-markdown.js
+// Depends on: organizer/app.js (esc), lib/export-files.js, lib/export-state.js (loadExportRecord), lib/chat-markdown.js,
+//             lib/page-dialog.js (cfPageAlert), background.js (findExport)
 // Notes: docs/notes/organizer/viewer.js.md
 
-// Opens an exported chat from the data folder in a new tab
+// Opens an exported chat from the data folder in a new tab. A renamed chat or Cowork session keeps the file
+// name it had at export, and the file is found by the chat's id prefix (lib/folder-ops.js findExportFile).
 async function openMarkdownViewer(chatId, chatTitle) {
-  const filename = generateExportFilename(chatId, chatTitle);
+  const record = await loadExportRecord(chatId);
+  let found = null;
+  try {
+    found = await chrome.runtime.sendMessage({ action: 'findExport', chatId, filename: (record && record.filename) || generateExportFilename(chatId, chatTitle) });
+  } catch (e) {
+    found = { success: false, error: e.message };
+  }
+  if (!found || !found.success) {
+    cfPageAlert('Export not opened', `The chats folder was not searched for ${exportIdPrefix(chatId)}: ${(found && found.error) || 'the background answered nothing'}`);
+    return;
+  }
+  if (!found.filename) {
+    cfPageAlert('Export not opened', `No file in the chats folder starts with ${exportIdPrefix(chatId)}_`);
+    return;
+  }
+  const filename = found.filename;
   const result = await readExportFileChecked(filename);
   if (!result.success) {
-    alert(`${filename} could not be read: ${result.error}`);
+    cfPageAlert('Export not opened', `${filename} could not be read: ${result.error}`);
     return;
   }
   const viewerWindow = window.open('', '_blank');
@@ -71,7 +88,7 @@ function renderMarkdownAsHtml(title, markdown) {
     p { margin: 16px 0; }
     strong { color: #d97706; }
     .header-bar {
-      background: linear-gradient(135deg, #d97706, #b45309);
+      background: #b45309;
       color: white;
       padding: 12px 20px;
       border-radius: 8px;

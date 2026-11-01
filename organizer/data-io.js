@@ -1,7 +1,7 @@
 // organizer/data-io.js
-// Copies the folder data out as JSON, imports organized JSON back in, and clears it.
-// Globals: exportData, showImportModal, clearData
-// Depends on: organizer/app.js (state, saveData, render functions)
+// Copies the folder data out as JSON for Claude to organize and imports the organized JSON back in.
+// Globals: exportData, showImportModal
+// Depends on: organizer/app.js (state, saveData, refreshView), lib/page-dialog.js (cfPageNotice)
 // Notes: docs/notes/organizer/data-io.js.md
 
 function exportData() {
@@ -27,9 +27,9 @@ function exportData() {
   const json = JSON.stringify(exportObj, null, 2);
   
   navigator.clipboard.writeText(json).then(() => {
-    alert('Data copied to clipboard! Paste it to Claude for organization.\n\nA backup file is also being downloaded.');
-  }).catch(() => {
-    alert('Downloading export file...');
+    cfPageNotice('The chat list is copied. Paste it into a Claude chat to organize it. A copy was downloaded as a file too.');
+  }).catch((e) => {
+    cfPageNotice(`The chat list was not copied: ${e.message}. It was downloaded as a file.`, true);
   });
   
   const blob = new Blob([json], { type: 'application/json' });
@@ -48,7 +48,7 @@ function showImportModal() {
     <div class="modal-box" style="width:700px;max-width:95vw;">
       <h2 style="margin:0 0 16px 0;color:var(--title-color);">Import Organized Data</h2>
       <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">Paste the JSON that Claude organized for you:</p>
-      <textarea id="importDataTextarea" placeholder='{"folders":[...],"categories":[...]}' style="width:100%;height:350px;padding:12px;border:1px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--title-color);font-family:monospace;font-size:12px;resize:vertical;box-sizing:border-box;"></textarea>
+      <textarea id="importDataTextarea" rows="6" placeholder='{"folders":[...],"categories":[...]}' style="width:100%;height:140px;min-height:80px;padding:12px;border:1px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--title-color);font-family:monospace;font-size:12px;resize:vertical;box-sizing:border-box;"></textarea>
       <div style="margin-top:12px;padding:12px;background:var(--input-bg);border-radius:6px;font-size:12px;color:var(--text-secondary);">
         <strong>Options:</strong><br>
         <label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;">
@@ -58,6 +58,7 @@ function showImportModal() {
           <input type="radio" name="importMode" value="replace"> Replace all (clear existing data first)
         </label>
       </div>
+      <div class="import-error" id="importDataError" role="alert" hidden></div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
         <button class="modal-cancel-btn">Cancel</button>
         <button class="modal-create-btn">Import</button>
@@ -70,81 +71,68 @@ function showImportModal() {
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
   
   modal.querySelector('.modal-create-btn').addEventListener('click', async () => {
+    const errorBox = modal.querySelector('#importDataError');
+    errorBox.hidden = true;
+    let data;
     try {
-      const text = modal.querySelector('#importDataTextarea').value.trim();
-      const data = JSON.parse(text);
-      const mode = modal.querySelector('input[name="importMode"]:checked').value;
-      
-      if (mode === 'replace') {
-        folders = [];
-        allChats = [];
-        categories = ['Personal', 'Work', 'Projects'];
-      }
-      
-      if (data.folders && Array.isArray(data.folders)) {
-        for (const f of data.folders) {
-          const existingFolder = folders.find(ef => ef.id === f.id || ef.name === f.name);
-          if (existingFolder) {
-            if (f.chats) {
-              for (const c of f.chats) {
-                if (!existingFolder.chats.some(ec => ec.id === c.id)) {
-                  existingFolder.chats.push(c);
-                }
-              }
-            }
-          } else {
-            folders.push({
-              id: f.id || 'folder-' + Date.now() + '-' + Math.random().toString(36).substr(2,5),
-              name: f.name,
-              category: f.category || 'Personal',
-              chats: f.chats || []
-            });
-          }
-        }
-      }
-      
-      if (data.categories && Array.isArray(data.categories)) {
-        for (const cat of data.categories) {
-          if (!categories.includes(cat)) {
-            categories.push(cat);
-          }
-        }
-      }
-      
-      allChats = [];
-      folders.forEach(f => {
-        if (f.chats) allChats.push(...f.chats);
-      });
-      
-      folders = folders.map(f => ({
-        ...f,
-        lastActivity: f.chats && f.chats.length > 0 ? Math.max(...f.chats.map(c => new Date(c.date || 0).getTime())) : 0
-      }));
-      
-      await saveData();
-      renderCategoryFilters();
-      renderFolderList();
-      renderRecentChats();
-      modal.remove();
-      alert('Import successful! ' + folders.length + ' folders, ' + allChats.length + ' chats.');
+      data = JSON.parse(modal.querySelector('#importDataTextarea').value.trim());
     } catch (e) {
-      alert('Invalid JSON: ' + e.message);
+      // The pasted text stays in the box for correcting
+      errorBox.textContent = 'The pasted text is not valid JSON: ' + e.message;
+      errorBox.hidden = false;
+      return;
     }
-  });
-}
-
-function clearData() {
-  if (confirm('Clear ALL folders, categories, and chats? This cannot be undone.')) {
-    if (confirm('Are you sure? All organized data will be lost.')) {
+    const mode = modal.querySelector('input[name="importMode"]:checked').value;
+    
+    if (mode === 'replace') {
       folders = [];
       allChats = [];
-      categories = [];
-      metadata = {};
-      saveData().then(() => {
-        renderFolderList();
-        renderRecentChats();
-        alert('All data cleared.');
-      });
+      categories = ['Personal', 'Work', 'Projects'];
     }
-  }
+    
+    if (data.folders && Array.isArray(data.folders)) {
+      for (const f of data.folders) {
+        const existingFolder = folders.find(ef => ef.id === f.id || ef.name === f.name);
+        if (existingFolder) {
+          if (f.chats) {
+            for (const c of f.chats) {
+              if (!existingFolder.chats.some(ec => ec.id === c.id)) {
+                existingFolder.chats.push(c);
+              }
+            }
+          }
+        } else {
+          folders.push({
+            id: f.id || 'folder-' + Date.now() + '-' + Math.random().toString(36).substr(2,5),
+            name: f.name,
+            category: f.category || 'Personal',
+            chats: f.chats || []
+          });
+        }
+      }
+    }
+    
+    if (data.categories && Array.isArray(data.categories)) {
+      for (const cat of data.categories) {
+        if (!categories.includes(cat)) {
+          categories.push(cat);
+        }
+      }
+    }
+    
+    allChats = [];
+    folders.forEach(f => {
+      if (f.chats) allChats.push(...f.chats);
+    });
+    
+    folders = folders.map(f => ({
+      ...f,
+      lastActivity: f.chats && f.chats.length > 0 ? Math.max(...f.chats.map(c => new Date(c.date || 0).getTime())) : 0
+    }));
+    
+    await saveData();
+    refreshView();
+    modal.remove();
+    cfPageNotice(`Imported. The folders now hold ${folders.length} folders and ${allChats.length} chats.`);
+  });
 }

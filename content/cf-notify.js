@@ -1,7 +1,7 @@
 // content/cf-notify.js
 // Shows the extension's toasts, action prompts, confirmations and progress readout on Claude's page.
-// Globals: cfNoticeStack, showNotification, cfNotifyAction, cfClearNotice, cfClearAccessPrompt,
-//          cfConfirm, showSyncProgressBar, hideSyncProgressBar
+// Globals: cfNoticeStack, showNotification, cfNoticeCloseButton, cfNotifyAction, cfNotifyLink,
+//          cfClearNotice, cfClearAccessPrompt, cfConfirm, showSyncProgressBar, hideSyncProgressBar
 // Depends on: content/cf-text.js (cfEscapeHtml), inject.css (notice and confirm styles)
 // Notes: docs/notes/content/cf-notify.js.md
 
@@ -29,6 +29,16 @@ function showNotification(message, isError = false) {
   }, isError ? 6000 : 3000);
 }
 
+// The × at the right end of a notice
+function cfNoticeCloseButton(note) {
+  const close = document.createElement('button');
+  close.className = 'cf-notice-close';
+  close.setAttribute('aria-label', 'Dismiss');
+  close.textContent = '\u00d7';
+  close.addEventListener('click', (e) => { e.stopPropagation(); note.remove(); });
+  return close;
+}
+
 // A notice shown until one of its buttons or its close control is clicked.
 // A second notice with the same key replaces the first.
 function cfNotifyAction(key, message, actions, isError) {
@@ -51,12 +61,34 @@ function cfNotifyAction(key, message, actions, isError) {
     });
     note.appendChild(btn);
   }
-  const close = document.createElement('button');
-  close.className = 'cf-notice-close';
-  close.setAttribute('aria-label', 'Dismiss');
-  close.textContent = '\u00d7';
-  close.addEventListener('click', (e) => { e.stopPropagation(); note.remove(); });
-  note.appendChild(close);
+  note.appendChild(cfNoticeCloseButton(note));
+  cfNoticeStack().appendChild(note);
+  setTimeout(() => note.classList.add('show'), 10);
+  return note;
+}
+
+// A notice whose text ends in an underlined link. It stays until its close control is clicked,
+// and a second notice with the same key replaces the first.
+function cfNotifyLink(key, before, linkText, linkTitle, onLinkClick) {
+  cfClearNotice(key);
+  const note = document.createElement('div');
+  note.className = 'claude-folders-notification cf-notice';
+  note.setAttribute('data-cf-notice', key);
+  const text = document.createElement('span');
+  text.className = 'cf-notice-text';
+  text.appendChild(document.createTextNode(before));
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'cf-notice-link';
+  link.textContent = linkText;
+  if (linkTitle) link.title = linkTitle;
+  link.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onLinkClick();
+  });
+  text.appendChild(link);
+  note.appendChild(text);
+  note.appendChild(cfNoticeCloseButton(note));
   cfNoticeStack().appendChild(note);
   setTimeout(() => note.classList.add('show'), 10);
   return note;
@@ -94,8 +126,11 @@ function cfConfirm(title, body, confirmLabel) {
   });
 }
 
-// Progress readout with a fixed width and tabular digits; the geometry history is in the notes
-function showSyncProgressBar(message) {
+// Progress readout with a fixed width and tabular digits; the geometry history is in the notes.
+// buttons: [{ key, label, onClick }] at the bar's right end (the import run's Pause, Resume and Stop).
+// paused: true shows the pause icon in place of the spinner.
+// Pause icon: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0)
+function showSyncProgressBar(message, buttons, paused) {
   let bar = document.getElementById('cf-sync-progress');
 
   // Determine position based on current page
@@ -108,10 +143,10 @@ function showSyncProgressBar(message) {
     bar = document.createElement('div');
     bar.id = 'cf-sync-progress';
     bar.innerHTML = `
-      <div style="
+      <div class="sync-box" style="
         position: fixed;
         ${positionStyle}
-        background: linear-gradient(135deg, #d97706, #b45309);
+        background: #b45309;
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
@@ -122,11 +157,15 @@ function showSyncProgressBar(message) {
         gap: 12px;
         z-index: 999999;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        width: 380px;
+        width: 500px;
+        max-width: calc(100vw - 24px);
         box-sizing: border-box;
       ">
         <svg class="sync-spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="animation: cf-spin 1s linear infinite; flex: 0 0 auto;">
           <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        <svg class="sync-paused-icon" width="18" height="18" viewBox="0 0 320 512" fill="white" aria-hidden="true" style="flex: 0 0 auto; display: none;">
+          <path d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
         </svg>
         <span class="sync-message" style="
           flex: 1 1 auto;
@@ -149,6 +188,21 @@ function showSyncProgressBar(message) {
   } else {
     bar.querySelector('.sync-message').textContent = message;
   }
+  bar.querySelector('.sync-message').title = message;
+  bar.querySelector('.sync-spinner').style.display = paused ? 'none' : '';
+  bar.querySelector('.sync-paused-icon').style.display = paused ? '' : 'none';
+
+  const box = bar.querySelector('.sync-box');
+  box.querySelectorAll('.sync-action').forEach(b => b.remove());
+  (buttons || []).forEach(def => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `sync-action sync-${def.key}`;
+    btn.textContent = def.label;
+    btn.style.cssText = 'flex: 0 0 auto; padding: 4px 10px; border: none; border-radius: 6px; background: #d97706; color: #ffffff; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;';
+    btn.onclick = (e) => { e.stopPropagation(); def.onClick(); };
+    box.appendChild(btn);
+  });
 }
 
 function hideSyncProgressBar() {

@@ -14,13 +14,13 @@ const ROOT = path.resolve(__dirname, '..');
 const DOCS_ROOT = path.resolve(ROOT, '..', 'docs');
 const SIZE_LIMIT = 30 * 1024;
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'docs', '.bak', '.complete', '.run', '_scripts', '.not__current']);
-const PAGES = ['popup/popup.html', 'organizer/index.html', 'offscreen.html', 'access/index.html', 'standalone/index.html'];
+const PAGES = ['popup/popup.html', 'organizer/index.html', 'offscreen.html', 'access/index.html', 'standalone/index.html', 'update/index.html', 'settings/index.html'];
 // Node tools are run by hand, so this list is their load list
 const NODE_TOOLS = ['tools/check-project.js'];
 // standalone/data.js is written into the user's data folder at runtime, never shipped
 const RUNTIME_GENERATED = ['standalone/data.js'];
 // lib/data-file.js copies these shipped files beside the standalone viewer at runtime
-const RUNTIME_COPIES = { 'standalone/chat-markdown.js': 'lib/chat-markdown.js' };
+const RUNTIME_COPIES = { 'standalone/chat-markdown.js': 'lib/chat-markdown.js', 'standalone/page-dialog.js': 'lib/page-dialog.js' };
 
 const problems = [];
 const report = (msg) => problems.push(msg);
@@ -61,6 +61,20 @@ function topLevelNames(file) {
   return names;
 }
 
+// The value of a top-level const in a file, when it is a literal or an array of literals
+function topLevelConst(file, name) {
+  const ast = acorn.parse(fs.readFileSync(path.join(ROOT, file), 'utf8'), { ecmaVersion: 'latest', sourceType: 'script' });
+  for (const node of ast.body) {
+    if (node.type !== 'VariableDeclaration') continue;
+    for (const d of node.declarations) {
+      if (d.id.type !== 'Identifier' || d.id.name !== name || !d.init) continue;
+      if (d.init.type === 'Literal') return d.init.value;
+      if (d.init.type === 'ArrayExpression') return d.init.elements.map(e => (e && e.type === 'Literal' ? e.value : null));
+    }
+  }
+  return undefined;
+}
+
 // Two files in one page or content world must not declare the same top-level name
 function checkWorld(label, files) {
   const seen = new Map();
@@ -77,9 +91,17 @@ function checkWorld(label, files) {
 
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
 const contentList = manifest.content_scripts.flatMap(cs => cs.js || []);
+// background.js runs the files in its CF_BACKGROUND_FILES array with importScripts, in that order
+const workerFile = manifest.background.service_worker;
+const workerSrc = fs.readFileSync(path.join(ROOT, workerFile), 'utf8');
+let workerFiles = [];
+try { workerFiles = topLevelConst(workerFile, 'CF_BACKGROUND_FILES') || []; } catch (e) { report(`${workerFile} does not parse: ${e.message}`); }
+if (!workerFiles.length) report(`${workerFile} declares no CF_BACKGROUND_FILES array`);
+if (!workerSrc.includes('importScripts(...CF_BACKGROUND_FILES);')) report(`${workerFile} does not run importScripts(...CF_BACKGROUND_FILES);`);
+const workerList = [workerFile, ...workerFiles.filter(f => typeof f === 'string')];
 const loadLists = {
   'manifest content_scripts': contentList,
-  'manifest service_worker': [manifest.background.service_worker],
+  'manifest service_worker': workerList,
   'node tools': NODE_TOOLS
 };
 PAGES.forEach(page => { loadLists[page] = pageScripts(page); });
@@ -115,7 +137,14 @@ for (const file of files) {
 
 if (fs.existsSync(path.join(ROOT, 'docs'))) report(`docs/ is inside the repository; the notes belong in ${DOCS_ROOT}`);
 
+// The background reloads the extension when its build number differs from the manifest version
+const BUILD_FILE = 'lib/background-build.js';
+let build;
+try { build = topLevelConst(BUILD_FILE, 'CF_BACKGROUND_BUILD'); } catch (e) { build = undefined; }
+if (build !== manifest.version) report(`${BUILD_FILE} has CF_BACKGROUND_BUILD ${build} and manifest.json has version ${manifest.version}`);
+
 checkWorld('content scripts', contentList);
+checkWorld('service worker', workerList);
 PAGES.forEach(page => checkWorld(page, loadLists[page].filter(f => !RUNTIME_GENERATED.includes(f))));
 
 if (problems.length) {
