@@ -51,6 +51,18 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - A chat matched by its export shows an excerpt with the match marked. Clicking **View export** opens the export in a new tab
 - The folder grid also shows the folders holding the listed chats
 - On the first search, the words of every export are indexed in the browser, with the progress in the search status. Later searches index only new and changed exports
+- **All**, **Titles** and **Content** at the top right of the chat list choose the chats listed: every match, title matches or export matches. **All** is chosen when the page opens
+- The caret right of them collapses and expands the chat list
+- A bar under the heading shows the search's progress while the exports are read, with the count of files in the status
+- **Sort by** orders the chat list: **Best match** (title matches first, then the newest), **Name**, **Most recent message**, **Oldest message** or **Export date**. The button beside it switches between **Asc** and **Desc**. Chats with no value for the sort are listed last
+- **Oldest message** needs the time each chat started. The first sync after 1.6.0 reads the whole conversation list once to record it for chats stored earlier
+- The account dropdown limits the listed chats to the accounts it shows. The search reads every account's exports
+- The title of another account's chat opens its export in a new tab. With no export, the title is plain text
+
+### Organizer Top Bar
+- **Folders**, **Analytics**, **Sync**, **Organize**, **Export**, **Import**, **Settings** and **+ New folder** are at the top of every organizer page: the folder list, a folder and the analytics
+- Clicking **Folders** shows the folder list
+- **Analytics** is shown pressed while the analytics page is open. Clicking it there returns to the folder list, the same as **Back to Folders**
 
 ### Organizing with Claude
 Claude sorts your chat titles into categories and folders. The request is automatically inserted and sent in a claude.ai tab, and Claude's answer is read from that page.
@@ -65,7 +77,9 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - Export individual chats or bulk export all conversations
 - Full conversation content including all messages and responses
 - Automatic filename generation: `{first 8 characters of the chat id}_{title}.md`, and `{session id}_{title}.md` for Cowork sessions
-- Skip already-exported files (no duplicates)
+- Each message has its date and time under its **Human** or **Claude** heading, such as `*Oct 30, 2026, 9:22 AM CDT*`, in the time zone of the browser that wrote the export
+- Skip exports that are on disk and current (no duplicates)
+- An export with no message timestamps, or older than the chat's newest change, is written again over its file by the next sync or folder export
 - Exports stored in `/chats/` subfolder within your data directory
 
 ### Shared Chats
@@ -118,8 +132,8 @@ Claude sorts your chat titles into categories and folders. The request is automa
 
 ### Saved Files and Show in Folder
 - After a single export, the Saved notice stays open until its **×** is clicked
-- An exported chat or Cowork session with messages newer than its export shows **Export Update**, which writes over the same file, and hovering over it explains this
-- Every sync exports the stored chats and Cowork sessions missing from the data folder
+- An exported chat or Cowork session with messages newer than its export, or with an export that has no message timestamps, shows **Export Update**, which writes over the same file, and hovering over it explains this
+- Every sync exports the stored chats and Cowork sessions missing from the data folder, and writes the outdated exports again over their files
 - Chrome extensions cannot open File Explorer. On Windows, the Claude Folders Helper does it (setup steps in INSTALL.md). With the helper installed, the file name in the Saved notice is underlined and an exported, current chat shows **Show in folder**. Clicking either opens File Explorer with the file selected
 - Without the helper, the Saved notice shows the file name as plain text, and an exported, current chat shows **Export**, which writes over the same file
 
@@ -136,6 +150,9 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - Shows a sync bar as soon as a new chat is available
 - One-click sync to import all new chats
 - Smart skip logic - only imports chats not already in folders
+
+### Chat Dates in the Organizer
+- Chat rows show the date and time of the chat's last change, such as `Oct 30, 2026, 9:22 AM CDT`
 
 ### Analytics Dashboard
 - Donut chart showing category distribution
@@ -203,8 +220,8 @@ Or download and extract the ZIP file.
 
 **All chats, from the popup or the organizer:**
 1. Click **Sync**
-2. Every chat and Cowork session of this login is read, and the ones missing from `chats/` are exported
-3. The popup and the organizer show the progress and the result, with the counts of imported and exported chats
+2. Every chat and Cowork session of this login is read. The ones missing from `chats/` are exported, and outdated exports are written again over their files
+3. The popup and the organizer show the progress and the result, with the counts of imported, exported and updated chats
 4. In the organizer, clicking **Download** saves the files written by that sync as one combined markdown file
 
 **One folder, from the organizer:**
@@ -278,7 +295,7 @@ Your-Data-Folder/
 ```markdown
 # Chat Title Here
 
-**Exported:** 2025-01-20
+**Exported:** Jan 20, 2025, 4:12 PM CST
 **URL:** https://claude.ai/chat/a1b2c3d4-e5f6-7890-abcd-ef1234567890
 **Chat ID:** a1b2c3d4-e5f6-7890-abcd-ef1234567890
 
@@ -286,11 +303,15 @@ Your-Data-Folder/
 
 ## Human
 
+*Jan 20, 2025, 3:58 PM CST*
+
 User's message here...
 
 ---
 
 ## Claude
+
+*Jan 20, 2025, 3:58 PM CST*
 
 Claude's response here...
 
@@ -325,6 +346,11 @@ Claude's response here...
 - One login can carry several organizations. The sync reads every one it can, and the console lists them with a count each, so a total lower than you expect shows which organization is short
 - Look for errors in the browser console (F12)
 - A message about reading the page instead of the API means the conversation list request failed, and that run only covers the rows Claude had loaded
+
+### Sync does not start after the extension was reloaded or added again
+- Chrome adds the extension's scripts only to claude.ai tabs loaded after the extension, and an open tab does not answer the sync
+- The sync opens a new claude.ai tab when the open one does not answer 2 start messages, and runs there
+- After the extension is removed and added again, choose the same data folder. Each login's folders are read back from its `data.<account>.json`
 
 ### Export says folder access is needed
 - Chrome's folder prompt for this extension has only Allow and Block

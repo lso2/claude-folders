@@ -8,14 +8,16 @@
 // lines: the counts. details: the organizations and the failure reasons.
 // libraryWritten: the background's answer for data.js (background.js scrapedChats), null when nothing was sent.
 function cfSyncSummaryLines(totalChats, scannedTotal, outcome, orgSummaries, coworkCount, libraryWritten) {
-  const result = outcome || { exported: 0, skipped: 0, empty: 0, unavailable: 0, failed: 0, reasons: new Map(), aborted: null };
+  const result = outcome || { exported: 0, updated: 0, skipped: 0, empty: 0, unavailable: 0, failed: 0, reasons: new Map(), aborted: null };
   const orgLines = (orgSummaries || []).filter(org => org && !org.error).map(org => `${org.name}: ${org.accountTotal}`);
   const lines = [];
   const total = scannedTotal ? ` of ${scannedTotal}${orgLines.length > 1 ? ` across ${orgLines.length} organizations` : ' on the account'}` : '';
   lines.push(`${totalChats} new chats imported${total}`);
   if (coworkCount > 0) lines.push(`${coworkCount} Cowork session${coworkCount === 1 ? '' : 's'} in that total`);
   lines.push(`${result.exported} exported to markdown`);
-  if (result.skipped > 0) lines.push(`${result.skipped} already exported (skipped)`);
+  // Exports with no message timestamps, or older than the chat's newest change, are written again (content/cf-export-run.js)
+  if (result.updated > 0) lines.push(`${result.updated} outdated export${result.updated === 1 ? '' : 's'} updated`);
+  if (result.skipped > 0) lines.push(`${result.skipped} already exported and current (skipped)`);
   if (result.empty > 0) lines.push(`${result.empty} empty chats (no content)`);
   if (result.unavailable > 0) lines.push(`${result.unavailable} not found on the account`);
   if (result.otherOrgs > 0) lines.push(`${result.otherOrgs} in organizations this login cannot read`);

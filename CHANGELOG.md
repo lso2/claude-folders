@@ -2,6 +2,37 @@
 
 All notable changes to Claude Folders.
 
+## 1.6.0
+
+**Markdown export**
+
+- Added the date and time of each message under its Human and Claude heading.
+- The Exported line shows the local date and time of the export.
+- Sync and Export folder update exports that have no message timestamps or are older than the chat.
+- Export Update appears on chats whose export has no message timestamps.
+
+**Organizer**
+
+- Added the top bar to the analytics and folder pages.
+- Clicking Analytics on the analytics page returns to the folders.
+- Added All, Titles and Content to the search's chat list.
+- Added a caret that collapses the search's chat list.
+- Added a progress bar while the search reads the chat exports.
+- Added Sort by to the search's chat list: best match, name, most recent message, oldest message and export date, each ascending or descending.
+- The account dropdown filters the search's chat list.
+- Titles of another account's chats in the search open their export.
+- Chat rows show the date and time of the chat's last change.
+
+**Sync**
+
+- Sync stores the start time of each chat.
+- Fixed the sync not starting in a claude.ai tab opened before the extension was reloaded or added again.
+- Folders are restored from the data folder after the extension is removed and added again.
+
+**Offline library**
+
+- Chat rows show the date and time of the chat's last change.
+
 ## 1.5.0
 
 **Organize**

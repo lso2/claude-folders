@@ -1,26 +1,43 @@
 // content/cf-export-run.js
 // Exports a list of stored chats to the data folder for folder, popup and sync exports.
-// Globals: cfLoadExportedPrefixes, cfOrgIdFor, cfReadableOrgIds, cfReleaseForeignChats, cfExportChatList,
-//          cfDescribeExportOutcome, cfRunExportWithModal, handleFolderExport
-// Depends on: lib/chat-markdown.js (exportIdPrefix, exportPrefixOfFilename), lib/chat-exporter.js,
+// Globals: cfLoadExportedFiles, cfExportIsOutdated, cfOutdatedTarget, cfOrgIdFor, cfReadableOrgIds,
+//          cfReleaseForeignChats, cfExportChatList, cfDescribeExportOutcome, cfRunExportWithModal, handleFolderExport
+// Depends on: lib/chat-markdown.js (exportIdPrefix, exportPrefixOfFilename, EXPORT_FORMAT),
+//             lib/export-state.js (loadExportRecords), lib/chat-exporter.js,
 //             content/cf-disk.js, content/cf-export-records.js, content/cf-notify.js,
 //             content/cf-run-state.js (cfRunStart, cfRunProgress, cfRunFinish), inject.css
 // Notes: docs/notes/content/cf-export-run.js.md
 
-// The id prefix in each filename is unchanged when a chat is renamed
-async function cfLoadExportedPrefixes() {
-  const prefixes = new Set();
+// The export file names in chats/ by lowercased id prefix. The prefix is unchanged when a chat is renamed.
+async function cfLoadExportedFiles() {
+  const byPrefix = new Map();
   try {
     const response = await chrome.runtime.sendMessage({ action: 'listExports' });
     (response?.files || []).forEach(name => {
       const prefix = exportPrefixOfFilename(name);
-      if (prefix) prefixes.add(prefix);
+      if (!prefix) return;
+      if (!byPrefix.has(prefix)) byPrefix.set(prefix, []);
+      byPrefix.get(prefix).push(name);
     });
-    console.log('[EXPORT] Found', prefixes.size, 'chats already exported to disk');
+    console.log('[EXPORT] Found', byPrefix.size, 'chats already exported to disk');
   } catch (e) {
     console.log('[EXPORT] Could not list exports:', e.message);
   }
-  return prefixes;
+  return byPrefix;
+}
+
+// An export on disk is outdated when its record has no format or another format than EXPORT_FORMAT,
+// or when the chat's updatedAt is later than the export. A file with no record counts as outdated.
+function cfExportIsOutdated(chat, record) {
+  if (!record || record.format !== EXPORT_FORMAT) return true;
+  const changed = Date.parse((chat && chat.updatedAt) || '');
+  const exported = Date.parse(record.exportedAt || '');
+  return Number.isFinite(changed) && Number.isFinite(exported) && changed > exported;
+}
+
+// An outdated export is written over its recorded file when that file is on disk, else over the first file with its id prefix
+function cfOutdatedTarget(record, names) {
+  return record && record.filename && names.includes(record.filename) ? record.filename : names[0];
 }
 
 // Records sent by the popup and organizer carry no organization. The stored record supplies it.
@@ -55,15 +72,16 @@ async function cfReleaseForeignChats(ids) {
   return { released: 0, accounts: [] };
 }
 
-// Write access is checked before the first fetch. Chats already on disk, recorded as
+// Write access is checked before the first fetch. Chats current on disk, recorded as
 // missing, or stored with an organization this login cannot read are counted before
-// any export, and progress covers only the chats being exported. A permission error
+// any export, and progress covers only the chats being exported. An outdated export on
+// disk is exported again over its file and counted as updated. A permission error
 // during the run stops it, leaving the remaining chats for the next run.
 // onProgress(done, total, chat, detail): detail is the event count while a Cowork session reads.
 async function cfExportChatList(chats, options) {
   const opts = options || {};
   const outcome = {
-    total: chats.length, exported: 0, skipped: 0, empty: 0, unavailable: 0, knownMissing: 0, otherOrgs: 0,
+    total: chats.length, exported: 0, updated: 0, skipped: 0, empty: 0, unavailable: 0, knownMissing: 0, otherOrgs: 0,
     failed: 0, released: 0, releasedTo: [], reasons: new Map(), aborted: null, cancelled: false, files: []
   };
   const noteFailure = (reason) => {
@@ -84,7 +102,8 @@ async function cfExportChatList(chats, options) {
   }
 
   if (opts.onCheck) opts.onCheck(chats.length);
-  const prefixes = opts.skipExisting === false ? new Set() : await cfLoadExportedPrefixes();
+  const onDiskFiles = opts.skipExisting === false ? new Map() : await cfLoadExportedFiles();
+  const records = await loadExportRecords();
   const unavailable = await cfLoadUnavailableChats();
   const readable = opts.readableOrgIds || await cfReadableOrgIds();
 
@@ -117,15 +136,17 @@ async function cfExportChatList(chats, options) {
       outcome.otherOrgs++;
       continue;
     }
-    if (prefixes.has(exportIdPrefix(chatId).toLowerCase())) {
+    const names = onDiskFiles.get(exportIdPrefix(chatId).toLowerCase());
+    if (names && !cfExportIsOutdated(chat, records[chatId])) {
       outcome.skipped++;
       onDisk.push(chatId);
       continue;
     }
-    toExport.push(chat);
+    toExport.push({ chat, target: names ? cfOutdatedTarget(records[chatId], names) : null });
   }
   await cfMarkChatsExported(onDisk);
-  console.log('[EXPORT] Checked', chats.length, 'chats:', toExport.length, 'to export,', outcome.skipped, 'on disk,',
+  const updates = toExport.filter(entry => entry.target).length;
+  console.log('[EXPORT] Checked', chats.length, 'chats:', toExport.length - updates, 'to export,', updates, 'outdated on disk to update,', outcome.skipped, 'current on disk,',
     outcome.knownMissing, 'recorded as missing,', outcome.otherOrgs, 'in organizations this login cannot read,',
     outcome.released, 'moved to the accounts that hold them');
 
@@ -135,7 +156,7 @@ async function cfExportChatList(chats, options) {
       outcome.cancelled = true;
       break;
     }
-    const chat = toExport[i];
+    const { chat, target } = toExport[i];
     const chatId = String(chat.id);
     const chatTitle = String(chat.title || 'Untitled');
     if (opts.onProgress) opts.onProgress(i + 1, toExport.length, chat, '');
@@ -146,14 +167,15 @@ async function cfExportChatList(chats, options) {
         opts.onProgress ? (detail) => opts.onProgress(i + 1, toExport.length, chat, detail) : null);
       const read = Math.round(performance.now() - started);
       if (result.success && result.markdown) {
+        const filename = target || result.filename;
         const writing = performance.now();
-        const written = await cfWriteExport(result.filename, result.markdown);
-        console.log(`[EXPORT] ${i + 1} of ${toExport.length} ${chatId}: read in ${read} ms, ${Math.round(result.markdown.length / 1024)} KB written in ${Math.round(performance.now() - writing)} ms`);
+        const written = await cfWriteExport(filename, result.markdown);
+        console.log(`[EXPORT] ${i + 1} of ${toExport.length} ${chatId}: read in ${read} ms, ${Math.round(result.markdown.length / 1024)} KB written to ${filename} in ${Math.round(performance.now() - writing)} ms`);
         if (written.success) {
-          outcome.exported++;
-          outcome.files.push(result.filename);
-          prefixes.add(exportIdPrefix(chatId).toLowerCase());
-          await markChatAsExported(chatId, { filename: result.filename, mark: result.mark });
+          if (target) outcome.updated++;
+          else outcome.exported++;
+          outcome.files.push(filename);
+          await markChatAsExported(chatId, { filename, mark: result.mark });
         } else if (written.code === 'no-folder' || written.code === 'permission') {
           outcome.aborted = written.error;
           cfPromptFolderAccess(written.code, written.folderName, written.permission);
@@ -203,7 +225,8 @@ async function cfExportChatList(chats, options) {
 
 function cfDescribeExportOutcome(outcome) {
   const parts = [`${outcome.exported} exported`];
-  if (outcome.skipped) parts.push(`${outcome.skipped} already on disk`);
+  if (outcome.updated) parts.push(`${outcome.updated} updated`);
+  if (outcome.skipped) parts.push(`${outcome.skipped} already on disk and current`);
   if (outcome.empty) parts.push(`${outcome.empty} empty`);
   if (outcome.unavailable) parts.push(`${outcome.unavailable} not found on the account`);
   if (outcome.otherOrgs) parts.push(`${outcome.otherOrgs} in organizations this login cannot read`);
@@ -277,7 +300,7 @@ async function handleFolderExport(folderId) {
   const count = folder.chats.length;
   const confirmed = await cfConfirm(
     `Export ${count} chat${count === 1 ? '' : 's'} from "${folder.name}"?`,
-    'Each chat is saved as markdown in the chats folder of your data folder. Chats already on disk are skipped.',
+    'Each chat is saved as markdown in the chats folder of your data folder. Exports on disk are written again when the chat changed after its export or the export has no message timestamps. Current exports are skipped.',
     'Export'
   );
   if (confirmed) await cfRunExportWithModal(folder.chats, `Exporting: ${folder.name}`);

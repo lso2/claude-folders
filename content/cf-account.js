@@ -2,7 +2,7 @@
 // Resolves the signed-in account and names the per-account storage keys.
 // Globals: cfAccountKey, cfAccountReady, cfAccountInfo, cfResolveOrgKey, cfLoginKey, cfReadAccountInfo, cfKnownKey,
 //          cfPendingKey, cfMonitorKey, cfAccountViewKey, cfWatermarkKey, cfImportedKey, cfImportQueueKey,
-//          cfShellKey, cfOrganizeIndexKey, cfInitAccount
+//          cfShellKey, cfOrganizeIndexKey, cfCreatedAtListedKey, cfInitAccount
 // Depends on: content/cf-text.js (cfHash), lib/storage-keys.js (ACCOUNT_VIEW_KEY_PREFIX, CLAUDE_SHELL_KEY_PREFIX,
 //             ORGANIZE_INDEX_KEY_PREFIX)
 // Notes: docs/notes/content/cf-account.js.md
@@ -65,6 +65,8 @@ function cfPendingKey() { return 'pendingNewChats__' + cfAccountKey; }
 function cfMonitorKey() { return 'monitoredNewChats__' + cfAccountKey; }
 function cfAccountViewKey() { return ACCOUNT_VIEW_KEY_PREFIX + cfAccountKey; }
 function cfWatermarkKey(orgId) { return 'syncWatermark__' + cfAccountKey + '__' + String(orgId || 'active'); }
+// True once a sync of this login listed every organization to the end with each chat's createdAt (content/cf-sync.js)
+function cfCreatedAtListedKey() { return 'createdAtListed__' + cfAccountKey; }
 function cfImportedKey() { return 'importedShares__' + cfAccountKey; }
 function cfImportQueueKey() { return 'importQueue__' + cfAccountKey; }
 function cfShellKey() { return CLAUDE_SHELL_KEY_PREFIX + cfAccountKey; }

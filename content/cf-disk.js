@@ -2,7 +2,7 @@
 // Sends export files to the background writer and asks for folder access when it is missing.
 // Globals: cfWriteExport, cfSaveExport, cfQueueExport, cfCheckWriteAccess, cfFolderAccessAction,
 //          cfPromptFolderAccess, cfReportSave
-// Depends on: lib/storage-keys.js, lib/folder-picker.js, content/cf-notify.js,
+// Depends on: lib/storage-keys.js, lib/folder-picker.js, lib/chat-markdown.js (EXPORT_FORMAT), content/cf-notify.js,
 //             content/cf-export-records.js (markChatAsExported), content/cf-reveal.js (cfNotifySaved)
 // Notes: docs/notes/content/cf-disk.js.md
 
@@ -38,7 +38,7 @@ async function cfQueueExport(filename, content, chatId, mark) {
     const stored = await chrome.storage.local.get(QUEUED_EXPORTS_KEY);
     const queue = (Array.isArray(stored[QUEUED_EXPORTS_KEY]) ? stored[QUEUED_EXPORTS_KEY] : [])
       .filter(item => item.filename !== filename);
-    queue.push({ filename, content, chatId: chatId || null, mark: mark || null, queuedAt: new Date().toISOString() });
+    queue.push({ filename, content, chatId: chatId || null, mark: mark || null, format: EXPORT_FORMAT, queuedAt: new Date().toISOString() });
     await chrome.storage.local.set({ [QUEUED_EXPORTS_KEY]: queue });
     return true;
   } catch (e) {

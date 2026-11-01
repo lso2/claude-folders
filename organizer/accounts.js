@@ -3,7 +3,8 @@
 // Globals: organizerOtherAccounts, organizerAccountView, organizerCurrentKey, viewFolders, ownAccountEntry,
 //          loadOrganizerAccounts, buildViewFolders, renderAccountSelect
 // Depends on: lib/account-view.js, lib/storage-keys.js (ACCOUNT_VIEW_KEY_PREFIX, ACCOUNT_VIEW_DEFAULT_KEY),
-//             organizer/app.js (folders, metadata, esc), organizer/run-start.js (startOrganizerAccountImport)
+//             organizer/app.js (folders, metadata, esc), organizer/run-start.js (startOrganizerAccountImport),
+//             organizer/content-search.js (refreshContentSearchRows)
 // Notes: docs/notes/organizer/accounts.js.md
 
 // Other logins' and data files' accounts from the background's listAccounts answer, with their folders
@@ -87,5 +88,7 @@ function renderAccountSelect() {
     buildViewFolders();
     renderCategoryFilters();
     renderFolderList();
+    // The Chats list under the search box shows the matches of the accounts chosen
+    refreshContentSearchRows();
   };
 }

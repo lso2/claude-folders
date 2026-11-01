@@ -128,3 +128,159 @@ a.content-search-chat:hover {
 .content-search-more {
     margin-top: 10px;
 }
+
+/* The mode buttons and the caret, at the right end of the heading row */
+.content-search-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* The mode buttons follow the folder view's list and card toggle */
+.content-search-modes {
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--body-bg);
+    border-radius: 8px;
+}
+
+.content-search-mode {
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--body-text);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.content-search-mode:hover {
+    color: var(--title-color);
+}
+
+.content-search-mode.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--title-color);
+}
+
+.content-search-collapse {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--body-text);
+    cursor: pointer;
+}
+
+.content-search-collapse:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--title-color);
+}
+
+/* The chevron points down while the list is open and right while it is collapsed */
+.content-search-collapse svg {
+    transition: transform 0.15s;
+}
+
+.content-search.collapsed .content-search-collapse svg {
+    transform: rotate(-90deg);
+}
+
+.content-search.collapsed .content-search-head {
+    margin-bottom: 0;
+}
+
+.content-search-body[hidden] {
+    display: none;
+}
+
+/* The bar under the heading while the exports are read for search: a solid accent fill on a faint track */
+.content-search-progress {
+    position: relative;
+    height: 3px;
+    margin: 4px 0 10px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.content-search-progress[hidden] {
+    display: none;
+}
+
+.content-search-progress-fill {
+    height: 100%;
+    width: 0;
+    background: var(--accent-color);
+    transition: width 0.2s;
+}
+
+/* Before the count of files is known, a short fill slides across the track */
+.content-search-progress.indeterminate .content-search-progress-fill {
+    position: absolute;
+    width: 30%;
+    transition: none;
+    animation: content-search-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes content-search-slide {
+    from { left: -30%; }
+    to { left: 100%; }
+}
+
+/* Sort by and its direction button, right of the mode buttons */
+.content-search-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.content-search-sort-select {
+    padding: 4px 8px;
+    background: var(--body-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    color: var(--title-color);
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+}
+
+.content-search-sort-dir {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: var(--body-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 6px;
+    color: var(--title-color);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.content-search-sort-dir:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.content-search-sort-dir:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+/* The arrow points down for descending and up for ascending */
+.content-search-sort-dir svg {
+    transform: rotate(180deg);
+}
+
+.content-search-sort-dir.asc svg {
+    transform: none;
+}

@@ -128,13 +128,14 @@ async function loadAllData() {
 }
 
 // Redraws everything that depends on the folders shown: the account dropdown, the category pills,
-// the folder grid and the recent chats
+// the folder grid, the recent chats and the Chats list of the last search (organizer/content-search.js)
 function refreshView() {
   buildViewFolders();
   renderAccountSelect();
   renderCategoryFilters();
   renderFolderList();
   renderRecentChats();
+  refreshContentSearchRows();
 }
 
 // The background stores the change and writes the data file through the folder writer
@@ -221,8 +222,11 @@ function setupEventListeners() {
   document.getElementById('importBtn')?.addEventListener('click', showImportModal);
   document.getElementById('settingsBtn')?.addEventListener('click', () => chrome.runtime.openOptionsPage());
   
+  // Folders in the top bar, shown above every view, returns to the folder grid
+  document.getElementById('topBarFolders')?.addEventListener('click', showFolderListView);
+
   // Analytics
-  document.getElementById('analyticsBtn')?.addEventListener('click', showAnalyticsView);
+  document.getElementById('analyticsBtn')?.addEventListener('click', toggleAnalyticsView);
   document.getElementById('analyticsBackBtn')?.addEventListener('click', hideAnalyticsView);
   
   // The sync of the Folders panel, run in the claude.ai tab (organizer/run-start.js)
@@ -234,10 +238,9 @@ function setupEventListeners() {
   });
 }
 
-// The Folders row in the sidebar returns to the folder grid from a folder or the analytics
+// The Folders row in the sidebar and Folders in the top bar return to the folder grid from a folder or the analytics
 function showFolderListView() {
   document.getElementById('folderDetailView')?.classList.add('hidden');
-  document.getElementById('analyticsView')?.classList.add('hidden');
-  document.getElementById('folderListView')?.classList.remove('hidden');
+  hideAnalyticsView();
   currentFolder = null;
 }

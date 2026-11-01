@@ -1,8 +1,8 @@
 // content/cf-sync.js
-// Collects the account's conversations into the folders store and exports the ones missing on disk.
+// Collects the account's conversations into the folders store and exports the ones missing or outdated on disk.
 // Globals: cfRelativeToISODate, CF_SYNC_OVERLAP_DAYS, CF_SYNC_CLEAN_PAGES, cfParseChatLink,
 //          cfFindScroller, CF_MORE_CONTROL, cfIsOwnUi, cfAdvanceChatList, cfCollectChatsByScrolling,
-//          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCollectAllChats, scrapeAllChats,
+//          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCreatedAtListed, cfCollectAllChats, scrapeAllChats,
 //          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, scrapeRecentsPage, cfSyncProgress
 // Depends on: lib/chat-exporter.js, content/cf-disk.js, content/cf-export-run.js,
 //             content/cf-sync-summary.js, content/cf-cowork-sync.js, content/cf-run-state.js
@@ -212,6 +212,16 @@ function cfHeldChatIds() {
   return held;
 }
 
+// Chats stored before 1.6.0 have no createdAt. Until one sync has listed every organization to the end,
+// the listing ignores the watermarks and reads every page.
+async function cfCreatedAtListed() {
+  try {
+    return !!(await chrome.storage.local.get(cfCreatedAtListedKey()))[cfCreatedAtListedKey()];
+  } catch (e) {
+    return false;
+  }
+}
+
 // Collect conversations for this account. The list endpoint is authoritative and
 // returns real timestamps newest-first, so a run that already holds recent history
 // reads back one month past it and stops rather than walking to the first
@@ -224,14 +234,19 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
       // A held chat without its organization counts as new. The listing reaches it once, and
       // the background records the organization from it (scrapedChats).
       folders.forEach(f => (f.chats || []).forEach(c => { if (!c.orgId) held.delete(c.id); }));
+      const listAll = fullResync || !(await cfCreatedAtListed());
+      if (listAll && !fullResync) console.log('[SCRAPER] Reading every page once for each chat\'s createdAt');
       const result = await window.chatExporter.listConversationsAllOrgs((count, total) => {
         if (onProgress) onProgress(count, total, 'api');
       }, {
         overlapDays: CF_SYNC_OVERLAP_DAYS,
         cleanPagesToStop: CF_SYNC_CLEAN_PAGES,
         isKnown: (id) => held.has(id),
-        watermarkFor: (orgId) => (fullResync ? null : cfReadWatermark(orgId))
+        watermarkFor: (orgId) => (listAll ? null : cfReadWatermark(orgId))
       });
+      if (listAll && result.orgs.length && result.orgs.every(o => !o.error && o.reachedEnd)) {
+        await chrome.storage.local.set({ [cfCreatedAtListedKey()]: true }).catch(e => console.log('[SCRAPER] createdAt listing not recorded:', e.message));
+      }
 
       for (const org of result.orgs) {
         if (org.error) {
@@ -319,7 +334,7 @@ function cfTakeSyncRequest() {
 }
 
 // Every stored chat and Cowork session is checked against the files on disk, and the
-// ones missing there are exported
+// ones missing or outdated there are exported
 async function scrapeRecentsPage(fullResync = false) {
   // A sync runs only with a writable data folder. A request made without one is
   // kept and started once access is granted.
@@ -415,7 +430,7 @@ async function scrapeRecentsPage(fullResync = false) {
     await chrome.storage.local.set({ [cfMonitorKey()]: [] });
   }
   
-  // Exports for every stored conversation missing on disk, written by the shared export runner
+  // Exports for every stored conversation missing or outdated on disk, written by the shared export runner
   const chatsToExport = [];
   folders.forEach(f => (f.chats || []).forEach(c => chatsToExport.push(c)));
 

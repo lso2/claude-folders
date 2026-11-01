@@ -1,22 +1,40 @@
 // organizer/analytics.js
 // Draws the organizer's category chart, legend, totals and per-category breakdown.
-// Globals: CHART_COLORS, showAnalyticsView, hideAnalyticsView, getCategoryData, renderAnalytics,
+// Globals: CHART_COLORS, setAnalyticsPressed, showAnalyticsView, hideAnalyticsView, toggleAnalyticsView,
+//          getCategoryData, renderAnalytics,
 //          renderDonutChart, renderAnalyticsLegend, renderAnalyticsStats, renderAnalyticsBreakdown
 // Depends on: organizer/accounts.js (viewFolders, the folders the account view shows)
 // Notes: docs/notes/organizer/analytics.js.md
 
 const CHART_COLORS = ['#d97706', '#0891b2', '#7c3aed', '#059669', '#dc2626', '#2563eb', '#c026d3', '#ea580c'];
 
+// The top bar's Analytics button reads as pressed while the analytics page is open
+function setAnalyticsPressed(on) {
+  const btn = document.getElementById('analyticsBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
 function showAnalyticsView() {
   document.getElementById('folderListView')?.classList.add('hidden');
   document.getElementById('folderDetailView')?.classList.add('hidden');
   document.getElementById('analyticsView')?.classList.remove('hidden');
+  setAnalyticsPressed(true);
   renderAnalytics();
 }
 
 function hideAnalyticsView() {
   document.getElementById('analyticsView')?.classList.add('hidden');
   document.getElementById('folderListView')?.classList.remove('hidden');
+  setAnalyticsPressed(false);
+}
+
+// Analytics in the top bar opens the analytics page, and clicking it again there returns to the folder list
+function toggleAnalyticsView() {
+  const open = !document.getElementById('analyticsView')?.classList.contains('hidden');
+  if (open) hideAnalyticsView();
+  else showAnalyticsView();
 }
 
 function getCategoryData() {

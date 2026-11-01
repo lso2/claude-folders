@@ -3,7 +3,7 @@
 // Globals: CF_EXPORT_VIEWS, cfExportStateRead, cfReplyWasRunning, cfExportKey, cfCurrentTurn, cfReadTurn,
 //          cfFindExportOnDisk, cfExportStatus, cfExportFileStatus, cfExportUpdateTip, cfApplyExportState,
 //          cfApplyKnownExportState, cfRefreshPageExportButton, cfOnExportRecorded, cfWatchExportFreshness
-// Depends on: lib/export-state.js, lib/cowork-api.js (fetchCoworkNewestTurn), lib/chat-exporter.js,
+// Depends on: lib/export-state.js, lib/chat-markdown.js (EXPORT_FORMAT), lib/cowork-api.js (fetchCoworkNewestTurn), lib/chat-exporter.js,
 //             content/cf-routes.js, content/cf-chat.js (icons), content/cf-tooltip.js, content/cf-reveal.js
 //             (cfHelperReady), content/cf-composer.js (CF_COMPOSER), inject.css (.cf-state-show)
 // Notes: docs/notes/content/cf-export-state.js.md
@@ -62,8 +62,9 @@ async function cfExportStatus(ref) {
   return status;
 }
 
-// 'export', 'show' or 'update' from the files and the conversation. An export with a mark is up to date
-// while the mark is the same. An export without one is up to date while no message is newer than its file.
+// 'export', 'show' or 'update' from the files and the conversation. A recorded export written in another
+// format than EXPORT_FORMAT is 'update' with reason 'format'. An export with a mark is up to date while the
+// mark is the same. An export without one is up to date while no message is newer than its file.
 async function cfExportFileStatus(ref) {
   const record = await loadExportRecord(ref.id);
   // A record means the turn is needed unless the file is missing. It is read during the folder check.
@@ -76,6 +77,7 @@ async function cfExportFileStatus(ref) {
   if (disk.filename && !(record && record.filename)) {
     rememberExportFile(ref.id, disk.filename).catch(e => console.log('[EXPORT] File name of', ref.id, 'not stored:', e.message));
   }
+  if (record && record.filename && record.format !== EXPORT_FORMAT) return { state: 'update', reason: 'format', filename };
   const turn = await (turnRead || cfReadTurn(ref));
   if (turn.error) {
     console.log('[EXPORT] Current state of', ref.id, 'not read:', turn.error.message);
@@ -91,6 +93,7 @@ async function cfExportFileStatus(ref) {
 
 function cfExportUpdateTip(status) {
   const target = status.filename ? `replaces ${status.filename}` : 'replaces its file';
+  if (status.reason === 'format') return `This chat's export has no message timestamps. Clicking Export Update exports it again and ${target} in the data folder.`;
   return `This chat has messages that are not in its export. Clicking Export Update exports it again and ${target} in the data folder.`;
 }
 

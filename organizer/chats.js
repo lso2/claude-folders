@@ -1,10 +1,10 @@
 // organizer/chats.js
 // Renders the chats inside an organizer folder with their offline, download and move controls.
 // Globals: renderChatList, checkExportFileExists, downloadSingleChat, renderActivityTab,
-//          renderRecentChats, formatRelativeDate, showChatMenu, showMoveChatModal, ownFolderOfView,
+//          renderRecentChats, showChatMenu, showMoveChatModal, ownFolderOfView,
 //          reopenCurrentFolder, moveChat, deleteChat
 // Depends on: organizer/app.js, organizer/accounts.js (viewFolders), organizer/viewer.js, lib/export-files.js,
-//             lib/chat-markdown.js, lib/export-state.js (recordExports), lib/page-dialog.js (cfPageConfirm)
+//             lib/chat-markdown.js (formatStamp, EXPORT_FORMAT), lib/export-state.js (recordExports), lib/page-dialog.js (cfPageConfirm)
 // Notes: docs/notes/organizer/chats.js.md
 
 async function renderChatList(searchFilter = '') {
@@ -68,7 +68,7 @@ async function renderChatList(searchFilter = '') {
         ` : ''}
       </div>
       <div class="chat-item-actions">
-        <div class="chat-item-date">${esc(chat.relativeDate || formatRelativeDate(chat.date))}</div>
+        <div class="chat-item-date">${esc(formatStamp(chat.updatedAt || chat.date))}</div>
         ${currentFolder.own && !other ? `<button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>` : ''}
       </div>
     </div>
@@ -141,7 +141,7 @@ async function downloadSingleChat(chatId, chatTitle) {
       console.log('[ORGANIZER] Not downloaded:', chatTitle, '-', (response && response.error) || 'the response was empty');
       return false;
     }
-    await recordExports([{ chatId, filename: response.filename, mark: response.mark }]);
+    await recordExports([{ chatId, filename: response.filename, mark: response.mark, format: EXPORT_FORMAT }]);
     return true;
   } catch (e) {
     console.log('[ORGANIZER] Not downloaded:', chatTitle, '-', e.message);
@@ -173,7 +173,7 @@ function renderActivityTab() {
       <div style="flex:1;min-width:0;">
         <div style="color:var(--title-color);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(chat.title)}</div>
         <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-          Added ${esc(chat.relativeDate || formatRelativeDate(chat.date))}
+          Added ${esc(formatStamp(chat.updatedAt || chat.date))}
         </div>
       </div>
     </div>
@@ -198,23 +198,6 @@ function renderRecentChats() {
   recentList.innerHTML = recent.map(chat => `
     <a href="${safeUrl(chat.url)}" target="_blank" class="recent-item" title="${esc(chat.title)}">${esc(chat.title)}</a>
   `).join('');
-}
-
-function formatRelativeDate(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 14) return '1 week ago';
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 60) return '1 month ago';
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) > 1 ? 's' : ''} ago`;
 }
 
 function showChatMenu(btn, chatId) {

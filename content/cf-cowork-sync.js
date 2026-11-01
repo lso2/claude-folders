@@ -16,6 +16,8 @@ function cfCoworkRecord(session, org) {
     url: coworkSessionUrl(session.id),
     date: stamp.split('T')[0],
     updatedAt: stamp,
+    // The session's start, the time of its oldest message. The organizer's search sorts on it.
+    createdAt: session.created_at ? String(session.created_at) : null,
     relativeDate: describeAge(stamp),
     snippet: '',
     projectId: null,

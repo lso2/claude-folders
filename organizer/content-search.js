@@ -1,11 +1,12 @@
 // organizer/content-search.js
 // Lists the chats of the account view whose title or exported text has the search box's words.
 // Globals: CONTENT_SEARCH_MIN, CONTENT_SEARCH_PAGE, CONTENT_SEARCH_WAIT_MS, contentMatchChatIds, contentSearchSeq,
-//          contentSearchTimer, contentSearchState, scheduleContentSearch, runContentSearch, contentSearchRows,
-//          renderContentSearch, contentSearchRowHtml, contentSnippetHtml, contentReadExport, fillContentSnippets,
-//          openContentExport
+//          contentSearchTimer, contentSearchState, contentSearchMode, contentSearchCollapsed, scheduleContentSearch,
+//          runContentSearch, contentSearchRows, contentSearchShownRows, renderContentSearch, contentSearchRowHtml,
+//          contentSnippetHtml, contentReadExport, fillContentSnippets, openContentExport, setContentSearchMode,
+//          setContentSearchCollapsed, refreshContentSearchRows, setContentSearchProgress
 // Depends on: organizer/content-index.js, lib/search-words.js (cfSearchTokens), lib/chat-markdown.js (exportIdPrefix),
-//             organizer/accounts.js (viewFolders), organizer/app.js (esc, safeUrl), organizer/folders.js
+//             organizer/content-sort.js (sortContentRows), organizer/accounts.js (viewFolders), organizer/app.js (esc, safeUrl), organizer/folders.js
 //             (renderFolderList), organizer/viewer.js (renderMarkdownAsHtml), lib/page-dialog.js (cfPageAlert)
 // Notes: docs/notes/organizer/content-search.js.md
 
@@ -19,10 +20,35 @@ let contentSearchSeq = 0;
 let contentSearchTimer = null;
 // The last search: { text, tokens, rows, shown, index } where index is the index update's answer
 let contentSearchState = null;
+// The matches listed: 'all', 'title' or 'content'. Every page load starts on 'all'.
+let contentSearchMode = 'all';
+// The list and its Show more button are hidden while collapsed; the heading and status stay
+let contentSearchCollapsed = false;
 
 function scheduleContentSearch(term) {
   clearTimeout(contentSearchTimer);
   contentSearchTimer = setTimeout(() => runContentSearch(term), CONTENT_SEARCH_WAIT_MS);
+}
+
+// The bar under the heading while the exports are read for search. checked and total null: the count of files
+// is not known yet, and the bar moves without a fill. done: the bar is hidden.
+function setContentSearchProgress(checked, total, done) {
+  const bar = document.getElementById('contentSearchProgress');
+  const fill = bar.firstElementChild;
+  const known = Number.isFinite(total) && total > 0;
+  // A search typed while an update runs keeps the count the bar already shows
+  if (!done && !known && !bar.hidden && !bar.classList.contains('indeterminate')) return;
+  bar.hidden = !!done;
+  if (done) return;
+  bar.classList.toggle('indeterminate', !known);
+  fill.style.width = known ? `${Math.min(100, Math.round(checked / total * 100))}%` : '';
+  if (known) {
+    bar.setAttribute('aria-valuenow', String(checked));
+    bar.setAttribute('aria-valuemax', String(total));
+  } else {
+    bar.removeAttribute('aria-valuenow');
+    bar.removeAttribute('aria-valuemax');
+  }
 }
 
 // Title matches are listed at once. Matches in the exported text are added when the index is up to date.
@@ -34,18 +60,28 @@ async function runContentSearch(term) {
     section.hidden = true;
     contentSearchState = null;
     contentMatchChatIds = new Set();
+    setContentSearchProgress(null, null, true);
     return;
   }
   const tokens = cfSearchTokens(text);
   contentSearchState = { text, tokens, rows: contentSearchRows(text, tokens, false), shown: CONTENT_SEARCH_PAGE, index: null };
   section.hidden = false;
   renderContentSearch();
-  if (!tokens.length) return;
+  if (!tokens.length) {
+    setContentSearchProgress(null, null, true);
+    return;
+  }
+  // An index already up to date answers at once, and the bar is hidden again before it is drawn
+  setContentSearchProgress(null, null, false);
+  // One index update serves every search typed while it runs. Its progress goes to the search
+  // shown now, whichever search started the update.
   const index = await refreshContentIndex((checked, total) => {
-    if (seq !== contentSearchSeq) return;
+    if (!contentSearchState || contentSearchState.index) return;
+    setContentSearchProgress(checked, total, false);
     document.getElementById('contentSearchStatus').textContent = `Reading the chat exports for search: ${checked.toLocaleString()} of ${total.toLocaleString()} files`;
   });
   if (seq !== contentSearchSeq) return;
+  setContentSearchProgress(null, null, true);
   contentSearchState.index = index;
   if (index.success) contentSearchState.rows = contentSearchRows(text, tokens, true);
   renderContentSearch();
@@ -76,38 +112,64 @@ function contentSearchRows(text, tokens, withText) {
   return rows.sort((a, b) => (b.byTitle - a.byTitle) || (new Date(b.chat.date || 0) - new Date(a.chat.date || 0)));
 }
 
+// The account dropdown changes viewFolders. The last search's rows are built again from the index already
+// read, which holds the exports of every account, so the list shows the matches of the accounts now chosen.
+function refreshContentSearchRows() {
+  const state = contentSearchState;
+  if (!state) return;
+  state.rows = contentSearchRows(state.text, state.tokens, !!(state.index && state.index.success));
+  state.shown = CONTENT_SEARCH_PAGE;
+  renderContentSearch();
+  fillContentSnippets(contentSearchSeq);
+}
+
+// The rows of the last search that the mode lists: by title, by exported text or either
+function contentSearchShownRows(state) {
+  if (contentSearchMode === 'title') return state.rows.filter(r => r.byTitle);
+  if (contentSearchMode === 'content') return state.rows.filter(r => r.matchFiles.length);
+  return state.rows;
+}
+
 function renderContentSearch() {
   const state = contentSearchState;
   const status = document.getElementById('contentSearchStatus');
   const list = document.getElementById('contentSearchList');
   const more = document.getElementById('contentSearchMore');
   const access = document.getElementById('contentSearchAccess');
-  contentMatchChatIds = new Set(state.rows.map(r => r.chat.id));
-  const n = state.rows.length;
-  const count = n === 0 ? 'No chat matches' : n === 1 ? '1 chat matches' : `${n.toLocaleString()} chats match`;
+  const rows = sortContentRows(contentSearchShownRows(state));
+  contentMatchChatIds = new Set(rows.map(r => r.chat.id));
+  const n = rows.length;
+  const by = contentSearchMode === 'title' ? ' by title' : contentSearchMode === 'content' ? ' by exported text' : '';
+  const count = (n === 0 ? 'No chat matches' : n === 1 ? '1 chat matches' : `${n.toLocaleString()} chats match`) + by;
   const failed = state.index && !state.index.success;
-  if (!state.tokens.length) status.textContent = `${count} by title`;
-  else if (!state.index) status.textContent = `${count} by title. Reading the chat exports for search...`;
-  else if (failed) status.textContent = `${count} by title. The exports were not searched: ${state.index.error}`;
+  const titleOnly = contentSearchMode === 'all' ? `${count} by title` : count;
+  if (!state.tokens.length) status.textContent = titleOnly;
+  else if (!state.index) status.textContent = `${titleOnly}. Reading the chat exports for search...`;
+  else if (failed) status.textContent = `${titleOnly}. The exports were not searched: ${state.index.error}`;
   else status.textContent = count;
   status.classList.toggle('error', !!failed);
   access.hidden = !(failed && (state.index.code === 'permission' || state.index.code === 'no-folder'));
-  list.innerHTML = state.rows.slice(0, state.shown).map(contentSearchRowHtml).join('');
+  list.innerHTML = rows.slice(0, state.shown).map(contentSearchRowHtml).join('');
   const left = n - state.shown;
   more.hidden = left <= 0;
   more.textContent = `Show ${Math.min(CONTENT_SEARCH_PAGE, left).toLocaleString()} more`;
   renderFolderList();
 }
 
-// Another account's chat opens only in a browser signed in to it, and its title is not a link
+// Another account's chat opens only in a browser signed in to it. Its title opens the chat's export
+// in a new tab, and with no export the title is plain text.
 function contentSearchRowHtml(row) {
   const chat = row.chat;
-  const title = chat.cfAccountLabel
-    ? `<span class="content-search-chat">${esc(chat.title || 'Untitled')}</span>`
-    : `<a class="content-search-chat" href="${safeUrl(chat.url)}" target="_blank" rel="noopener">${esc(chat.title || 'Untitled')}</a>`;
+  const name = esc(chat.title || 'Untitled');
+  const file = row.matchFiles[0] || row.files[0];
+  let title = `<a class="content-search-chat" href="${safeUrl(chat.url)}" target="_blank" rel="noopener">${name}</a>`;
+  if (chat.cfAccountLabel) {
+    title = file
+      ? `<a class="content-search-chat content-search-export" href="#" data-file="${esc(file)}" data-title="${name}" title="Open this chat's export">${name}</a>`
+      : `<span class="content-search-chat">${name}</span>`;
+  }
   const meta = [`<span class="content-search-tag">${esc(row.folder.category)}</span>`, `<span>${esc(row.folder.name)}</span>`];
   if (chat.cfAccountLabel) meta.push(`<span>${esc(chat.cfAccountLabel)}</span>`);
-  const file = row.matchFiles[0] || row.files[0];
   const view = file ? `<button class="btn-secondary content-search-view" data-file="${esc(file)}" data-title="${esc(chat.title || 'Untitled')}">View export</button>` : '';
   const snippet = row.matchFiles.length ? `<div class="content-search-snippet" data-file="${esc(row.matchFiles[0])}"></div>` : '';
   return `<li class="content-search-row"><div class="content-search-main">${title}<div class="content-search-meta">${meta.join('')}</div>${snippet}</div>${view}</li>`;
@@ -177,11 +239,42 @@ async function openContentExport(filename, title) {
   tab.document.close();
 }
 
+// The mode buttons show which is chosen; the list and the folder grid are drawn again for it
+function setContentSearchMode(mode) {
+  contentSearchMode = mode;
+  document.querySelectorAll('#contentSearch .content-search-mode').forEach(btn => {
+    const on = btn.dataset.mode === mode;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (!contentSearchState) return;
+  contentSearchState.shown = CONTENT_SEARCH_PAGE;
+  renderContentSearch();
+  fillContentSnippets(contentSearchSeq);
+}
+
+function setContentSearchCollapsed(collapsed) {
+  contentSearchCollapsed = collapsed;
+  const btn = document.getElementById('contentSearchCollapse');
+  const label = collapsed ? 'Expand the chat list' : 'Collapse the chat list';
+  document.getElementById('contentSearchBody').hidden = collapsed;
+  document.getElementById('contentSearch').classList.toggle('collapsed', collapsed);
+  btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('contentSearchList')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.content-search-view');
-    if (btn) openContentExport(btn.dataset.file, btn.dataset.title);
+    const btn = e.target.closest('.content-search-view, .content-search-export');
+    if (!btn) return;
+    e.preventDefault();
+    openContentExport(btn.dataset.file, btn.dataset.title);
   });
+  document.querySelectorAll('#contentSearch .content-search-mode').forEach(btn => {
+    btn.addEventListener('click', () => setContentSearchMode(btn.dataset.mode));
+  });
+  document.getElementById('contentSearchCollapse')?.addEventListener('click', () => setContentSearchCollapsed(!contentSearchCollapsed));
   document.getElementById('contentSearchMore')?.addEventListener('click', () => {
     if (!contentSearchState) return;
     contentSearchState.shown += CONTENT_SEARCH_PAGE;

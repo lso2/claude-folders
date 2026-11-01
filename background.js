@@ -10,7 +10,7 @@
 // The background's other files, run in this order before the code below
 const CF_BACKGROUND_FILES = ['lib/build-reload.js', 'lib/background-build.js', 'lib/helper-host.js', 'lib/storage-keys.js',
   'lib/account-identity.js', 'lib/account-migrate.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
-  'lib/shell-address.js', 'lib/claude-tab.js'];
+  'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js'];
 importScripts(...CF_BACKGROUND_FILES);
 
 let cachedData = null;
@@ -267,6 +267,8 @@ async function handleMessage(message, sender, sendResponse) {
             adopted = await cfAdoptLegacySlot(key, message.legacyKey || null, message.account || null);
             if (adopted) data = adopted;
           }
+          // Storage emptied by removing the extension: the login's folders are read from its data file (lib/account-restore.js)
+          if (!nonEmpty(data)) data = (await cfReadAccountFile(key)) || data;
           if (!nonEmpty(data)) {
             // Folders saved before per-account slots existed go to the first account that signs in.
             // Once another account has its own slot, a new account starts empty.
@@ -372,6 +374,15 @@ async function handleMessage(message, sender, sendResponse) {
         
       case 'scrapedChats':
         if (!cachedData) await loadCachedData();
+        // Folder access may have been missing when this login was set up. A sync has it, and the login's
+        // data file is read before the sync's chats are filed, so they keep their folders.
+        if (!countBgChats() && currentAccountKey) {
+          const fromFile = await cfReadAccountFile(currentAccountKey);
+          if (fromFile) {
+            cachedData = fromFile;
+            cfApplyAccountIdentity(cachedData, currentAccountKey, null);
+          }
+        }
         // If the data we hold is a different account's (almost no overlap with
         // what we just scraped), start this account fresh so the two never mix.
         if (overlapRatioWithScraped(new Set((message.chats || []).map(c => c.id))) < 0.10) {
@@ -397,6 +408,9 @@ async function handleMessage(message, sender, sendResponse) {
             // but keep the chat's folder, tags, snippet and exported flag
             if (incoming.title && incoming.title !== current.title) { current.title = incoming.title; updatedCount++; }
             if (incoming.date) current.date = incoming.date;
+            // A sync compares updatedAt with the export's time to find outdated exports (content/cf-export-run.js)
+            if (incoming.updatedAt) current.updatedAt = incoming.updatedAt;
+            if (incoming.createdAt) current.createdAt = incoming.createdAt;
             if (incoming.relativeDate) current.relativeDate = incoming.relativeDate;
             if (incoming.url) current.url = incoming.url;
             // A chat stored before chats carried their organization gets it from the listing

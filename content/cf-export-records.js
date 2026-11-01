@@ -2,14 +2,15 @@
 // Records each chat's export outcome in extension storage.
 // Globals: markChatAsExported, cfMarkChatsExported, cfMarkChatUnavailable, cfLoadUnavailableChats
 // Depends on: lib/storage-keys.js (EXPORTED_CHATS_KEY), lib/export-state.js (recordExports),
+//             lib/chat-markdown.js (EXPORT_FORMAT),
 //             content/cf-export-state.js (cfOnExportRecorded)
 // Notes: docs/notes/content/cf-export-records.js.md
 
-// details: { filename, mark } of the file just written. The file is on disk whether or not its
-// record was written, and the state of the page's export button is read again.
+// details: { filename, mark } of the file just written by this build, in EXPORT_FORMAT. The file is on
+// disk whether or not its record was written, and the state of the page's export button is read again.
 async function markChatAsExported(chatId, details) {
   try {
-    await recordExports([{ chatId, filename: details && details.filename, mark: details && details.mark }]);
+    await recordExports([{ chatId, filename: details && details.filename, mark: details && details.mark, format: EXPORT_FORMAT }]);
   } catch (e) {
     console.log('[EXPORT] Failed to mark as exported:', e.message);
   }

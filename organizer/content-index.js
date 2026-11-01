@@ -1,6 +1,6 @@
 // organizer/content-index.js
 // Brings the content search index up to date through the background, then holds each export file's words in memory.
-// Globals: contentIndexWords, contentIndexFiles, contentIndexStale, contentIndexRun, refreshContentIndex,
+// Globals: contentIndexWords, contentIndexFiles, contentIndexModified, contentIndexStale, contentIndexRun, refreshContentIndex,
 //          runContentIndex, markContentIndexStale
 // Depends on: lib/search-store.js (cfSearchStoreAll), lib/chat-markdown.js (exportPrefixOfFilename),
 //             lib/storage-keys.js (RUN_STATE_KEY), background.js (indexExports)
@@ -10,6 +10,8 @@
 let contentIndexWords = null;
 // Lowercase id prefix -> the export file names with it, for the View export buttons
 let contentIndexFiles = new Map();
+// Export file name -> the file's modification time in ms, the export date for Sort by (organizer/content-sort.js)
+let contentIndexModified = new Map();
 // True until the first update, and again after a sync or an import or when the page is shown again
 let contentIndexStale = true;
 let contentIndexRun = null;
@@ -38,6 +40,7 @@ async function runContentIndex(onProgress) {
   } while (after !== null);
   const rows = await cfSearchStoreAll('words');
   contentIndexWords = new Map(rows.map(r => [r.name, r.words]));
+  contentIndexModified = new Map((await cfSearchStoreAll('meta')).map(m => [m.name, m.lastModified]));
   contentIndexFiles = new Map();
   rows.forEach(r => {
     const prefix = exportPrefixOfFilename(r.name);

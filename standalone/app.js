@@ -251,7 +251,7 @@ function renderChatList() {
         ` : ''}
       </div>
       <div class="chat-item-actions">
-        <div class="chat-item-date">${esc(chat.relativeDate || formatRelativeDate(chat.date))}</div>
+        <div class="chat-item-date">${esc(formatStamp(chat.updatedAt || chat.date))}</div>
       </div>
     </div>
   `}).join('');
@@ -395,19 +395,6 @@ function renderRecentChats() {
       ${esc(chat.title)}
     </a>
   `).join('');
-}
-
-function formatRelativeDate(dateString) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? 's' : ''} ago`;
-  return date.toLocaleDateString();
 }
 
 // ========== ANALYTICS VIEW ==========

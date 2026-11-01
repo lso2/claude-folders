@@ -74,6 +74,32 @@ body {
     display: none;
 }
 
+/* The top bar holds the page header above every view. A view under it has no top padding of its own. */
+.top-bar {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 48px 0;
+}
+
+.top-bar ~ .content-view {
+    padding-top: 0;
+}
+
+/* Folders in the top bar returns to the folder list from a folder or the analytics */
+.page-title-link {
+    padding: 0;
+    background: none;
+    border: none;
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+}
+
+.page-title-link:hover {
+    color: var(--chat-title);
+}
+
 .page-header {
     display: flex;
     align-items: center;
@@ -577,6 +603,10 @@ body {
     .content-view {
         padding: 20px;
     }
+
+    .top-bar {
+        padding: 20px 20px 0;
+    }
     
     .filters-bar {
         flex-direction: column;
@@ -718,6 +748,12 @@ body {
     font-size: 13px;
     cursor: pointer;
     transition: all 0.15s;
+}
+
+/* A top bar button whose page is open: the folder view toggle's pressed look */
+.btn-secondary.active {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--title-color);
 }
 
 .btn-secondary:hover {

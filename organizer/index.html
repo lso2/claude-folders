@@ -62,12 +62,12 @@
                     <div id="runPaneText" class="run-pane-text"></div>
                     <ul id="runPaneLines" class="run-pane-lines"></ul>
                 </div>
-                <!-- Folder List View -->
-                <div id="folderListView" class="content-view">
+                <!-- The top bar, shown above the folder list, a folder and the analytics -->
+                <div class="top-bar" id="topBar">
                     <header class="page-header">
-                        <h1 class="page-title">Folders</h1>
+                        <h1 class="page-title"><button type="button" class="page-title-link" id="topBarFolders" title="Show all folders">Folders</button></h1>
                         <div class="header-actions">
-                            <button class="btn-secondary" id="analyticsBtn" title="Chats per category">
+                            <button class="btn-secondary" id="analyticsBtn" aria-pressed="false" title="Chats per category. Clicking it again on the analytics page returns to the folders">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                                     <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
                                     <path d="M8 8L8 3" stroke="currentColor" stroke-width="1.5"/>
@@ -75,7 +75,7 @@
                                 </svg>
                                 Analytics
                             </button>
-                            <button class="btn-secondary" id="syncBtn" title="Read every chat and Cowork session of this login and export the ones missing in the data folder">
+                            <button class="btn-secondary" id="syncBtn" title="Read every chat and Cowork session of this login, export the ones missing in the data folder and update the outdated exports">
                                 <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M142.9 142.9c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5c0 0 0 0 0 0H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1C73.2 122 55.6 150.7 44.8 181.4c-5.9 16.7 2.9 34.9 19.5 40.8s34.9-2.9 40.8-19.5c7.7-21.8 20.2-42.3 37.8-59.8zM16 312v7.6 .7V440c0 9.7 5.8 18.5 14.8 22.2s19.3 1.7 26.2-5.2l41.6-41.6c87.6 86.5 228.7 86.2 315.8-1c24.4-24.4 42.1-53.1 52.9-83.7c5.9-16.7-2.9-34.9-19.5-40.8s-34.9 2.9-40.8 19.5c-7.7 21.8-20.2 42.3-37.8 59.8c-62.2 62.2-162.7 62.5-225.3 1L185 329c6.9-6.9 8.9-17.2 5.2-26.2s-12.5-14.8-22.2-14.8H48.4h-.7H40c-13.3 0-24 10.7-24 24z"/></svg>
                                 Sync
                             </button>
@@ -109,7 +109,9 @@
                             </button>
                         </div>
                     </header>
-
+                </div>
+                <!-- Folder List View -->
+                <div id="folderListView" class="content-view">
                     <div class="search-controls">
                         <select id="accountSelect" class="account-select" aria-label="Accounts shown" hidden></select>
                         <button class="btn-secondary" id="importAccountBtn" title="Open the import dialog in a new claude.ai tab" hidden>Import from another account</button>
@@ -128,9 +130,41 @@
                             <h2 class="content-search-title">Chats</h2>
                             <span id="contentSearchStatus" class="content-search-status" role="status" aria-live="polite"></span>
                             <button id="contentSearchAccess" class="btn-secondary content-search-access" hidden>Open folder access</button>
+                            <!-- Which matches are listed, and the caret that collapses the list -->
+                            <div class="content-search-tools">
+                                <div class="content-search-modes" role="group" aria-label="Chats listed">
+                                    <button type="button" class="content-search-mode active" data-mode="all" aria-pressed="true" title="Chats matched by title or by exported text">All</button>
+                                    <button type="button" class="content-search-mode" data-mode="title" aria-pressed="false" title="Chats matched by title">Titles</button>
+                                    <button type="button" class="content-search-mode" data-mode="content" aria-pressed="false" title="Chats matched by exported text">Content</button>
+                                </div>
+                                <!-- The order of the chats listed (organizer/content-sort.js) -->
+                                <label class="content-search-sort">
+                                    <span class="content-search-sort-label">Sort by</span>
+                                    <select id="contentSearchSort" class="content-search-sort-select">
+                                        <option value="match">Best match</option>
+                                        <option value="name">Name</option>
+                                        <option value="recent">Most recent message</option>
+                                        <option value="oldest">Oldest message</option>
+                                        <option value="exported">Export date</option>
+                                    </select>
+                                </label>
+                                <!-- Arrow up: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+                                <button type="button" id="contentSearchSortDir" class="content-search-sort-dir" disabled>
+                                    <svg width="10" height="12" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true"><path d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"/></svg>
+                                    <span id="contentSearchSortDirText">Desc</span>
+                                </button>
+                                <!-- Chevron down: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+                                <button type="button" id="contentSearchCollapse" class="content-search-collapse" aria-expanded="true" aria-controls="contentSearchBody" title="Collapse the chat list" aria-label="Collapse the chat list">
+                                    <svg width="12" height="12" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z"/></svg>
+                                </button>
+                            </div>
                         </div>
-                        <ul id="contentSearchList" class="content-search-list"></ul>
-                        <button id="contentSearchMore" class="btn-secondary content-search-more" hidden></button>
+                        <!-- Shown while the exports are read for search (organizer/content-search.js setContentSearchProgress) -->
+                        <div id="contentSearchProgress" class="content-search-progress indeterminate" role="progressbar" aria-label="Searching the chat exports" aria-valuemin="0" hidden><div class="content-search-progress-fill"></div></div>
+                        <div id="contentSearchBody" class="content-search-body">
+                            <ul id="contentSearchList" class="content-search-list"></ul>
+                            <button id="contentSearchMore" class="btn-secondary content-search-more" hidden></button>
+                        </div>
                     </section>
 
                     <!-- Categories on their own row; the category filter and the sort below them -->
@@ -271,6 +305,7 @@
     <script src="run-pane.js"></script>
     <script src="run-start.js"></script>
     <script src="content-index.js"></script>
+    <script src="content-sort.js"></script>
     <script src="content-search.js"></script>
 </body>
 </html>

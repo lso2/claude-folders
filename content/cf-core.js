@@ -6,6 +6,10 @@
 
 function init() {
   console.log('[CONTENT] Claude Folders loaded');
+  // The listeners come first: a startup step below that throws must not leave this tab without them,
+  // since the background's start messages then fail with "Receiving end does not exist"
+  chrome.runtime.onMessage.addListener(cfOnRuntimeMessage);
+  chrome.runtime.onMessage.addListener(cfOnExportMessage);
   updateCurrentChatId();
   scrapeUserInfo();
 
@@ -39,8 +43,6 @@ function init() {
 
   observeUrlChanges();
   observeUrlForSync();
-  chrome.runtime.onMessage.addListener(cfOnRuntimeMessage);
-  chrome.runtime.onMessage.addListener(cfOnExportMessage);
 }
 
 // Returns true only for the actions answered here, leaving the channel to other listeners
@@ -50,8 +52,13 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     sendResponse({ received: true });
     return true;
   }
+  // A tab opened for the sync gets the start message soon after it loads. The sync waits until this
+  // tab's account key has reached the background and its folders are loaded, so it reads and writes this login's data.
   if (message.action === 'startScrape') {
-    scrapeRecentsPage();
+    Promise.resolve(cfAccountReady)
+      .catch(e => console.log('[SCRAPER] Account not resolved before the sync:', e.message))
+      .then(() => loadData())
+      .then(() => scrapeRecentsPage());
     sendResponse({ received: true });
     return true;
   }
