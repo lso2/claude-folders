@@ -33,6 +33,10 @@
       <header class="popup-header">
         <div class="header-start">
           <h1>Folders</h1>
+          <!-- Orange while a sync has new or changed chats to bring in (popup/popup-sync-check.js) -->
+          <button id="popupSyncBtn" class="icon-btn" title="Sync" aria-label="Sync">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2a6 6 0 015.3 8.8l1.4 1.4A8 8 0 108 16v-2a6 6 0 010-12z"/></svg>
+          </button>
           <button id="openOrganizerBtn" class="btn-organizer-orange" title="Open the organizer in a tab">
             <svg width="13" height="13" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M320 0c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L201.4 265.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L448 109.3V192c0 17.7 14.3 32 32 32s32-14.3 32-32V32c0-17.7-14.3-32-32-32H320zM80 32C35.8 32 0 67.8 0 112V432c0 44.2 35.8 80 80 80H400c44.2 0 80-35.8 80-80V320c0-17.7-14.3-32-32-32s-32 14.3-32 32V432c0 8.8-7.2 16-16 16H80c-8.8 0-16-7.2-16-16V112c0-8.8 7.2-16 16-16H192c17.7 0 32-14.3 32-32s-14.3-32-32-32H80z"/></svg>
             Organizer
@@ -59,24 +63,7 @@
         <button id="folderAccessBtn" class="access-banner-btn">Open access window</button>
       </div>
 
-      <div class="search-box">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        <input type="text" id="searchInput" placeholder="Search folders..." class="search-input">
-      </div>
-
-      <div class="filters-bar">
-        <div id="filterPills" class="filter-pills"></div>
-        <button id="editCategoriesBtn" class="icon-btn" title="Edit Categories">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm-11 11L10 3l3.5 3.5L5.354 14.646a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.616-.616l1-4a.5.5 0 0 1 .131-.233z"/>
-          </svg>
-        </button>
-      </div>
-
-      <!-- First Run Setup Instructions -->
+      <!-- The organize steps, shown and collapsed by the square-check, above the search and categories -->
       <div id="setupInstructions" class="setup-instructions hidden">
         <div class="setup-step">
           <div class="step-content">
@@ -116,6 +103,23 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search folders..." class="search-input">
+      </div>
+
+      <div class="filters-bar">
+        <div id="filterPills" class="filter-pills"></div>
+        <button id="editCategoriesBtn" class="icon-btn" title="Edit Categories">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm-11 11L10 3l3.5 3.5L5.354 14.646a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.616-.616l1-4a.5.5 0 0 1 .131-.233z"/>
+          </svg>
+        </button>
       </div>
 
       <div id="folderList" class="folder-list"></div>
@@ -267,7 +271,9 @@
   <script src="popup-folders.js"></script>
   <script src="popup-organize.js"></script>
   <script src="popup-organize-modal.js"></script>
+  <script src="../lib/run-failures.js"></script>
   <script src="popup-run.js"></script>
+  <script src="popup-sync-check.js"></script>
   <script src="popup-analytics.js"></script>
 </body>
 </html>

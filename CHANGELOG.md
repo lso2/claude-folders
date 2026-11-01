@@ -10,6 +10,7 @@ All notable changes to Claude Folders.
 - The Exported line shows the local date and time of the export.
 - Sync and Export folder update exports that have no message timestamps or are older than the chat.
 - Export Update appears on chats whose export has no message timestamps.
+- Sync and Export folder progress reads Updating for exports written again and Exporting for new ones.
 
 **Organizer**
 
@@ -22,12 +23,45 @@ All notable changes to Claude Folders.
 - The account dropdown filters the search's chat list.
 - Titles of another account's chats in the search open their export.
 - Chat rows show the date and time of the chat's last change.
+- Fixed "CodeUpgrade" in the organizer's sidebar on a free plan.
+
+**Folders panel and popup**
+
+- Added the sync icon to the popup, orange while new or changed chats are waiting.
+- Clicking the sync icon with nothing waiting offers a forced resync.
+- The organize steps stay collapsed or shown as last chosen.
+- The popup's organize steps are above the search and categories.
+- Removed the × from the Folders panel.
+- Clicking Folders again closes the Folders panel.
+- The Folders row is highlighted while the Folders panel is open.
 
 **Sync**
 
 - Sync stores the start time of each chat.
 - Fixed the sync not starting in a claude.ai tab opened before the extension was reloaded or added again.
 - Folders are restored from the data folder after the extension is removed and added again.
+- Choosing the data folder asks for access on every visit right away.
+- The sync result lists the chats behind each failure, as links.
+- Added automatic sync, hourly by default, with an interval of 15 minutes to 4 hours.
+- Added Pause, Resume, Stop, Start and × to the sync's progress bar.
+- Sync Now on the sync bar syncs on the page it is clicked on.
+- A sync started with no claude.ai tab open opens a new chat page.
+
+**Settings page**
+
+- Added a sidebar with Main, Import/Export and Help.
+- Added Help with setup steps and screenshots, shown after the extension is installed.
+- Help has buttons for each step and shows which setup steps are done.
+- Dialog buttons use the extension's orange, and Cancel is a light button.
+- Added Automatic sync to Main.
+- Added Import/Export with the settings file, the folder lists for Claude and Import from another account.
+- The short request is the default for chats imported from another account, listed first.
+- Added About with the version, links and attribution.
+- Renamed Main to Settings.
+- Added the section chips row and the footer.
+- The sidebar has the organizer's collapse button, drag edge, width and row colors.
+- Second buttons are gray with white text.
+- Buttons, the open tab and the checkboxes use the extension's orange.
 
 **Offline library**
 

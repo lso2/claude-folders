@@ -146,7 +146,7 @@ body {
   border-bottom: 1px solid var(--divider);
 }
 
-/* The Folders title and the Organizer button, left of the icons */
+/* The Folders title, the Sync button and the Organizer button, left of the icons */
 .header-start {
   display: flex;
   align-items: center;
@@ -542,6 +542,17 @@ body {
 .icon-btn:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
+}
+
+/* The sync icon while a sync has new or changed chats (popup/popup-sync-check.js) */
+.icon-btn.sync-available,
+.icon-btn.sync-available:hover {
+  color: #d97706;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .search-box {
@@ -1163,7 +1174,8 @@ body {
   padding: 6px 12px;
   border: none;
   border-radius: 6px;
-  background: #d97706;
+  /* A lighter red than the banner */
+  background: #d9534f;
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -1171,7 +1183,7 @@ body {
 }
 
 .access-banner-btn:hover {
-  background: #b45309;
+  background: #e06b67;
 }
 
 /* Folder counts on the category pills; empty categories are dimmed and listed last (popup/popup-folders.js) */
@@ -1182,4 +1194,23 @@ body {
 
 .filter-pill.empty {
   opacity: 0.55;
+}
+
+/* A failure reason in a run's result: clicking it lists the chats it stopped, as links (lib/run-failures.js) */
+.cf-run-failures summary {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.cf-run-failures ul {
+  max-height: 220px;
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  overflow-y: auto;
+  list-style: disc;
+}
+
+.cf-run-failures a {
+  color: inherit;
+  text-decoration: underline;
 }

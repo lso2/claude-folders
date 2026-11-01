@@ -6,10 +6,12 @@
   --bg: #ffffff;
   --text: #1f1e1d;
   --muted: #5e5d59;
-  --accent: #c2410c;
-  --accent-hover: #9a3412;
-  --light-bg: #f5f4ef;
-  --light-hover: #e8e6dc;
+  /* The orange of the extension's buttons and their hover */
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  /* The second button of a pair: white text on gray */
+  --light-bg: #535353;
+  --light-hover: #626262;
   --error-bg: #991b1b;
 }
 
@@ -18,8 +20,6 @@
     --bg: #262624;
     --text: #f5f4ef;
     --muted: #b7b5a9;
-    --light-bg: #f5f4ef;
-    --light-hover: #e8e6dc;
     --error-bg: #7f1d1d;
   }
 }
@@ -42,6 +42,7 @@ body {
   font-weight: 600;
 }
 
+.access-step,
 .access-status,
 .access-queue {
   margin: 0 0 12px;
@@ -76,7 +77,7 @@ body {
 
 .access-btn-light {
   background: var(--light-bg);
-  color: #1f1e1d;
+  color: #ffffff;
 }
 
 .access-btn-light:hover {

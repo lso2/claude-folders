@@ -1,12 +1,22 @@
 // access/access.js
 // Runs the data folder access window: grants folder access and performs folder requests while open.
-// Globals: accessEls, showResult, logOperation, connectWriter, renderAccessState, finishAccess,
-//          onGrantClick, onChooseClick
+// Globals: ACCESS_MODE, ACCESS_STEP_TEXT, ACCESS_MINIMIZE_MS, accessEls, showResult, logOperation,
+//          connectWriter, renderAccessState, minimizeAccessWindow, finishAccess, onGrantClick, onChooseClick
 // Depends on: lib/chat-markdown.js, lib/storage-keys.js, lib/handle-storage.js, lib/data-file.js,
 //             lib/export-files.js, lib/folder-access.js, lib/folder-picker.js, lib/folder-ops.js
 // Notes: docs/notes/access/access.js.md
 
+// ?mode=setup chooses the data folder, ?mode=restore asks for it again after a browser start (lib/access-window.js)
+const ACCESS_MODE = new URLSearchParams(location.search).get('mode') || '';
+const ACCESS_STEP_TEXT = {
+  setup: 'Choose the data folder, then click Allow in Chrome\'s prompt to let Claude Folders edit files in it. This window then minimizes itself and keeps the access while the browser is open.',
+  restore: 'Click Allow access, then Allow on every visit in Chrome\'s prompt. Chrome keeps that choice after browser restarts and reinstalls, and this window does not open again.'
+};
+// The result stays readable this long before the window minimizes
+const ACCESS_MINIMIZE_MS = 1500;
+
 const accessEls = {
+  step: document.getElementById('accessStep'),
   status: document.getElementById('accessStatus'),
   queue: document.getElementById('accessQueue'),
   grant: document.getElementById('accessGrantBtn'),
@@ -77,11 +87,21 @@ async function renderAccessState() {
   }
   accessEls.grant.hidden = access.permission === 'granted';
   accessEls.choose.hidden = false;
-  accessEls.choose.className = 'access-btn access-btn-light';
+  accessEls.choose.className = ACCESS_MODE === 'setup' ? 'access-btn' : 'access-btn access-btn-light';
   return access;
 }
 
-// Writes the queue and sends folderAccessChanged to the Claude tabs. The window is left open for later writes.
+// Chrome keeps a granted folder only while an extension tab or window is open, minimized included
+async function minimizeAccessWindow() {
+  try {
+    const win = await chrome.windows.getCurrent();
+    await chrome.windows.update(win.id, { state: 'minimized' });
+  } catch (e) {
+    console.log('[ACCESS] Window not minimized:', e.message);
+  }
+}
+
+// Writes the queue and sends folderAccessChanged to the Claude tabs. The window stays open, minimized, for later writes.
 async function finishAccess() {
   const flushed = await announceFolderAccess();
   await renderAccessState();
@@ -90,6 +110,7 @@ async function finishAccess() {
     return;
   }
   showResult(`Access granted. ${flushed.written} queued export${flushed.written === 1 ? '' : 's'} written.`, false);
+  setTimeout(minimizeAccessWindow, ACCESS_MINIMIZE_MS);
 }
 
 async function onGrantClick() {
@@ -121,6 +142,9 @@ async function onChooseClick() {
   }
 }
 
+accessEls.step.textContent = ACCESS_STEP_TEXT[ACCESS_MODE] || '';
+accessEls.step.hidden = !ACCESS_STEP_TEXT[ACCESS_MODE];
+window.addEventListener('focus', () => renderAccessState());
 accessEls.grant.addEventListener('click', onGrantClick);
 accessEls.choose.addEventListener('click', onChooseClick);
 accessEls.flag.addEventListener('click', () => cfOpenPickerFlag());

@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const folder = folders.find(f => f.id === folderId);
     if (folder) openFolder(folderId);
   }
+  // The settings page's Import/Export tab opens the organizer to run its Export or Import button (organizer/data-io.js)
+  const action = urlParams.get('action');
+  if (action === 'export') exportData();
+  if (action === 'import') showImportModal();
 });
 
 async function loadAllData() {

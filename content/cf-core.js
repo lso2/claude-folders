@@ -52,13 +52,14 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     sendResponse({ received: true });
     return true;
   }
+  // auto: the start came from the automatic sync timer (lib/auto-sync.js). force: the popup's forced resync.
   // A tab opened for the sync gets the start message soon after it loads. The sync waits until this
   // tab's account key has reached the background and its folders are loaded, so it reads and writes this login's data.
   if (message.action === 'startScrape') {
     Promise.resolve(cfAccountReady)
       .catch(e => console.log('[SCRAPER] Account not resolved before the sync:', e.message))
       .then(() => loadData())
-      .then(() => scrapeRecentsPage());
+      .then(() => scrapeRecentsPage(message.force === true, message.auto === true, message.force === true));
     sendResponse({ received: true });
     return true;
   }
@@ -69,7 +70,7 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     cfRefreshSyncBar();
     // The sync this tab asked for before access was granted
     const request = cfTakeSyncRequest();
-    if (request) scrapeRecentsPage(request.fullResync);
+    if (request) scrapeRecentsPage(request.fullResync, false, request.rewriteAll === true);
     sendResponse({ received: true });
     return true;
   }

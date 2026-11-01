@@ -1,7 +1,7 @@
 // content/cf-sync-summary.js
 // Words the result of a sync and shows it in the summary modal on Claude's page.
 // Globals: cfSyncSummaryLines, showSyncSuccessModal
-// Depends on: content/cf-text.js (cfEscapeHtml)
+// Depends on: content/cf-text.js (cfEscapeHtml), lib/run-failures.js (cfRenderRunLines)
 // Notes: docs/notes/content/cf-sync-summary.js.md
 
 // The same sentences go to the modal and to the run record the popup and organizer show (content/cf-sync.js).
@@ -33,7 +33,7 @@ function cfSyncSummaryLines(totalChats, scannedTotal, outcome, orgSummaries, cow
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
     .forEach(([reason, count]) => details.push(`${count} x ${reason}`));
-  return { lines, details };
+  return { lines, details, failures: result.failures || [] };
 }
 
 function showSyncSuccessModal(summary) {
@@ -51,15 +51,16 @@ function showSyncSuccessModal(summary) {
         <h2 style="color: #e8e6e3; margin: 0 0 12px; font-size: 24px;">Sync complete</h2>
         <div style="color: #e8e6e3; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
           ${summary.lines.map(line => `<div style="margin-bottom: 8px;">${cfEscapeHtml(line)}</div>`).join('')}
-          ${summary.details.length ? `
-            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #3d3d3a; color: #9c9a92; font-size: 13px; text-align: left;">
-              ${summary.details.map(line => `<div style="margin-bottom: 4px;">${cfEscapeHtml(line)}</div>`).join('')}
-            </div>` : ''}
+          ${summary.details.length || summary.failures.length ? `
+            <ul class="cf-sync-details" style="margin: 12px 0 0; padding: 12px 0 0; border-top: 1px solid #3d3d3a; color: #9c9a92; font-size: 13px; text-align: left; list-style: none;"></ul>` : ''}
         </div>
         <button id="syncSuccessClose" style="background: #d97706; border: none; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">Done</button>
       </div>
     </div>
   `;
+  // Each failure reason opens the list of its chats, as links (lib/run-failures.js)
+  const details = modal.querySelector('.cf-sync-details');
+  if (details) cfRenderRunLines(details, summary.details, summary.failures);
   document.body.appendChild(modal);
   modal.querySelector('#syncSuccessClose').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', (e) => {

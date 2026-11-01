@@ -127,8 +127,9 @@ function cfConfirm(title, body, confirmLabel) {
 }
 
 // Progress readout with a fixed width and tabular digits; the geometry history is in the notes.
-// buttons: [{ key, label, onClick }] at the bar's right end (the import run's Pause, Resume and Stop).
-// paused: true shows the pause icon in place of the spinner.
+// buttons: [{ key, label, onClick, title }] at the bar's right end (the import run's Pause, Resume and Stop, the
+// sync's controls in content/cf-sync-control.js). The key 'close' is drawn as a plain × at the far right.
+// paused: true shows the pause icon in place of the spinner, 'stopped' shows neither.
 // Pause icon: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0)
 function showSyncProgressBar(message, buttons, paused) {
   let bar = document.getElementById('cf-sync-progress');
@@ -190,7 +191,7 @@ function showSyncProgressBar(message, buttons, paused) {
   }
   bar.querySelector('.sync-message').title = message;
   bar.querySelector('.sync-spinner').style.display = paused ? 'none' : '';
-  bar.querySelector('.sync-paused-icon').style.display = paused ? '' : 'none';
+  bar.querySelector('.sync-paused-icon').style.display = paused === true ? '' : 'none';
 
   const box = bar.querySelector('.sync-box');
   box.querySelectorAll('.sync-action').forEach(b => b.remove());
@@ -199,7 +200,13 @@ function showSyncProgressBar(message, buttons, paused) {
     btn.type = 'button';
     btn.className = `sync-action sync-${def.key}`;
     btn.textContent = def.label;
-    btn.style.cssText = 'flex: 0 0 auto; padding: 4px 10px; border: none; border-radius: 6px; background: #d97706; color: #ffffff; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;';
+    if (def.title) {
+      btn.title = def.title;
+      btn.setAttribute('aria-label', def.title);
+    }
+    btn.style.cssText = def.key === 'close'
+      ? 'flex: 0 0 auto; padding: 0 2px; border: none; background: transparent; color: #ffffff; font-size: 20px; line-height: 1; font-family: inherit; cursor: pointer;'
+      : 'flex: 0 0 auto; padding: 4px 10px; border: none; border-radius: 6px; background: #d97706; color: #ffffff; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;';
     btn.onclick = (e) => { e.stopPropagation(); def.onClick(); };
     box.appendChild(btn);
   });

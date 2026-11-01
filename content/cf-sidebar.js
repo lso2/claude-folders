@@ -2,7 +2,8 @@
 // Adds the Folders row to Claude's sidebar by cloning one of Claude's own rows.
 // Globals: CF_NAV_LABELS, cfRowLabel, cfIsSidebarRow, findSidebarTemplateLink, buildFolderSvg,
 //          renderFoldersLinkInner, injectSidebar
-// Depends on: content/cf-state.js, content/cf-text.js, content/cf-panel.js (toggleFoldersPanel)
+// Depends on: content/cf-state.js, content/cf-text.js, content/cf-panel.js (toggleFoldersPanel),
+//             content/cf-row-hover.js (cfSetFoldersRowOpen)
 // Notes: docs/notes/content/cf-sidebar.js.md
 
 // Rows matched by label in this order; the clone inherits Claude's current row styling
@@ -119,5 +120,8 @@ function injectSidebar() {
 
   templateLink.parentNode.insertBefore(foldersLink, templateLink.nextSibling);
   sidebarInjected = true;
+  // Claude can redraw its sidebar while the panel is open, and the new row shows the open look too
+  foldersLink.setAttribute('aria-expanded', 'false');
+  if (panelExpanded) cfSetFoldersRowOpen(true);
   console.log('[CONTENT] Sidebar row injected after', cfRowLabel(templateLink) || 'template');
 }

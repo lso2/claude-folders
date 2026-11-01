@@ -1,6 +1,6 @@
 // settings/settings-about.js
-// The settings page's version section: the extension's version, its background's build and the last
-// reload the update check started.
+// The About tab's version section: the extension's version, its background's build and the last reload the
+// update check started, with the version under the page title and in the footer.
 // Globals: settingsAboutItem, renderAboutSection
 // Depends on: lib/build-reload.js (CF_BUILD_RELOAD_KEY), settings/settings-format.js
 // Notes: docs/notes/settings/settings-about.js.md
@@ -16,6 +16,7 @@ function settingsAboutItem(list, term, value) {
 async function renderAboutSection() {
   const version = chrome.runtime.getManifest().version;
   document.getElementById('aboutLine').textContent = `Version ${version}`;
+  document.getElementById('footerName').textContent = `Claude Folders v${version}`;
   let build;
   try {
     const answer = await chrome.runtime.sendMessage({ action: 'backgroundBuild' });

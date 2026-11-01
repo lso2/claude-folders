@@ -1,15 +1,16 @@
 // settings/settings-migration.js
-// The request chosen for chats imported from another account: full reconstruction or a short request.
-// Globals: renderMigrationChoice, onMigrationChange
-// Depends on: lib/storage-keys.js (MIGRATION_REQUEST_KEY), settings/settings-format.js (settingsShowResult)
+// The Import from another account section: the request sent with each imported chat, and opening the import dialog.
+// Globals: renderMigrationChoice, onMigrationChange, openMigrationDialog
+// Depends on: lib/storage-keys.js (MIGRATION_REQUEST_KEY), settings/settings-format.js (settingsShowResult),
+//             background.js (openImportDialog)
 // Notes: docs/notes/settings/settings-migration.js.md
 
-// Nothing stored means full reconstruction (content/cf-migrate-source.js cfMigrationStyle)
+// Nothing stored means the short request (content/cf-migrate-source.js cfMigrationStyle)
 async function renderMigrationChoice() {
-  let value = 'full';
+  let value = 'short';
   try {
     const stored = await chrome.storage.local.get(MIGRATION_REQUEST_KEY);
-    if (stored[MIGRATION_REQUEST_KEY] === 'short') value = 'short';
+    if (stored[MIGRATION_REQUEST_KEY] === 'full') value = 'full';
   } catch (e) {
     console.log('[SETTINGS] The import request was not read:', e.message);
   }
@@ -26,4 +27,16 @@ async function onMigrationChange(e) {
   } catch (err) {
     settingsShowResult(result, `${err.name}: ${err.message}`, true);
   }
+}
+
+// The background opens the import dialog in a new claude.ai tab, for the signed-in login, and the import runs there
+async function openMigrationDialog() {
+  const result = document.getElementById('migrationResult');
+  let answer = null;
+  try {
+    answer = await chrome.runtime.sendMessage({ action: 'openImportDialog', accountKey: null });
+  } catch (e) {
+    answer = { success: false, error: e.message };
+  }
+  if (!answer || !answer.success) settingsShowResult(result, 'The import dialog did not open: ' + ((answer && answer.error) || 'the background answered nothing'), true);
 }

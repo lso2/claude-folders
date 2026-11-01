@@ -1,25 +1,72 @@
 <!DOCTYPE html>
 <!-- settings/index.html
-     The extension's settings page: data folder, accounts, the Folders panel's account view,
-     the Claude Folders Helper, the running version and clearing a login's folders.
-     Opened from the extension's options, the popup, the Folders panel and the organizer.
+     The extension's settings page, with a sidebar of 4 tabs. Settings: data folder, accounts, the Folders panel's
+     account view, automatic sync, the Claude Folders Helper, the running version and clearing a login's folders.
+     Import/Export: the settings file, the folder lists for Claude and importing another account's chats. Help.
+     About: what the extension is, its attribution, links and version.
+     Opened from the extension's options, the popup, the Folders panel and the organizer, and on Help after install.
      Notes: docs/notes/settings/index.html.md -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Claude Folders Settings</title>
+  <link rel="stylesheet" href="../lib/page-frame.css">
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
-  <main class="settings">
+  <div class="settings-layout">
+  <!-- Icons: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+  <!-- The sidebar frame of the organizer: brand, collapse button, rows and drag edge (lib/page-frame.css, lib/sidebar-layout.js) -->
+  <aside class="sidebar" id="settingsSidebar" aria-label="Settings pages">
+    <div class="sidebar-header">
+      <span class="logo-text">Claude Folders</span>
+      <button class="sidebar-toggle" id="settingsSidebarToggle" title="Collapse sidebar" aria-label="Collapse sidebar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M16.5 4C17.3284 4 18 4.67157 18 5.5V14.5C18 15.3284 17.3284 16 16.5 16H3.5C2.67157 16 2 15.3284 2 14.5V5.5C2 4.67157 2.67157 4 3.5 4H16.5ZM7 15H16.5C16.7761 15 17 14.7761 17 14.5V5.5C17 5.22386 16.7761 5 16.5 5H7V15ZM3.5 5C3.22386 5 3 5.22386 3 5.5V14.5C3 14.7761 3.22386 15 3.5 15H6V5H3.5Z"></path></svg>
+      </button>
+    </div>
+    <nav class="settings-tabs">
+      <button type="button" class="nav-item settings-tab" data-tab="main" aria-controls="tabMain" title="Settings">
+        <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M0 416c0 17.7 14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-246.7 0c-12.3-28.3-40.5-48-73.3-48s-61 19.7-73.3 48L32 384c-17.7 0-32 14.3-32 32zm128 0a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM320 256a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm32-80c-32.8 0-61 19.7-73.3 48L32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l246.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48l54.7 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-54.7 0c-12.3-28.3-40.5-48-73.3-48zM192 128a32 32 0 1 1 0-64 32 32 0 1 1 0 64zm73.3-64C253 35.7 224.8 16 192 16s-61 19.7-73.3 48L32 64C14.3 64 0 78.3 0 96s14.3 32 32 32l86.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 128c17.7 0 32-14.3 32-32s-14.3-32-32-32L265.3 64z"/></svg>
+        <span class="nav-label">Settings</span>
+      </button>
+      <button type="button" class="nav-item settings-tab" data-tab="transfer" aria-controls="tabTransfer" title="Import/Export">
+        <svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true"><path d="M438.6 150.6c12.5-12.5 12.5-32.8 0-45.3l-96-96c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.7 96 32 96C14.3 96 0 110.3 0 128s14.3 32 32 32l306.7 0-41.4 41.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l96-96zm-333.3 352c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 416 416 416c17.7 0 32-14.3 32-32s-14.3-32-32-32l-306.7 0 41.4-41.4c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-96 96c-12.5 12.5-12.5 32.8 0 45.3l96 96z"/></svg>
+        <span class="nav-label">Import/Export</span>
+      </button>
+      <button type="button" class="nav-item settings-tab" data-tab="help" aria-controls="tabHelp" title="Help">
+        <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM169.8 165.3c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"/></svg>
+        <span class="nav-label">Help</span>
+      </button>
+      <button type="button" class="nav-item settings-tab" data-tab="about" aria-controls="tabAbout" title="About">
+        <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg>
+        <span class="nav-label">About</span>
+      </button>
+    </nav>
+    <div class="sidebar-resizer" id="settingsSidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div>
+  </aside>
+  <div class="main-column">
+  <main class="settings-scroll" id="settingsScroll">
+  <div class="settings">
     <header class="settings-header">
-      <img src="../icons/icon48.png" alt="" class="settings-logo" width="40" height="40">
       <div>
         <h1 class="settings-title">Claude Folders Settings</h1>
         <p class="settings-muted" id="aboutLine"></p>
       </div>
     </header>
+
+    <!-- A chip for each section of the open tab, drawn by settings/settings-chips.js -->
+    <div class="settings-chips" id="settingsChipsWrap">
+      <button type="button" class="settings-chips-arrow" id="settingsChipsLeft" aria-label="Scroll the sections left" hidden>
+        <svg width="10" height="12" viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><path d="M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l192 192c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256 246.6 86.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-192 192z"/></svg>
+      </button>
+      <div class="settings-chips-row" id="settingsChips" role="navigation" aria-label="Sections"></div>
+      <button type="button" class="settings-chips-arrow" id="settingsChipsRight" aria-label="Scroll the sections right" hidden>
+        <svg width="10" height="12" viewBox="0 0 320 512" fill="currentColor" aria-hidden="true"><path d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z"/></svg>
+      </button>
+    </div>
+
+    <div class="settings-panel" id="tabMain" data-panel="main" hidden>
 
     <section class="settings-card" aria-labelledby="folderHeading">
       <h2 class="settings-heading" id="folderHeading">Data folder</h2>
@@ -59,15 +106,15 @@
       <p class="settings-result" id="viewResult" hidden></p>
     </section>
 
-    <section class="settings-card" aria-labelledby="migrateHeading">
-      <h2 class="settings-heading" id="migrateHeading">Import from another account</h2>
-      <p class="settings-text">Clicking Import from another account in the Folders panel or the organizer opens the import dialog. Each chat of the chosen account with an export in the data folder is started as a new chat here, with its transcript attached and this request:</p>
-      <div class="settings-radios" role="radiogroup" aria-label="Request sent with each imported chat">
-        <label class="settings-radio"><input type="radio" name="migrationRequest" value="full"> Full reconstruction: Claude summarizes the chat and lists its facts, decisions and open questions</label>
-        <label class="settings-radio"><input type="radio" name="migrationRequest" value="short"> Short request: Claude reads the transcript and replies with one line</label>
-      </div>
-      <p class="settings-muted">The import dialog has the same choice, and a choice made there is saved here. The Cowork chats imported from the Chats and tasks page get the same request.</p>
-      <p class="settings-result" id="migrationResult" hidden></p>
+    <section class="settings-card" aria-labelledby="autoSyncHeading">
+      <h2 class="settings-heading" id="autoSyncHeading">Automatic sync</h2>
+      <label class="settings-check"><input type="checkbox" id="autoSyncOn"> Sync automatically</label>
+      <label class="settings-field">Every
+        <select id="autoSyncMinutes"></select>
+      </label>
+      <p class="settings-muted">Automatic sync is on every 1 hour until it is changed here. The sync runs in an open claude.ai tab with a writable data folder. A turn with no claude.ai tab open is skipped. A notice appears on claude.ai only after an automatic sync with new, exported or updated chats.</p>
+      <p class="settings-text" id="autoSyncLast"></p>
+      <p class="settings-result" id="autoSyncResult" hidden></p>
     </section>
 
     <section class="settings-card" aria-labelledby="helperHeading">
@@ -77,11 +124,6 @@
       <div class="settings-actions">
         <button class="btn btn-light" id="helperCheck">Check again</button>
       </div>
-    </section>
-
-    <section class="settings-card" aria-labelledby="aboutHeading">
-      <h2 class="settings-heading" id="aboutHeading">Version</h2>
-      <dl class="settings-list" id="aboutList"></dl>
     </section>
 
     <section class="settings-card" aria-labelledby="clearHeading">
@@ -100,11 +142,112 @@
       </div>
       <p class="settings-result" id="clearResult" hidden></p>
     </section>
+    </div>
+
+    <div class="settings-panel" id="tabTransfer" data-panel="transfer" hidden>
+    <section class="settings-card" aria-labelledby="settingsFileHeading">
+      <h2 class="settings-heading" id="settingsFileHeading">Settings file</h2>
+      <p class="settings-text">Clicking Export settings saves the choices of these settings, the Folders panel and the organizer as a JSON file. Clicking Import settings reads such a file and replaces those choices.</p>
+      <div class="settings-actions">
+        <button class="btn" id="settingsExport">Export settings</button>
+        <button class="btn btn-light" id="settingsImport">Import settings</button>
+        <input type="file" id="settingsImportFile" accept="application/json,.json" hidden>
+      </div>
+      <p class="settings-result" id="settingsFileResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="folderListsHeading">
+      <h2 class="settings-heading" id="folderListsHeading">Folder lists for Claude</h2>
+      <p class="settings-text">Clicking Export chat list opens the organizer, copies the chat list for Claude to organize and downloads it as a file. Clicking Import organized folders opens the organizer with the box for Claude's organized JSON.</p>
+      <div class="settings-actions">
+        <button class="btn" id="folderListExport">Export chat list</button>
+        <button class="btn btn-light" id="folderListImport">Import organized folders</button>
+      </div>
+      <p class="settings-result" id="folderListResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="migrateHeading">
+      <h2 class="settings-heading" id="migrateHeading">Import from another account</h2>
+      <p class="settings-text">Clicking Open import dialog below, or Import from another account in the Folders panel or the organizer, opens the import dialog in a claude.ai tab. Each chat of the chosen account with an export in the data folder is started as a new chat here, with its transcript attached and this request:</p>
+      <div class="settings-radios" role="radiogroup" aria-label="Request sent with each imported chat">
+        <label class="settings-radio"><input type="radio" name="migrationRequest" value="short"> Short request: Claude reads the transcript and replies with one line</label>
+        <label class="settings-radio"><input type="radio" name="migrationRequest" value="full"> Full reconstruction: Claude summarizes the chat and lists its facts, decisions and open questions</label>
+      </div>
+      <p class="settings-muted">Choosing a request in the import dialog changes this setting too.</p>
+      <div class="settings-actions">
+        <button class="btn" id="migrationOpen">Open import dialog</button>
+      </div>
+      <p class="settings-result" id="migrationResult" hidden></p>
+    </section>
+
+    </div>
+
+    <div class="settings-panel" id="tabAbout" data-panel="about" hidden>
+    <section class="settings-card" aria-labelledby="aboutWhatHeading">
+      <h2 class="settings-heading" id="aboutWhatHeading">Claude Folders</h2>
+      <p class="settings-text">Claude Folders is a browser extension that sorts your claude.ai chats and Cowork sessions into folders, saves each one as a markdown file in a folder on your computer, and adds an organizer page, content search and an offline library.</p>
+      <p class="settings-text">The folders, the exported files and the settings are stored on your computer. The extension has no account, no telemetry and no server of its own.</p>
+      <div class="settings-actions">
+        <a class="btn btn-icon" href="https://plexpixel.com/donate" target="_blank" rel="noopener">
+          <svg width="15" height="15" viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M96 64c0-17.7 14.3-32 32-32H448h64c70.7 0 128 57.3 128 128s-57.3 128-128 128H480c0 53-43 96-96 96H192c-53 0-96-43-96-96V64zM480 224h32c35.3 0 64-28.7 64-64s-28.7-64-64-64H480V224zM32 416H544c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg>
+          Donate
+        </a>
+      </div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="aboutHeading">
+      <h2 class="settings-heading" id="aboutHeading">Version</h2>
+      <dl class="settings-list" id="aboutList"></dl>
+    </section>
+
+    <section class="settings-card" aria-labelledby="aboutCreditsHeading">
+      <h2 class="settings-heading" id="aboutCreditsHeading">Attribution</h2>
+      <dl class="settings-list">
+        <dt>Author</dt><dd><a href="https://plexpixel.com" target="_blank" rel="noopener">PlexPixel</a></dd>
+        <dt>Source code</dt><dd>
+          <a class="footer-link" href="https://github.com/lso2/claude-folders" target="_blank" rel="noopener">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            GitHub
+          </a>
+        </dd>
+        <dt>License</dt><dd>GNU General Public License v3.0 (GPLv3)</dd>
+        <dt>Icons</dt><dd><a href="https://fontawesome.com/license/free" target="_blank" rel="noopener">Font Awesome Free 6.5.2</a>, CC BY 4.0</dd>
+        <dt>Claude</dt><dd>Claude and claude.ai are products of Anthropic. Claude Folders is an independent extension.</dd>
+      </dl>
+    </section>
+    </div>
+
+    <!-- The help is read from settings/help.html by settings/settings-help.js -->
+    <div class="settings-panel" id="tabHelp" data-panel="help" hidden>
+      <div id="helpContent"></div>
+    </div>
+  </div>
   </main>
+  <footer class="app-footer">
+    <span class="footer-name" id="footerName">Claude Folders</span>
+    <span class="footer-sep">•</span>
+    <a href="https://github.com/lso2/claude-folders" target="_blank" rel="noopener" class="footer-link">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+      GitHub
+    </a>
+    <span class="footer-sep">•</span>
+    <a href="https://plexpixel.com/donate" target="_blank" rel="noopener" class="footer-link">
+      <svg width="15" height="15" viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M96 64c0-17.7 14.3-32 32-32H448h64c70.7 0 128 57.3 128 128s-57.3 128-128 128H480c0 53-43 96-96 96H192c-53 0-96-43-96-96V64zM480 224h32c35.3 0 64-28.7 64-64s-28.7-64-64-64H480V224zM32 416H544c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg>
+      Donate
+    </a>
+  </footer>
+  </div>
+  </div>
   <script src="../lib/build-reload.js"></script>
   <script src="../lib/apply-update.js"></script>
   <script src="../lib/storage-keys.js"></script>
+  <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
+  <script src="../lib/data-file.js"></script>
   <script src="../lib/export-files.js"></script>
   <script src="../lib/export-state.js"></script>
   <script src="../lib/folder-access.js"></script>
@@ -116,6 +259,13 @@
   <script src="settings-about.js"></script>
   <script src="settings-clear.js"></script>
   <script src="settings-migration.js"></script>
+  <script src="settings-auto-sync.js"></script>
+  <script src="settings-transfer.js"></script>
+  <script src="settings-folder-lists.js"></script>
+  <script src="../lib/sidebar-layout.js"></script>
+  <script src="settings-chips.js"></script>
+  <script src="settings-tabs.js"></script>
+  <script src="settings-help.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

@@ -1,0 +1,194 @@
+<!-- settings/help.html
+     The Help tab's content, read into the settings page by settings/settings-help.js.
+     Buttons carry data-help-action, and the status lines are filled from the extension's state.
+     Notes: docs/notes/settings/help.html.md -->
+    <section class="settings-card" aria-labelledby="helpWelcomeHeading">
+      <h2 class="settings-heading" id="helpWelcomeHeading">Welcome to Claude Folders</h2>
+      <p class="settings-text">Claude Folders sorts your claude.ai chats into folders and saves each chat as a markdown file in a folder on your computer. The folders, the files and the settings are stored on your computer.</p>
+      <p class="settings-text">The setup has 3 steps: choosing the data folder, syncing the chats and organizing them into folders. Each step below has buttons that do it from here, and the chips above the sections jump to each one.</p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpFolderHeading">
+      <h2 class="settings-heading" id="helpFolderHeading">Step 1: Choose the Data Folder</h2>
+      <p class="help-status" id="helpFolderStatus">Checking the data folder...</p>
+      <ol class="help-steps">
+        <li>Click <strong>Go to Data folder</strong> below, then <strong>Choose folder</strong> in the Data folder section.</li>
+        <li>Pick an empty folder, such as <code>Documents/Claude-Data</code>, or the data folder you used before.</li>
+        <li>Click <strong>Select Folder</strong>, then <strong>Allow</strong> in Chrome's prompt.</li>
+        <li>The Data Folder Access window opens. Click <strong>Allow access</strong>, then in Chrome's prompt pick the choice that allows access on every visit.</li>
+      </ol>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="tab" data-tab="main" data-target="folderHeading">Go to Data folder</button>
+        <button type="button" class="btn btn-light" data-help-action="access">Open Data Folder Access</button>
+      </div>
+      <figure class="help-figure">
+        <img src="help/help-access.png" alt="The Data Folder Access window with the last setup step, Allow access and Choose folder" width="460" height="330">
+        <figcaption>The Data Folder Access window right after a folder is chosen.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpSyncHeading">
+      <h2 class="settings-heading" id="helpSyncHeading">Step 2: Sync the Chats</h2>
+      <p class="help-status" id="helpSyncStatus">Reading the last sync...</p>
+      <ol class="help-steps">
+        <li>Open claude.ai in a tab and sign in.</li>
+        <li>Click <strong>Sync now</strong> below, or <strong>Sync</strong> at the bottom of the popup.</li>
+      </ol>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="sync">Sync now</button>
+        <button type="button" class="btn btn-light" data-help-action="claude">Open claude.ai</button>
+      </div>
+      <p class="settings-result" id="helpSyncResult" hidden></p>
+      <p class="settings-text">Every chat and Cowork session of the signed-in account is saved as a markdown file in the <code>chats</code> folder inside the data folder. In the first sync, every chat is read one at a time.</p>
+      <figure class="help-figure">
+        <img src="help/help-popup.png" alt="The popup with the sync icon in orange, the search box, the categories, the folders and Sync" width="400" height="560">
+        <figcaption>The popup. The half ring between the Folders title and the Organizer button is orange while new or changed chats are waiting.</figcaption>
+      </figure>
+      <p class="settings-text">The sync runs in the claude.ai tab, and that tab has to stay open until the sync finishes. Closing or reloading it ends the sync, and the next sync exports the chats not yet exported.</p>
+      <ul class="help-steps">
+        <li><strong>Pause</strong> and <strong>Stop</strong> take effect before the next chat. A paused sync shows <strong>Resume</strong>, and a stopped one shows <strong>Start</strong>.</li>
+        <li>Clicking <strong>×</strong> hides the bar. The sync keeps running, with its progress in the popup and the organizer.</li>
+      </ul>
+      <figure class="help-figure">
+        <img src="help/help-sync-bar.png" alt="The sync progress bar with Updating 120 of 2235, Pause, Stop and the close button" width="560" height="90">
+        <figcaption>The progress bar on claude.ai during a sync.</figcaption>
+      </figure>
+      <p class="settings-text">The result lists the counts. A line such as <strong>32 x not permitted</strong> opens the list of those chats as links to claude.ai.</p>
+      <figure class="help-figure">
+        <img src="help/help-sync-result.png" alt="The popup's sync result with the not permitted line opened to 3 chat links" width="400" height="207">
+        <figcaption>A sync result in the popup with a failure reason opened.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpOrganizeHeading">
+      <h2 class="settings-heading" id="helpOrganizeHeading">Step 3: Organize the Chats into Folders</h2>
+      <ol class="help-steps">
+        <li>Click the Claude Folders icon in the browser toolbar.</li>
+        <li>Click the square-check icon at the top of the popup to show the organize steps.</li>
+        <li>Click <strong>Organize in One Click</strong>. A claude.ai tab opens with your chat titles sent to Claude.</li>
+        <li>Wait for Claude's answer to finish. The tab shows a preview of the categories and folders.</li>
+        <li>Click <strong>Apply &amp; Save</strong>. The chats are filed into the folders. Nothing is saved before this click.</li>
+      </ol>
+      <p class="settings-text">The organizer's <strong>Organize</strong> button starts the same steps.</p>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="organizer">Open the organizer</button>
+      </div>
+      <figure class="help-figure">
+        <img src="help/help-popup-steps.png" alt="The popup with Organize in One Click and the 2 steps Ask Claude to Organize and Apply Claude's Response" width="400" height="640">
+        <figcaption>The popup with the organize steps shown.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpPanelHeading">
+      <h2 class="settings-heading" id="helpPanelHeading">Folders Panel on claude.ai</h2>
+      <ul class="help-steps">
+        <li>Clicking <strong>Folders</strong> in Claude's sidebar opens the Folders panel beside it, and the Folders row is highlighted while the panel is open.</li>
+        <li>Clicking a folder lists its chats in a second pane, 30 at a time.</li>
+        <li>Clicking <strong>Folders</strong> again, or anywhere outside the panel, closes it.</li>
+        <li>Each chat page has <strong>Export</strong> and <strong>Add to folder</strong> beside its title. <strong>Export Update</strong> appears when the chat has messages newer than its file.</li>
+      </ul>
+      <div class="settings-actions">
+        <button type="button" class="btn btn-light" data-help-action="claude">Open claude.ai</button>
+      </div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpOrganizerHeading">
+      <h2 class="settings-heading" id="helpOrganizerHeading">Organizer</h2>
+      <ul class="help-steps">
+        <li><strong>Top bar</strong>: Folders, Analytics, Sync, Organize, Export, Import, Settings and + New folder appear on every organizer page.</li>
+        <li><strong>Search box</strong>: typing 2 or more characters lists the matching chats under it, by title and by the text of their exports.</li>
+        <li><strong>All, Titles and Content</strong> pick the matches listed. <strong>Sort by</strong> orders them by best match, name, most recent message, oldest message or export date, with <strong>Asc</strong> or <strong>Desc</strong> beside it.</li>
+        <li><strong>Account dropdown</strong>: picks the account whose folders and chats are shown.</li>
+      </ul>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="organizer">Open the organizer</button>
+      </div>
+      <figure class="help-figure">
+        <img src="help/help-organizer.png" alt="The organizer with lisbon typed in the search box, the Chats list of 2 matches and the Lisbon Trip folder" width="1200" height="720">
+        <figcaption>The organizer with "lisbon" in the search box.</figcaption>
+      </figure>
+      <figure class="help-figure">
+        <img src="help/help-folder.png" alt="The Kitchen Remodel folder in the organizer with 3 chats and the date and time of each" width="1200" height="720">
+        <figcaption>A folder in the organizer. Each chat shows the date and time of its last change.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpExportsHeading">
+      <h2 class="settings-heading" id="helpExportsHeading">Exported Chats</h2>
+      <p class="settings-text">Each chat is saved in the <code>chats</code> folder as <code>&lt;first 8 characters of the chat id&gt;_&lt;title&gt;.md</code>. Each message has its date and time under its Human or Claude heading.</p>
+      <p class="settings-text">An export is written again by the next sync when the chat changed after the export, or when the export has no message times. The progress shows <strong>Updating</strong> for those and <strong>Exporting</strong> for new files.</p>
+      <figure class="help-figure">
+        <img src="help/help-export.png" alt="An exported chat in the offline view with the export header and the date and time under Human and Claude" width="900" height="640">
+        <figcaption>An export opened with View Offline in the organizer.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpAutoHeading">
+      <h2 class="settings-heading" id="helpAutoHeading">Automatic Sync</h2>
+      <p class="help-status" id="helpAutoStatus">Reading the setting...</p>
+      <ol class="help-steps">
+        <li>Click <strong>Go to Automatic sync</strong> below.</li>
+        <li><strong>Sync automatically</strong> is checked and <strong>Every</strong> is 1 hour after install. Unchecking <strong>Sync automatically</strong> turns it off.</li>
+        <li>In <strong>Every</strong>, pick 15 minutes, 30 minutes, 1 hour, 2 hours or 4 hours.</li>
+      </ol>
+      <p class="settings-text">Each sync runs in an open claude.ai tab with a writable data folder, and a turn with no claude.ai tab open is skipped. The section shows the time and the result of the last automatic sync.</p>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="tab" data-tab="main" data-target="autoSyncHeading">Go to Automatic sync</button>
+      </div>
+      <figure class="help-figure">
+        <img src="help/help-autosync.png" alt="The Automatic sync section with Sync automatically checked, Every 1 hour, and the last automatic sync's result" width="804" height="278">
+        <figcaption>The Automatic sync section on the Settings tab.</figcaption>
+      </figure>
+      <p class="settings-text">Clicking the popup's sync icon with nothing waiting opens <strong>Everything is up to date</strong>. <strong>Force resync</strong> reads the whole conversation list and writes every export again, over the same files.</p>
+      <figure class="help-figure">
+        <img src="help/help-force-resync.png" alt="The popup's Everything is up to date dialog with Cancel and Force resync" width="400" height="560">
+        <figcaption>The forced resync dialog in the popup.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpAccountsHeading">
+      <h2 class="settings-heading" id="helpAccountsHeading">Moving Chats to Another Account</h2>
+      <ol class="help-steps">
+        <li>In the first account, choose the data folder and click <strong>Sync</strong>. Its chats are exported to the <code>chats</code> folder.</li>
+        <li>Sign in to claude.ai with the second account, and choose the same data folder.</li>
+        <li>Click <strong>Open import dialog</strong> below. <strong>Import from another account</strong> in the Folders panel or the organizer opens the same dialog.</li>
+        <li>In the dialog, pick the account to import from and the request sent with each chat.</li>
+        <li>Click <strong>Import</strong> followed by the count of chats. <strong>Pause</strong> and <strong>Stop</strong> appear on the progress bar.</li>
+      </ol>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="import-dialog">Open import dialog</button>
+        <button type="button" class="btn btn-light" data-help-action="tab" data-tab="transfer" data-target="migrateHeading">Go to Import/Export</button>
+      </div>
+      <p class="settings-result" id="helpImportResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpTransferHeading">
+      <h2 class="settings-heading" id="helpTransferHeading">Settings Files</h2>
+      <ol class="help-steps">
+        <li>Click <strong>Export settings</strong> below. The browser downloads <code>claude-folders-settings.json</code>.</li>
+        <li>On another computer, or after adding the extension again, click <strong>Import settings</strong> on the Import/Export tab and pick that file.</li>
+      </ol>
+      <p class="settings-text">The file has the settings choices, the Folders panel views and the organizer's sidebar width. Folders and chats are stored in the data folder, and the file has none of them.</p>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="export-settings">Export settings</button>
+        <button type="button" class="btn btn-light" data-help-action="tab" data-tab="transfer" data-target="settingsFileHeading">Go to Import/Export</button>
+      </div>
+      <figure class="help-figure">
+        <img src="help/help-transfer.png" alt="The Import/Export tab with Settings file, Folder lists for Claude and Import from another account" width="1100" height="780">
+        <figcaption>The Import/Export tab.</figcaption>
+      </figure>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpTroubleHeading">
+      <h2 class="settings-heading" id="helpTroubleHeading">Troubleshooting</h2>
+      <ul class="help-steps">
+        <li><strong>Export says folder access is needed</strong>: click <strong>Open Data Folder Access</strong> below, then <strong>Allow access</strong>, then the choice to allow access on every visit in Chrome's prompt.</li>
+        <li><strong>Sync does not start after the extension was reloaded</strong>: clicking <strong>Sync</strong> opens a new claude.ai tab when the open one has none of the extension's scripts, and the sync runs in the new tab.</li>
+        <li><strong>Folders are empty after adding the extension again</strong>: choose the same data folder on the Settings tab. Each account's folders are read back from its <code>data.&lt;account&gt;.json</code> file.</li>
+        <li><strong>Some chats did not produce a file</strong>: open the reason line in the sync result to list those chats as links, and open each one on claude.ai.</li>
+      </ul>
+      <div class="settings-actions">
+        <button type="button" class="btn" data-help-action="access">Open Data Folder Access</button>
+        <button type="button" class="btn btn-light" data-help-action="tab" data-tab="main" data-target="folderHeading">Go to Data folder</button>
+      </div>
+    </section>

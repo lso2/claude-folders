@@ -77,16 +77,24 @@ async function cfReleaseForeignChats(ids) {
 // any export, and progress covers only the chats being exported. An outdated export on
 // disk is exported again over its file and counted as updated. A permission error
 // during the run stops it, leaving the remaining chats for the next run.
-// onProgress(done, total, chat, detail): detail is the event count while a Cowork session reads.
+// opts.rewriteAll: every export on disk is written again over its file, current or not (the popup's forced resync).
+// opts.waitIfPaused: awaited before each chat, the sync's Pause (content/cf-sync-control.js).
+// onProgress(done, total, chat, detail, updating): detail is the event count while a Cowork session reads.
+// updating is true when the chat's export is on disk and outdated, and its file is written again.
 async function cfExportChatList(chats, options) {
   const opts = options || {};
   const outcome = {
     total: chats.length, exported: 0, updated: 0, skipped: 0, empty: 0, unavailable: 0, knownMissing: 0, otherOrgs: 0,
-    failed: 0, released: 0, releasedTo: [], reasons: new Map(), aborted: null, cancelled: false, files: []
+    failed: 0, released: 0, releasedTo: [], reasons: new Map(), aborted: null, cancelled: false, files: [], failures: []
   };
-  const noteFailure = (reason) => {
+  // failures lists each chat that did not produce a file under its reason, for the result's chat links (lib/run-failures.js)
+  const noteFailure = (reason, chat) => {
     const key = String(reason || 'unknown').slice(0, 120);
     outcome.reasons.set(key, (outcome.reasons.get(key) || 0) + 1);
+    if (chat) {
+      const id = String(chat.id || '');
+      outcome.failures.push({ id, title: String(chat.title || 'Untitled'), url: chat.url || `https://claude.ai/chat/${id}`, reason: key });
+    }
   };
   if (!chats.length) return outcome;
   if (!window.chatExporter) {
@@ -137,7 +145,7 @@ async function cfExportChatList(chats, options) {
       continue;
     }
     const names = onDiskFiles.get(exportIdPrefix(chatId).toLowerCase());
-    if (names && !cfExportIsOutdated(chat, records[chatId])) {
+    if (names && !opts.rewriteAll && !cfExportIsOutdated(chat, records[chatId])) {
       outcome.skipped++;
       onDisk.push(chatId);
       continue;
@@ -152,6 +160,7 @@ async function cfExportChatList(chats, options) {
 
   const newlyMissing = [];
   for (let i = 0; i < toExport.length; i++) {
+    if (opts.waitIfPaused) await opts.waitIfPaused();
     if (opts.isCancelled && opts.isCancelled()) {
       outcome.cancelled = true;
       break;
@@ -159,12 +168,12 @@ async function cfExportChatList(chats, options) {
     const { chat, target } = toExport[i];
     const chatId = String(chat.id);
     const chatTitle = String(chat.title || 'Untitled');
-    if (opts.onProgress) opts.onProgress(i + 1, toExport.length, chat, '');
+    if (opts.onProgress) opts.onProgress(i + 1, toExport.length, chat, '', !!target);
 
     try {
       const started = performance.now();
       const result = await window.chatExporter.exportChatById(chatId, chatTitle, cfOrgIdFor(chat),
-        opts.onProgress ? (detail) => opts.onProgress(i + 1, toExport.length, chat, detail) : null);
+        opts.onProgress ? (detail) => opts.onProgress(i + 1, toExport.length, chat, detail, !!target) : null);
       const read = Math.round(performance.now() - started);
       if (result.success && result.markdown) {
         const filename = target || result.filename;
@@ -182,7 +191,7 @@ async function cfExportChatList(chats, options) {
           break;
         } else {
           outcome.failed++;
-          noteFailure('disk write: ' + (written.error || 'no reason returned'));
+          noteFailure('disk write: ' + (written.error || 'no reason returned'), chat);
         }
       } else {
         const reason = result.error || 'no markdown returned';
@@ -195,12 +204,12 @@ async function cfExportChatList(chats, options) {
           await cfMarkChatUnavailable(chatId, reason);
         } else {
           outcome.failed++;
-          noteFailure(reason);
+          noteFailure(reason, chat);
         }
       }
     } catch (e) {
       outcome.failed++;
-      noteFailure(e.message || 'threw without a message');
+      noteFailure(e.message || 'threw without a message', chat);
     }
     await new Promise(r => setTimeout(r, opts.delayMs || 300));
   }
@@ -271,14 +280,14 @@ async function cfRunExportWithModal(chats, title) {
       text.textContent = `Checking ${count} chat${count === 1 ? '' : 's'} against the files on disk...`;
       cfRunProgress(text.textContent);
     },
-    onProgress: (done, total, chat, detail) => {
+    onProgress: (done, total, chat, detail, updating) => {
       bar.style.width = `${Math.round(done / total * 100)}%`;
-      text.textContent = `Exporting ${done} of ${total}` + (detail ? `, ${detail}` : '');
+      text.textContent = `${updating ? 'Updating' : 'Exporting'} ${done} of ${total}` + (detail ? `, ${detail}` : '');
       current.textContent = chat.folderName ? `${chat.folderName}: ${chat.title || 'Untitled'}` : (chat.title || 'Untitled');
       cfRunProgress(`${text.textContent}: ${chat.title || 'Untitled'}`);
     }
   });
-  cfRunFinish([cfDescribeExportOutcome(outcome)], outcome.files, outcome.aborted || (outcome.cancelled ? 'cancelled in the claude.ai tab' : null));
+  cfRunFinish([cfDescribeExportOutcome(outcome)], outcome.files, outcome.aborted || (outcome.cancelled ? 'cancelled in the claude.ai tab' : null), outcome.failures);
 
   modal.remove();
   if (outcome.aborted) {

@@ -8,11 +8,24 @@
   --text: #1f1e1d;
   --muted: #5e5d59;
   --line: #e2e0d6;
-  --accent: #c2410c;
-  --accent-hover: #9a3412;
-  --light-bg: #f0eee6;
-  --light-hover: #e2e0d6;
+  /* The orange of the popup's and organizer's buttons and their hover */
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  /* The second button of a pair: white text on gray */
+  --light-bg: #535353;
+  --light-hover: #626262;
   --error-bg: #991b1b;
+  /* The organizer's sidebar frame and footer (lib/page-frame.css), with rows tinted dark on the light page */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e0d6;
+  --sidebar-text: #5e5d59;
+  --icon-color: #1f1e1d;
+  --nav-hover: rgba(0, 0, 0, 0.05);
+  --nav-current: rgba(0, 0, 0, 0.08);
+  --page-bg: #f5f4ef;
+  --footer-text: #5e5d59;
+  --footer-hover: #1f1e1d;
+  --footer-border: #e2e0d6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,14 +35,29 @@
     --text: #f5f4ef;
     --muted: #b7b5a9;
     --line: #3d3d3a;
-    --light-bg: #f5f4ef;
-    --light-hover: #e2e0d6;
     --error-bg: #7f1d1d;
+    /* The organizer's own sidebar, row and footer colors */
+    --sidebar-bg: #242423;
+    --sidebar-border: #40403c;
+    --sidebar-text: #c2c0b5;
+    --icon-color: #faf9f5;
+    --nav-hover: rgba(255, 255, 255, 0.05);
+    --nav-current: rgba(255, 255, 255, 0.08);
+    --page-bg: #1f1e1d;
+    --footer-text: #9c9a92;
+    --footer-hover: #c2c0b5;
+    --footer-border: #3d3d3a;
   }
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Checkboxes and radio buttons in the accent orange */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
 }
 
 body {
@@ -54,14 +82,12 @@ body {
   margin-bottom: 20px;
 }
 
-.settings-logo {
-  border-radius: 8px;
-}
-
 .settings-title {
   margin: 0;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 400;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+  letter-spacing: -0.5px;
 }
 
 .settings-card {
@@ -119,7 +145,12 @@ body {
 
 .btn-light {
   background: var(--light-bg);
-  color: #1f1e1d;
+  color: #ffffff;
+}
+
+a.btn {
+  display: inline-block;
+  text-decoration: none;
 }
 
 .btn-danger {
@@ -224,4 +255,199 @@ body {
 .settings-list dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* The organizer's frame: sidebar (lib/page-frame.css) and the main column, whose page scrolls above the footer */
+.settings-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.settings-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.settings-tabs {
+  padding: 2px 8px 8px;
+}
+
+/* A tab is a row of the sidebar frame: a button with the row's look */
+.settings-tab {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+}
+
+.settings-tab svg {
+  flex: 0 0 20px;
+}
+
+.settings-panel[hidden] {
+  display: none;
+}
+
+.settings-check,
+.settings-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  cursor: pointer;
+}
+
+.settings-field select {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* Help: numbered steps and screenshots of the extension */
+.help-steps {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.help-steps li {
+  margin: 0 0 6px;
+}
+
+.help-figure {
+  margin: 14px 0 4px;
+}
+
+.help-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.help-figure figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 13px;
+}
+
+/* Help: the status line at the top of a step */
+.help-status {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 13px;
+}
+
+.help-status.done {
+  font-weight: 600;
+}
+
+.help-figure img {
+  border: 1px solid var(--line);
+}
+
+/* The chips above the first section: one row that scrolls sideways, with an arrow on each side holding hidden chips */
+.settings-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.settings-chips-row {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-chips-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* The organizer's category pills: no fill until hovered */
+.settings-chip {
+  flex: 0 0 auto;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 20px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-chip:hover {
+  background: var(--nav-hover);
+  color: var(--text);
+}
+
+.settings-chips-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.settings-chips-arrow:hover {
+  background: var(--nav-hover);
+  color: var(--text);
+}
+
+.settings-chips-arrow[hidden] {
+  display: none;
+}
+
+/* Links in the text use the text color with an underline */
+.settings-list a,
+.settings-text a {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* A button with a leading icon, such as Donate on the About tab. Two classes outrank a.btn's inline-block. */
+.btn.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn.btn-icon svg {
+  flex-shrink: 0;
+}
+
+/* The Source code link in Attribution: the footer's GitHub icon and word, in the text color of the other values */
+.settings-list a.footer-link {
+  display: inline-flex;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.settings-list a.footer-link:hover {
+  text-decoration: underline;
 }

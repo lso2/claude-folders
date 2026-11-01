@@ -4,15 +4,15 @@
 // Depends on: lib/storage-keys.js (MIGRATION_REQUEST_KEY), content/cf-cowork-import.js (cfReadExportFile)
 // Notes: docs/notes/content/cf-migrate-source.js.md
 
-// 'short' or 'full' as chosen on the settings page. Nothing stored means full reconstruction,
-// the request share and Cowork imports sent before the setting existed.
+// 'short' or 'full' as chosen on the settings page. Nothing stored means the short request (1.6.0).
+// Before 1.6.0 nothing stored meant full reconstruction.
 async function cfMigrationStyle() {
   try {
     const stored = await chrome.storage.local.get(MIGRATION_REQUEST_KEY);
-    return stored[MIGRATION_REQUEST_KEY] === 'short' ? 'short' : 'full';
+    return stored[MIGRATION_REQUEST_KEY] === 'full' ? 'full' : 'short';
   } catch (e) {
     console.log('[IMPORT] The request style was not read:', e.message);
-    return 'full';
+    return 'short';
   }
 }
 

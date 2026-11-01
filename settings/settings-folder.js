@@ -93,6 +93,9 @@ async function onFolderChooseClick() {
       await renderFolderSection();
       return;
     }
+    // Chrome drops the access a few seconds after the last extension page closes. The minimized access
+    // window keeps it for the rest of the browser session (lib/access-window.js).
+    await chrome.runtime.sendMessage({ action: 'openFolderAccess', mode: 'hold' });
     await finishFolderChange();
   } catch (e) {
     if (e.name === 'AbortError') return;

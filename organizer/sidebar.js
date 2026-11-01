@@ -1,22 +1,17 @@
 // organizer/sidebar.js
 // Draws the organizer's sidebar from Claude's sidebar as last read on claude.ai, with the account menu,
 // the drag divider and the collapse toggle.
-// Globals: SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH, SIDEBAR_COLLAPSED_WIDTH, organizerShell, organizerLayout,
-//          claudeUrl, shellIcon, shellLinkAttrs, runShellItem, loadOrganizerShell, renderSidebarShell,
-//          renderUserProfile, renderAccountMenu, setAccountMenuOpen, loadSidebarLayout, applySidebarLayout,
-//          saveSidebarLayout, toggleSidebar, setupSidebar
+// Globals: organizerShell, organizerLayout, ORGANIZER_SIDEBAR_IDS, claudeUrl, shellIcon, shellLinkAttrs, runShellItem,
+//          loadOrganizerShell, renderSidebarShell, renderUserProfile, renderAccountMenu, setAccountMenuOpen,
+//          loadSidebarLayout, applySidebarLayout, setupSidebar
 // Depends on: lib/storage-keys.js (CLAUDE_SHELL_KEY_PREFIX, ORGANIZER_LAYOUT_KEY), lib/shell-address.js,
-//             organizer/app.js (esc, metadata)
+//             organizer/app.js (esc, metadata), lib/sidebar-layout.js (the width, collapse and drag edge)
 // Notes: docs/notes/organizer/sidebar.js.md
-
-const SIDEBAR_MIN_WIDTH = 200;
-const SIDEBAR_MAX_WIDTH = 480;
-const SIDEBAR_COLLAPSED_WIDTH = 60;
 
 // { brand, nav, sections, recentsLabel, account, menu } stored by content/cf-shell-capture.js
 let organizerShell = null;
 // { width, collapsed }
-let organizerLayout = { width: 260, collapsed: false };
+let organizerLayout = { width: SIDEBAR_DEFAULT_WIDTH, collapsed: false };
 
 // Claude's own links are site paths; the organizer page opens them on claude.ai
 function claudeUrl(href) {
@@ -155,43 +150,18 @@ function setAccountMenuOpen(open) {
   if (open) menu.querySelector('.menu-item')?.focus();
 }
 
+// The width and collapsed state are shared with the settings page's sidebar code (lib/sidebar-layout.js)
+const ORGANIZER_SIDEBAR_IDS = { sidebar: 'sidebar', toggle: 'sidebarToggle', resizer: 'sidebarResizer' };
+
 async function loadSidebarLayout() {
-  try {
-    const stored = (await chrome.storage.local.get(ORGANIZER_LAYOUT_KEY))[ORGANIZER_LAYOUT_KEY];
-    if (stored && Number.isFinite(stored.width)) organizerLayout = { width: stored.width, collapsed: !!stored.collapsed };
-  } catch (e) {
-    console.log('[ORGANIZER] Sidebar width not read:', e.message);
-  }
+  organizerLayout = await cfReadSidebarLayout(ORGANIZER_LAYOUT_KEY);
 }
 
 function applySidebarLayout() {
-  const sidebar = document.getElementById('sidebar');
-  const width = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, organizerLayout.width));
-  sidebar.style.width = width + 'px';
-  sidebar.classList.toggle('collapsed', organizerLayout.collapsed);
-  const toggle = document.getElementById('sidebarToggle');
-  const label = organizerLayout.collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-  toggle.title = label;
-  toggle.setAttribute('aria-label', label);
-}
-
-async function saveSidebarLayout() {
-  try {
-    await chrome.storage.local.set({ [ORGANIZER_LAYOUT_KEY]: organizerLayout });
-  } catch (e) {
-    console.log('[ORGANIZER] Sidebar width not stored:', e.message);
-  }
-}
-
-// The sidebar has two states: the width last dragged to, and collapsed to icons
-function toggleSidebar() {
-  organizerLayout.collapsed = !organizerLayout.collapsed;
-  applySidebarLayout();
-  saveSidebarLayout();
+  cfApplySidebarLayout(organizerLayout, ORGANIZER_SIDEBAR_IDS);
 }
 
 function setupSidebar() {
-  document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
   const button = document.getElementById('userProfile');
   button.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -215,39 +185,7 @@ function setupSidebar() {
     }
   });
 
-  const sidebar = document.getElementById('sidebar');
-  const resizer = document.getElementById('sidebarResizer');
-  resizer.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    resizer.setPointerCapture(e.pointerId);
-    sidebar.classList.add('resizing');
-    document.body.classList.add('sidebar-resizing');
-    const left = sidebar.getBoundingClientRect().left;
-    const move = (ev) => {
-      organizerLayout.width = Math.round(Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, ev.clientX - left)));
-      applySidebarLayout();
-    };
-    const stop = () => {
-      resizer.removeEventListener('pointermove', move);
-      resizer.removeEventListener('pointerup', stop);
-      resizer.removeEventListener('pointercancel', stop);
-      sidebar.classList.remove('resizing');
-      document.body.classList.remove('sidebar-resizing');
-      saveSidebarLayout();
-    };
-    resizer.addEventListener('pointermove', move);
-    resizer.addEventListener('pointerup', stop);
-    resizer.addEventListener('pointercancel', stop);
-  });
-  resizer.addEventListener('keydown', (e) => {
-    const step = e.key === 'ArrowLeft' ? -16 : e.key === 'ArrowRight' ? 16 : 0;
-    if (!step) return;
-    e.preventDefault();
-    organizerLayout.width = Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, organizerLayout.width + step));
-    applySidebarLayout();
-    saveSidebarLayout();
-  });
+  cfSetupSidebarFrame(organizerLayout, ORGANIZER_LAYOUT_KEY, ORGANIZER_SIDEBAR_IDS);
 
   // A claude.ai page stores the sidebar again whenever it changes
   chrome.storage.onChanged.addListener((changes, area) => {

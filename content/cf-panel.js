@@ -1,10 +1,37 @@
 // content/cf-panel.js
 // Renders the folders flyout panel beside Claude's sidebar and wires its controls.
-// Globals: toggleFoldersPanel, cfClosePanel, closePanelOnOutsideClick, renderPanelContent
-// Depends on: content/cf-state.js, content/cf-text.js, content/cf-account-view.js, content/cf-folder-pane.js,
-//             content/cf-organize.js, content/cf-organize-modal.js, content/cf-export-run.js, content/cf-migrate-button.js
+// Globals: cfSetupStepsOpen, cfApplySetupSteps, toggleFoldersPanel, cfClosePanel, closePanelOnOutsideClick,
+//          renderPanelContent
+// Depends on: lib/storage-keys.js (SETUP_STEPS_OPEN_KEY), content/cf-state.js, content/cf-text.js, content/cf-account-view.js, content/cf-folder-pane.js,
+//             content/cf-organize.js, content/cf-organize-modal.js, content/cf-export-run.js, content/cf-migrate-button.js,
+//             content/cf-row-hover.js (cfSetFoldersRowOpen)
 // Notes: docs/notes/content/cf-panel.js.md
 
+// The square-check's stored choice: false keeps the organize actions collapsed. The panel is drawn again on
+// every data change, so the choice is held here, read once and kept current from storage.
+let cfSetupStepsOpen = true;
+chrome.storage.local.get(SETUP_STEPS_OPEN_KEY)
+  .then(stored => {
+    if (typeof stored[SETUP_STEPS_OPEN_KEY] === 'boolean') cfSetupStepsOpen = stored[SETUP_STEPS_OPEN_KEY];
+    cfApplySetupSteps();
+  })
+  .catch(e => console.log('[PANEL] Organize steps choice not read:', e.message));
+// A click in the popup or another tab applies here too
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || !changes[SETUP_STEPS_OPEN_KEY] || typeof changes[SETUP_STEPS_OPEN_KEY].newValue !== 'boolean') return;
+  cfSetupStepsOpen = changes[SETUP_STEPS_OPEN_KEY].newValue;
+  cfApplySetupSteps();
+});
+
+// Shows or collapses the organize actions of the panel on the page by the stored choice
+function cfApplySetupSteps() {
+  const actions = document.querySelector('.folders-panel-actions');
+  const btn = document.querySelector('.toggle-setup-btn');
+  if (actions) actions.style.display = cfSetupStepsOpen ? 'block' : 'none';
+  if (btn) btn.setAttribute('aria-expanded', String(cfSetupStepsOpen));
+}
+
+// Clicking the Folders row opens the panel, and clicking it again closes it
 function toggleFoldersPanel() {
   let panel = document.querySelector('.claude-folders-panel');
 
@@ -20,6 +47,7 @@ function toggleFoldersPanel() {
   
   renderPanelContent(panel);
   document.body.appendChild(panel);
+  cfSetFoldersRowOpen(true);
 
   // The stored account view and the other accounts are read on open, then the panel redraws with them
   Promise.all([cfLoadAccountView(), cfLoadAccountList()]).then(() => {
@@ -48,6 +76,7 @@ function cfClosePanel() {
     panel.remove();
   }
   panelExpanded = false;
+  cfSetFoldersRowOpen(false);
   document.removeEventListener('click', closePanelOnOutsideClick);
 }
 
@@ -88,7 +117,6 @@ function renderPanelContent(panel) {
         <button class="panel-btn settings-btn" title="Settings" aria-label="Settings">
           <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
         </button>
-        <button class="panel-btn close-btn" title="Close" aria-label="Close">×</button>
       </div>
     </div>
     
@@ -198,8 +226,6 @@ function renderPanelContent(panel) {
     chrome.runtime.sendMessage({ action: 'openSettings' }).catch(e => console.log('[CONTENT] Settings did not open:', e.message));
   });
 
-  panel.querySelector('.close-btn')?.addEventListener('click', cfClosePanel);
-  
   panel.querySelector('.open-organizer-btn')?.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'openOrganizer' });
   });
@@ -237,17 +263,13 @@ function renderPanelContent(panel) {
     showApplyCategoriesModal();
   });
 
-  // The setup actions start open; the square-check collapses them for more list room
-  const toggleSetupBtn = panel.querySelector('.toggle-setup-btn');
-  const panelActions = panel.querySelector('.folders-panel-actions');
-
-  if (panelActions) panelActions.style.display = 'block';
-
-  toggleSetupBtn?.addEventListener('click', () => {
-    if (!panelActions) return;
-    const open = panelActions.style.display === 'none';
-    panelActions.style.display = open ? 'block' : 'none';
-    toggleSetupBtn.setAttribute('aria-expanded', String(open));
+  // The setup actions are open until the square-check collapses them for more list room. The choice is stored.
+  cfApplySetupSteps();
+  panel.querySelector('.toggle-setup-btn')?.addEventListener('click', () => {
+    cfSetupStepsOpen = !cfSetupStepsOpen;
+    cfApplySetupSteps();
+    chrome.storage.local.set({ [SETUP_STEPS_OPEN_KEY]: cfSetupStepsOpen })
+      .catch(e => console.log('[PANEL] Organize steps choice not stored:', e.message));
   });
   
   // Folder export buttons

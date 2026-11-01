@@ -40,6 +40,8 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 
 ### Folders Panel
 - Clicking **Folders** in Claude's sidebar opens the panel beside it
+- Clicking **Folders** again or clicking outside the panel closes it. The Folders row is highlighted while the panel is open
+- The square-check's choice to show or collapse the organize steps is kept, in the panel and the popup
 - At the top are **Organize in One Click** and the 2 steps, **Ask Claude to Organize** and **Apply Claude's Response**. The square-check button shows and hides them
 - The account dropdown is under them, with **Import from another account** below it while another account has chats
 - Clicking a folder opens its chats in a second pane to the right of the panel, with full titles, 30 at a time with **Load more**
@@ -103,7 +105,7 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - Choose the same data folder in both accounts. Syncing the first account exports its chats to `chats/`
 - In the second account, click **Import from another account** under the account dropdown in the Folders panel, or beside the account dropdown in the organizer. Clicking the organizer's button opens the dialog in a new claude.ai tab, and the import is run in that tab
 - The dialog has the account to import from (**All other accounts** is the first choice with 2 or more), the account to import into, and the number of chats and Cowork tasks to import, with the ones skipped as imported before or with no export
-- **Request sent with each chat**: **Short** (Claude replies with one line) or **Reconstruct** (Claude replies with a summary of the chat). The choice is saved to the settings page
+- **Request sent with each chat**: **Short** (Claude replies with one line), chosen until it is changed, or **Reconstruct** (Claude replies with a summary of the chat). The choice is saved to the settings page
 - **Pause after each batch of 25 chats** is unchecked, and the import is run to the end with no pause. Checking it pauses the import after each batch, with the batch size from 1 to 500
 - Clicking **Import N** starts the import. Each chat is started as a new chat with its export attached, and each Cowork session as a Cowork task, one at a time
 - Clicking **Pause** or **Stop** on the progress bar pauses or ends the import after the chat in progress. A paused import shows **Resume** and **Stop**
@@ -120,12 +122,35 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - After a sync, chats held in another account's data are listed only under that account
 - A sync gives chats stored without their organization the organization they belong to
 
+### Automatic Sync
+- On every 1 hour after install. **Sync automatically** in the Automatic sync section of the settings page's Settings tab turns it off and on
+- **Every** sets the interval: 15 minutes, 30 minutes, 1 hour, 2 hours or 4 hours
+- Each sync runs in an open claude.ai tab with a writable data folder. A turn with no claude.ai tab open is skipped, and no tab is opened for it
+- No folder prompt and no result window appear for an automatic sync. A notice appears on claude.ai when it added, exported or updated chats
+- The section shows the time and result of the last automatic sync
+
+### Popup Sync Icon
+- The half ring between the Folders title and the Organizer button in the popup is orange while chats are waiting: new chats, chats changed after their export, or exports with no message timestamps. It has the other icons' color when nothing is waiting
+- Clicking it while orange starts a sync. Clicking it with nothing waiting opens **Everything is up to date** with **Force resync**, which reads the whole conversation list and writes every export again over the same files
+
+### Sync Progress Bar
+- During a sync, the bar on claude.ai has **Pause** and **Stop**. Both take effect before the next chat is exported
+- A paused sync shows **Resume** and **Stop**. After **Stop**, the bar shows the counts so far with **Start** for a new sync
+- **×** hides the bar. The sync keeps running, and the popup and the organizer show its progress
+- The sync runs in its claude.ai tab. Closing or reloading the tab ends it, and the next sync exports the chats not yet exported
+
 ### Settings Page
 - Opened from the browser's Extension options, the gear button in the popup and the Folders panel, or **Settings** in the organizer
+- A sidebar on the left has **Settings**, **Import/Export**, **Help** and **About**, with the organizer's collapse button, drag edge and row colors. The page opens on **Help** once after the extension is installed, and on **Settings** after that
+- A row of chips above the first section jumps to each section of the open tab, and scrolls left and right when it is wider than the page
+- The footer has the version, **GitHub** and **Donate**, as in the organizer
+- **About**: what Claude Folders is, **GitHub** and **Donate**, the version section and the attribution
+- **Import/Export**: **Export settings** and **Import settings** for `claude-folders-settings.json`, **Export chat list** and **Import organized folders** for Claude's organizing, and the **Import from another account** section with **Open import dialog**
+- **Help**: the setup steps and the main features, with dark screenshots, buttons that do each step from the page, and a line under each setup step showing whether it is done
 - **Data folder**: the folder and whether the folder writer can save into it, with **Open access window** and **Choose folder**
 - **Accounts**: each account with its chats, folders and organizations, and every account data file in the data folder
 - **Folders panel**: whether a login opens on its own folders or on all accounts
-- **Import from another account**: the request sent with each imported chat, a short request or a full reconstruction. A choice made in the import dialog is saved here
+- **Import from another account**, on the Import/Export tab: the request sent with each imported chat, a short request or a full reconstruction. A choice made in the import dialog is saved here
 - **Claude Folders Helper**: whether the helper is installed and finds the data folder, with **Check again**
 - **Version**: the extension version, its background's build, the extension ID and the last update reload
 - **Clear folder data**: clicking **Clear folders** and confirming empties this login's folders. Other accounts' data files are left as they are
@@ -189,7 +214,7 @@ Or download and extract the ZIP file.
 
 1. Click the extension icon
 2. Click **Sync** at the bottom of the popup
-3. The sync is run in the active claude.ai tab, else in another open claude.ai tab, else in a new Recents tab. The popup shows its progress and result
+3. The sync is run in the active claude.ai tab, else in another open claude.ai tab, else in a new claude.ai tab. The popup shows its progress and result
 4. Click **Organizer** to view and organize your chats
 
 ## Usage
@@ -352,6 +377,13 @@ Claude's response here...
 - The sync opens a new claude.ai tab when the open one does not answer 2 start messages, and runs there
 - After the extension is removed and added again, choose the same data folder. Each login's folders are read back from its `data.<account>.json`
 
+### Folder access on every visit
+- Right after the data folder is chosen in the popup or the settings page, the Data Folder Access window opens
+- Clicking **Allow access** there, then the choice to allow access on every visit in Chrome's prompt, lets the extension save into the folder with no further prompts
+
+### Failed chats in a sync result
+- In the popup, the organizer and the result window on claude.ai, a line such as **32 x not permitted (org ae7efa, 1 tried)** opens the list of those chats as links to claude.ai
+
 ### Export says folder access is needed
 - Chrome's folder prompt for this extension has only Allow and Block
 - Exports are saved while the Data Folder Access window is open with access granted
@@ -468,7 +500,7 @@ claude-folders-extension/
 
 ## Author
 
-TechReader - [TechReader](https://techreader.com)
+PlexPixel - [PlexPixel](https://plexpixel.com)
 
 ## License
 

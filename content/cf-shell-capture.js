@@ -1,8 +1,8 @@
 // content/cf-shell-capture.js
 // Records Claude's sidebar rows, sections and account menu for the organizer page to draw.
-// Globals: CF_SHELL_MENU_MAX_AGE_MS, cfShellSaved, cfShellLastInput, cfGlyphImage, cfShellRow, cfReadSidebarShell,
+// Globals: CF_SHELL_MENU_MAX_AGE_MS, cfShellSaved, cfShellLastInput, cfGlyphImage, cfShellLabel, cfShellRow, cfReadSidebarShell,
 //          cfReadMenuItems, cfSaveShell, cfCaptureSidebar, cfCaptureOpenMenu, cfSilentMenuCapture, cfStartShellCapture
-// Depends on: content/cf-text.js (cfStripGlyphs), content/cf-account.js (cfShellKey, cfAccountReady)
+// Depends on: content/cf-text.js (cfStripGlyphs, cfIsGlyphOnly), content/cf-account.js (cfShellKey, cfAccountReady)
 // Notes: docs/notes/content/cf-shell-capture.js.md
 
 // A stored account menu older than this is read again on the next page load
@@ -41,6 +41,18 @@ function cfGlyphImage(iconEl) {
   }
 }
 
+// The label is the own text of the first element in the row that holds text, without the text of its child
+// elements. A badge drawn after the label in an element of its own, such as Upgrade beside Code on a free
+// plan, is left out whether it follows the label's element or sits inside it.
+function cfShellLabel(copy) {
+  const walker = document.createTreeWalker(copy, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node && cfIsGlyphOnly(node.textContent)) node = walker.nextNode();
+  if (!node) return '';
+  const holder = node.parentElement || copy;
+  return cfStripGlyphs(Array.from(holder.childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join(' '));
+}
+
 // label, href and icon of one sidebar row or menu item. Keyboard hints are left out of the label.
 // iconAfter is true for an icon placed after the label, such as the external link arrow in Learn more.
 function cfShellRow(el) {
@@ -56,7 +68,7 @@ function cfShellRow(el) {
     iconAfter = cfStripGlyphs(before.toString()).trim() !== '';
   }
   return {
-    label: cfStripGlyphs(copy.textContent).replace(/(\s*\+\s*)+$/, '').trim(),
+    label: cfShellLabel(copy).replace(/(\s*\+\s*)+$/, '').trim(),
     href: href && href !== '#' ? href : null,
     target: el.getAttribute('target') || null,
     testid: el.getAttribute('data-testid') || null,

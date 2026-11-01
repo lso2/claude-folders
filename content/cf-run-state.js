@@ -30,8 +30,9 @@ function cfRunProgress(text) {
 }
 
 // lines: the result as sentences. files: the export files this run wrote. error: why the run stopped.
-function cfRunFinish(lines, files, error) {
+// failures: the chats that did not produce a file, [{ id, title, url, reason }] (lib/run-failures.js).
+function cfRunFinish(lines, files, error, failures) {
   if (!cfRunState) return;
-  cfRunState = { ...cfRunState, done: true, text: error ? 'Stopped' : 'Finished', lines: lines || [], files: files || [], error: error || null };
+  cfRunState = { ...cfRunState, done: true, text: error ? 'Stopped' : 'Finished', lines: lines || [], files: files || [], error: error || null, failures: failures || [] };
   cfWriteRunState();
 }

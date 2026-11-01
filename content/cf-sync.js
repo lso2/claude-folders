@@ -3,8 +3,10 @@
 // Globals: cfRelativeToISODate, CF_SYNC_OVERLAP_DAYS, CF_SYNC_CLEAN_PAGES, cfParseChatLink,
 //          cfFindScroller, CF_MORE_CONTROL, cfIsOwnUi, cfAdvanceChatList, cfCollectChatsByScrolling,
 //          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCreatedAtListed, cfCollectAllChats, scrapeAllChats,
-//          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, scrapeRecentsPage, cfSyncProgress
-// Depends on: lib/chat-exporter.js, content/cf-disk.js, content/cf-export-run.js,
+//          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, cfNoteAutoResult, scrapeRecentsPage,
+//          cfSyncProgress
+// Depends on: content/cf-sync-control.js (Pause, Resume, Stop and the × of the progress bar),
+//             lib/chat-exporter.js, content/cf-disk.js, content/cf-export-run.js,
 //             content/cf-sync-summary.js, content/cf-cowork-sync.js, content/cf-run-state.js
 // Notes: docs/notes/content/cf-sync.js.md
 
@@ -319,8 +321,8 @@ async function scrapeAllChats() {
 // and started by the folderAccessChanged broadcast
 const CF_SYNC_AFTER_ACCESS_KEY = 'cf-sync-after-access';
 
-function cfRememberSyncRequest(fullResync) {
-  sessionStorage.setItem(CF_SYNC_AFTER_ACCESS_KEY, JSON.stringify({ fullResync: !!fullResync }));
+function cfRememberSyncRequest(fullResync, rewriteAll) {
+  sessionStorage.setItem(CF_SYNC_AFTER_ACCESS_KEY, JSON.stringify({ fullResync: !!fullResync, rewriteAll: !!rewriteAll }));
 }
 
 function cfTakeSyncRequest() {
@@ -333,14 +335,31 @@ function cfTakeSyncRequest() {
   }
 }
 
+// The outcome of an automatic sync for the settings page (lib/storage-keys.js AUTO_SYNC_LAST_KEY)
+function cfNoteAutoResult(started, text) {
+  console.log('[AUTO SYNC]', text);
+  chrome.storage.local.set({ [AUTO_SYNC_LAST_KEY]: { at: Date.now(), started, text } })
+    .catch(e => console.log('[AUTO SYNC] Result not stored:', e.message));
+}
+
 // Every stored chat and Cowork session is checked against the files on disk, and the
-// ones missing or outdated there are exported
-async function scrapeRecentsPage(fullResync = false) {
+// ones missing or outdated there are exported. auto: started by lib/auto-sync.js. An automatic
+// sync shows no folder prompt and no result window, and skips its turn when it cannot run.
+// rewriteAll: the popup's forced resync writes every export on disk again, over its own file.
+async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = false) {
+  if (auto && syncInProgress) {
+    cfNoteAutoResult(false, 'Skipped: a sync or an import is running in this tab');
+    return;
+  }
   // A sync runs only with a writable data folder. A request made without one is
   // kept and started once access is granted.
   const access = await cfCheckWriteAccess();
+  if (!access.ok && auto) {
+    cfNoteAutoResult(false, 'Skipped: the data folder cannot be written: ' + access.error);
+    return;
+  }
   if (!access.ok) {
-    cfRememberSyncRequest(fullResync);
+    cfRememberSyncRequest(fullResync, rewriteAll);
     console.log('[SCRAPER] Sync waiting for folder access:', access.error);
     cfRunStart('sync', 'Checking folder access');
     cfRunFinish([], [], 'The sync is queued in the claude.ai tab until folder access is granted: ' + access.error);
@@ -355,6 +374,10 @@ async function scrapeRecentsPage(fullResync = false) {
   // The API listing works from any Claude page, so the recents detour only
   // happens when the API is unavailable and the rendered list is the only source
   const apiAvailable = !!window.chatExporter?.listAllConversations;
+  if (!apiAvailable && auto) {
+    cfNoteAutoResult(false, 'Skipped: the conversation list is not readable in this tab');
+    return;
+  }
   if (!apiAvailable && !window.location.pathname.includes('/recents')) {
     console.log('[SCRAPER] No API listing available, moving to recents to read the page');
     sessionStorage.setItem('cf-pending-sync', 'true');
@@ -380,8 +403,9 @@ async function scrapeRecentsPage(fullResync = false) {
   }
   
   console.log('[SCRAPER] Sync starting');
+  cfSyncControlReset();
   cfRunStart('sync', 'Reading your conversation list');
-  showSyncProgressBar('Reading your conversation list');
+  cfShowSyncBar('Reading your conversation list');
 
   // Get existing IDs from all folders
   const existingIds = new Set();
@@ -446,15 +470,20 @@ async function scrapeRecentsPage(fullResync = false) {
   const notListed = listedAll ? new Set(chatsToExport.map(c => c.id).filter(id => !listedIds.has(id))) : null;
 
   let outcome = null;
-  if (chatsToExport.length > 0) {
+  // Stop clicked while the list was read ends the sync before the first export
+  if (chatsToExport.length > 0 && !cfSyncStopRequested()) {
     outcome = await cfExportChatList(chatsToExport, {
       readableOrgIds,
       notListed,
+      rewriteAll,
+      waitIfPaused: cfSyncWaitIfPaused,
+      isCancelled: cfSyncStopRequested,
       onCheck: (count) => {
         cfSyncProgress(`Checking ${count} chat${count === 1 ? '' : 's'} against the files on disk...`);
       },
-      onProgress: (done, total, chat, detail) => {
-        cfSyncProgress(`Exporting ${done} of ${total}${detail ? `, ${detail}` : ''}: ${String(chat.title || 'Untitled').substring(0, 30)}`);
+      // An outdated export written again reads Updating, a new one Exporting
+      onProgress: (done, total, chat, detail, updating) => {
+        cfSyncProgress(`${updating ? 'Updating' : 'Exporting'} ${done} of ${total}${detail ? `, ${detail}` : ''}: ${String(chat.title || 'Untitled').substring(0, 30)}`);
       }
     });
   }
@@ -465,12 +494,30 @@ async function scrapeRecentsPage(fullResync = false) {
   // The account total counts conversations; Cowork sessions are added to it
   const chatTotal = accountTotal || (collected.length - coworkCount);
   const summary = cfSyncSummaryLines(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount, libraryWritten);
-  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], null);
-  showSyncSuccessModal(summary);
+  if (cfSyncStopRequested()) {
+    const done = outcome ? `${outcome.exported} exported, ${outcome.updated} updated` : 'no chats exported';
+    cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], `Stopped with Stop on the sync bar: ${done}`, outcome ? outcome.failures : []);
+    if (auto) cfNoteAutoResult(true, `Stopped with Stop on the sync bar: ${done}`);
+    cfShowSyncStopped(`Sync stopped: ${done}`);
+    return;
+  }
+  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], null, outcome ? outcome.failures : []);
+  if (!auto) {
+    showSyncSuccessModal(summary);
+    return;
+  }
+  // An automatic sync closes its progress bar, and a notice appears only when it changed something
+  document.getElementById('cf-sync-progress')?.remove();
+  const changed = [];
+  if (scrapedChats.length) changed.push(`${scrapedChats.length} new chat${scrapedChats.length === 1 ? '' : 's'}`);
+  if (outcome && outcome.exported) changed.push(`${outcome.exported} exported`);
+  if (outcome && outcome.updated) changed.push(`${outcome.updated} updated`);
+  if (changed.length) showNotification('Automatic sync: ' + changed.join(', '));
+  cfNoteAutoResult(true, 'Finished: ' + summary.lines.join('. '));
 }
 
 // The progress bar on this page and the run record the popup and organizer read (content/cf-run-state.js)
 function cfSyncProgress(text) {
-  showSyncProgressBar(text);
-  cfRunProgress(text);
+  cfShowSyncBar(text);
+  cfRunProgress(cfSyncControl.paused ? `${text}. Pausing before the next chat.` : text);
 }

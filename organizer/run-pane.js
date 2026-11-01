@@ -1,7 +1,7 @@
 // organizer/run-pane.js
 // Shows the claude.ai tab's sync, folder export or account import in the organizer.
 // Globals: ORGANIZER_RUN_FRESH_MS, organizerRunWatching, organizerRunDone, renderOrganizerRun
-// Depends on: lib/storage-keys.js (RUN_STATE_KEY), organizer/app.js (loadAllData)
+// Depends on: lib/storage-keys.js (RUN_STATE_KEY), lib/run-failures.js (cfRenderRunLines), organizer/app.js (loadAllData)
 // Notes: docs/notes/organizer/run-pane.js.md
 
 // An unfinished run record younger than this is shown as running when the page opens
@@ -35,11 +35,7 @@ function renderOrganizerRun(state, startingText) {
   }
   title.textContent = state.error ? `${kind} did not finish` : `${kind} finished`;
   text.textContent = state.error || '';
-  (state.lines || []).forEach(line => {
-    const li = document.createElement('li');
-    li.textContent = line;
-    list.appendChild(li);
-  });
+  cfRenderRunLines(list, state.lines, state.failures);
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {

@@ -24,6 +24,7 @@ function init() {
       loadData().then(() => {
         setupEventListeners();
         showStepsWhenUnorganized();
+        renderPopupSyncIcon();
       });
     } else {
       showSetupScreen();
@@ -43,22 +44,12 @@ function showSetupScreen() {
     return;
   }
 
+  // A folder chosen in this popup gives the folder writer no access, so the folder is chosen in the access window
   document.getElementById('selectFolderBtn').addEventListener('click', async () => {
     try {
-      const handle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'documents' });
-      await saveFolderHandle(handle);
-      
-      // The library page and its scripts go into the new data folder (lib/data-file.js)
-      await refreshLibraryFiles(handle);
-      
-      showMainScreen();
-      await loadData();
-      setupEventListeners();
-      showStepsWhenUnorganized();
+      await chrome.runtime.sendMessage({ action: 'openFolderAccess', mode: 'setup' });
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        cfPageAlert('Data folder not set up', `${error.name}: ${error.message}`);
-      }
+      cfPageAlert('Access window not opened', error.message);
     }
   });
 }
@@ -163,7 +154,12 @@ function setupEventListeners() {
   document.getElementById('organizeAutoBtn')?.addEventListener('click', () => askClaudeToOrganize(true));
   document.getElementById('askClaudeBtn')?.addEventListener('click', () => askClaudeToOrganize(false));
   document.getElementById('applyCategoriesBtn')?.addEventListener('click', showApplyCategoriesModal);
-  document.getElementById('toggleSetupBtn')?.addEventListener('click', () => setStepsOpen(document.getElementById('setupInstructions').classList.contains('hidden')));
+  document.getElementById('toggleSetupBtn')?.addEventListener('click', () => {
+    const open = document.getElementById('setupInstructions').classList.contains('hidden');
+    setStepsOpen(open);
+    // The choice is kept for the next popup and the Folders panel (content/cf-panel.js)
+    chrome.storage.local.set({ [SETUP_STEPS_OPEN_KEY]: open }).catch(e => console.log('[POPUP] Organize steps choice not stored:', e.message));
+  });
   
   document.getElementById('analyticsBtn')?.addEventListener('click', toggleAnalytics);
   document.getElementById('settingsBtn')?.addEventListener('click', () => chrome.runtime.openOptionsPage());
@@ -188,8 +184,18 @@ function setStepsOpen(open) {
   document.getElementById('toggleSetupBtn')?.setAttribute('aria-expanded', String(open));
 }
 
-// Without organized folders the popup opens with the steps showing
-function showStepsWhenUnorganized() {
+// The square-check's stored choice decides. Before the first click, the steps show while no folders are organized.
+async function showStepsWhenUnorganized() {
+  let chosen;
+  try {
+    chosen = (await chrome.storage.local.get(SETUP_STEPS_OPEN_KEY))[SETUP_STEPS_OPEN_KEY];
+  } catch (e) {
+    console.log('[POPUP] Organize steps choice not read:', e.message);
+  }
+  if (typeof chosen === 'boolean') {
+    setStepsOpen(chosen);
+    return;
+  }
   const organized = folders.some(f => f.id !== 'unsorted') && categories.length > 0;
   setStepsOpen(!organized);
 }

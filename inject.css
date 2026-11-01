@@ -1013,3 +1013,26 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   pointer-events: none;
 }
+
+/* The sync result window's failure reasons, each opening its chats as links (lib/run-failures.js) */
+.sync-success-modal .cf-sync-details li {
+  margin-bottom: 4px;
+}
+
+.sync-success-modal .cf-run-failures summary {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.sync-success-modal .cf-run-failures ul {
+  max-height: 220px;
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  overflow-y: auto;
+  list-style: disc;
+}
+
+.sync-success-modal .cf-run-failures a {
+  color: #e8e6e3;
+  text-decoration: underline;
+}

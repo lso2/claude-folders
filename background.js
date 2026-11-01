@@ -1,16 +1,17 @@
 // background.js
 // Service worker that answers extension messages against the cached folder data.
-// Globals: cachedData, currentAccountKey, offscreenCreated, offscreenSetup, accessWindowId, writerPort,
+// Globals: cachedData, currentAccountKey, offscreenCreated, offscreenSetup, writerPort,
 //          writerRequestId, acctKey, persist, broadcastDataUpdated, broadcastToClaudeTabs,
 //          countChatsInData, overlapRatioWithScraped, ensureOffscreen, setUpOffscreen, askOffscreen,
-//          askWriterWindow, askFolderWorker, syncDataToDisk, openAccessWindow, fileImportedChat,
+//          askWriterWindow, askFolderWorker, syncDataToDisk, fileImportedChat,
 //          reloadClaudeTabs, loadCachedData, countBgChats, handleMessage, CF_BACKGROUND_FILES
 // Notes: docs/notes/background.js.md
 
 // The background's other files, run in this order before the code below
 const CF_BACKGROUND_FILES = ['lib/build-reload.js', 'lib/background-build.js', 'lib/helper-host.js', 'lib/storage-keys.js',
   'lib/account-identity.js', 'lib/account-migrate.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
-  'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js'];
+  'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js', 'lib/auto-sync.js', 'lib/first-run.js',
+  'lib/access-window.js'];
 importScripts(...CF_BACKGROUND_FILES);
 
 let cachedData = null;
@@ -18,7 +19,6 @@ let currentAccountKey = null;
 let offscreenCreated = false;
 // The setup in progress. Concurrent folder requests share it.
 let offscreenSetup = null;
-let accessWindowId = null;
 let writerPort = null;
 let writerRequestId = 0;
 
@@ -151,31 +151,6 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onDisconnect.addListener(() => {
     if (writerPort === port) writerPort = null;
   });
-});
-
-// The access window is an extension page, the only place a click can re-grant
-// the File System Access permission for the data folder
-async function openAccessWindow() {
-  if (accessWindowId !== null) {
-    try {
-      await chrome.windows.update(accessWindowId, { focused: true });
-      return;
-    } catch (e) {
-      accessWindowId = null;
-    }
-  }
-  const win = await chrome.windows.create({
-    url: chrome.runtime.getURL('access/index.html'),
-    type: 'popup',
-    width: 460,
-    height: 380,
-    focused: true
-  });
-  accessWindowId = win && typeof win.id === 'number' ? win.id : null;
-}
-
-chrome.windows.onRemoved.addListener((windowId) => {
-  if (windowId === accessWindowId) accessWindowId = null;
 });
 
 // An imported chat is filed under a folder named for the project it was shared in
@@ -459,8 +434,9 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse(await askFolderWorker({ action: 'folderCheckAccess' }, { success: false }));
         break;
 
+      // mode: 'setup', 'restore' or 'hold' (lib/access-window.js)
       case 'openFolderAccess':
-        await openAccessWindow();
+        await openAccessWindow(message.mode);
         sendResponse({ success: true });
         break;
 
@@ -605,7 +581,8 @@ async function handleMessage(message, sender, sendResponse) {
         
       // A sync or a folder export runs in a claude.ai tab (lib/claude-tab.js)
       case 'startAutoScrape':
-        sendResponse(await cfStartRunInClaudeTab({ action: 'startScrape' }));
+        // force: the popup's forced resync reads every page and writes every export again
+        sendResponse(await cfStartRunInClaudeTab({ action: 'startScrape', force: message.force === true }));
         break;
 
       case 'startFolderExport':

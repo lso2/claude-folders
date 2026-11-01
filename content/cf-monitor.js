@@ -252,15 +252,10 @@ async function runSyncAndClear() {
   monitoredNewChats.clear();
   chrome.storage.local.set({ [cfMonitorKey()]: [] });
 
-  // Navigate to recents and run the scraper
-  if (!window.location.pathname.includes('/recents')) {
-    showNotification('Navigating to Recents to sync...');
-    sessionStorage.setItem('cf-pending-sync', 'true');
-    window.location.href = 'https://claude.ai/recents';
-  } else {
-    showNotification('Syncing new chats...');
-    await scrapeRecentsPage();
-  }
+  // The sync reads the conversation list from Claude's API on this page. content/cf-sync.js moves to
+  // Recents only when that list cannot be read and the rendered page is the only source.
+  showNotification('Syncing new chats...');
+  await scrapeRecentsPage();
 }
 
 // Re-check threshold when URL changes (entering/leaving chats)

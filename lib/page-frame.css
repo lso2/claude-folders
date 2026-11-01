@@ -1,0 +1,175 @@
+/* lib/page-frame.css
+   The page frame shared by the organizer and the settings page: the sidebar with its brand, collapse button,
+   rows, drag edge and collapsed state, and the main column with the footer fixed at its bottom.
+   Each page sets --sidebar-bg, --sidebar-border, --sidebar-text, --icon-color, --nav-hover, --nav-current,
+   --page-bg, --footer-text, --footer-hover and --footer-border.
+   Notes: docs/notes/lib/page-frame.css.md */
+
+.sidebar {
+    position: relative;
+    width: 260px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 12px 10px 18px;
+    min-height: 56px;
+}
+
+.logo-text {
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--icon-color);
+    font-family: Georgia, 'Times New Roman', serif;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--sidebar-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-toggle:hover {
+    background: var(--nav-hover);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 10px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 1px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    background: var(--nav-hover);
+}
+
+.nav-item.active {
+    background: var(--nav-current);
+    color: var(--icon-color);
+}
+
+.nav-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The divider is dragged to set the width; collapsed shows icons only */
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: -5px;
+    width: 9px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 30;
+}
+
+.sidebar-resizer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 4px;
+    width: 2px;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer:focus-visible::after,
+.sidebar.resizing .sidebar-resizer::after {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+body.sidebar-resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+
+.sidebar.collapsed {
+    width: 60px !important;
+}
+
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .sidebar-resizer {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 14px 0 10px;
+}
+
+.sidebar.collapsed .nav-item {
+    justify-content: center;
+}
+
+/* The column beside the sidebar: the page's own scroll area above the footer */
+.main-column {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-footer {
+    flex: 0 0 auto;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--footer-text);
+    background: var(--page-bg);
+    border-top: 1px solid var(--footer-border);
+}
+
+.footer-name {
+    opacity: 0.7;
+}
+
+.footer-sep {
+    opacity: 0.4;
+}
+
+.footer-link {
+    color: var(--footer-text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.footer-link:hover {
+    color: var(--footer-hover);
+}

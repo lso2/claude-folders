@@ -7,6 +7,14 @@
     --icon-color: #faf9f5;
     --sidebar-bg: #242423;
     --sidebar-text: #c2c0b5;
+    /* The shared page frame's colors (lib/page-frame.css) */
+    --sidebar-border: #40403c;
+    --nav-hover: rgba(255, 255, 255, 0.05);
+    --nav-current: rgba(255, 255, 255, 0.08);
+    --page-bg: #262624;
+    --footer-text: #9c9a92;
+    --footer-hover: #c2c0b5;
+    --footer-border: #393935;
     --recents-label: #9c9a92;
     --body-bg: #262624;
     --body-text: #9c9a92;
@@ -1231,4 +1239,23 @@ body {
 
 .import-error[hidden] {
     display: none;
+}
+
+/* A failure reason in a run's result: clicking it lists the chats it stopped, as links (lib/run-failures.js) */
+.cf-run-failures summary {
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.cf-run-failures ul {
+  max-height: 220px;
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  overflow-y: auto;
+  list-style: disc;
+}
+
+.cf-run-failures a {
+  color: inherit;
+  text-decoration: underline;
 }
