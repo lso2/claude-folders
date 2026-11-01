@@ -15,15 +15,15 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 Claude Folders transforms Claude.ai's flat conversation list into an organized folder system with:
 
 - **📁 Folder Organization**: Create folders, assign categories, organize hundreds of chats
-- **Organize in One Click**: Your chat titles are sent to Claude, and Claude's answer is shown as folders in a preview to apply
-- **Content Search**: The organizer's search matches the text of exported chats as well as their titles
+- **Organize in One Click**: Chat titles are sent to Claude and step 2 runs automatically
+- **Content Search**: The organizer's search matches both the titles and text of exported chats
 - **📝 Markdown Export**: Automatically export conversations to `.md` files with full content
 - **👁️ Offline Viewing**: Read your exported conversations without internet access
 - **🔄 Passive Sync**: Monitors for new chats and shows a sync bar as soon as one is ready to import
 - **📥 Shared Chat Import**: Chats shared with you are imported as new chats in your account, with the transcript attached
-- **Cowork Sessions**: Cowork sessions are synced into folders and exported to markdown, and exports from another account are imported as Cowork tasks
-- **Account Import**: Another account's chats and Cowork sessions are imported into matching folders from the Folders panel or the organizer, with Pause, Resume and Stop
-- **📚 Full Account Import**: Reads every organization your login can reach, not just the active one, and not just the visible rows
+- **Cowork Sessions**: Cowork sessions are synced into folders and exported to markdown. Exports from another account are imported as Cowork tasks
+- **Account Import**: Another account's chats and Cowork sessions can be imported into matching folders from the Folders panel or the organizer, with Pause, Resume and Stop
+- **📚 Full Account Import**: Reads every organization connected to your login
 - **📊 Analytics**: View category distribution and folder statistics
 - **💾 Local Storage**: All data stored in a folder you choose on your computer
 - **🎨 Native Feel**: UI integrates seamlessly with Claude.ai's design
@@ -53,7 +53,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - On the first search, the words of every export are indexed in the browser, with the progress in the search status. Later searches index only new and changed exports
 
 ### Organizing with Claude
-Claude sorts your chat titles into categories and folders. The request is typed and sent in a claude.ai tab, and Claude's answer is read from that page with no use of the Claude API.
+Claude sorts your chat titles into categories and folders. The request is automatically inserted and sent in a claude.ai tab, and Claude's answer is read from that page.
 
 - Clicking **Organize in One Click** in the Folders panel or the popup, or **Organize** in the organizer, opens a new claude.ai tab and sends the request with your chat titles
 - When Claude's answer is finished, the preview of its categories and folders is shown in that tab. Clicking **Apply & Save** files the chats, and nothing is saved before that click
