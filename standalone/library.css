@@ -1,0 +1,41 @@
+/* standalone/library.css
+   The offline library's own parts on the organizer's stylesheets: the folder access bar and the account row with no menu.
+   Notes: docs/notes/standalone/library.css.md */
+
+/* Choose folder or Allow reading, above the search bar while the chats folder cannot be read */
+.library-access {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 1104px;
+  margin: 0 auto 20px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #30302e;
+  color: #c2c0b5;
+  font-size: 13px;
+}
+
+.library-access[hidden] {
+  display: none;
+}
+
+.library-access-btn {
+  margin-left: auto;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--cf-rust);
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.library-access-btn:hover {
+  background: var(--cf-rust-dark);
+}
+
+/* The account row shows the account recorded in data.js and opens no menu */
+.user-profile {
+  cursor: default;
+}

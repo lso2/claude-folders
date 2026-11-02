@@ -10,8 +10,8 @@
 // The background's other files, run in this order before the code below
 const CF_BACKGROUND_FILES = ['lib/build-reload.js', 'lib/background-build.js', 'lib/helper-host.js', 'lib/storage-keys.js',
   'lib/activity-kinds.js', 'lib/activity-log.js', 'lib/activity-watch.js',
-  'lib/account-identity.js', 'lib/account-migrate.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
-  'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js', 'lib/auto-sync.js', 'lib/first-run.js',
+  'lib/account-identity.js', 'lib/account-migrate.js', 'lib/account-entries.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
+  'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js', 'lib/auto-sync.js', 'lib/first-run.js', 'lib/library-refresh.js',
   'lib/access-window.js', 'lib/update-check.js'];
 importScripts(...CF_BACKGROUND_FILES);
 

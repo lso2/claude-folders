@@ -6,9 +6,9 @@
 //          contentSnippetHtml, contentReadExport, fillContentSnippets, openContentExport, setContentSearchMode,
 //          setContentSearchCollapsed, refreshContentSearchRows, setContentSearchProgress, contentSearchInFolder,
 //          contentSearchFolders, setSearchScope
-// Depends on: organizer/content-index.js, lib/search-words.js (cfSearchTokens), lib/chat-markdown.js (exportIdPrefix),
-//             organizer/content-sort.js (sortContentRows), organizer/accounts.js (viewFolders), organizer/app.js (esc, safeUrl, currentFolder), organizer/folders.js
-//             (renderFolderList), organizer/viewer.js (openExportView)
+// Depends on: organizer/content-index.js, organizer/content-sort.js, organizer/folders.js (renderFolderList), lib/search-words.js,
+//             lib/chat-markdown.js, lib/html-escape.js, the page's state (viewFolders, currentFolder) and the page's host file
+//             (cfHostReadExport, cfHostOpenExport, cfHostOpenFolderAccess). Shared with the offline library.
 // Notes: docs/notes/organizer/content-search.js.md
 
 // Characters typed before chats are listed, rows shown at first and added by Show more, and the pause after typing
@@ -216,15 +216,9 @@ function contentSnippetHtml(content, text, tokens) {
   return `${from > 0 ? '…' : ''}${flat(content.slice(from, at))}<mark>${flat(content.slice(at, end))}</mark>${flat(content.slice(end, to))}${to < content.length ? '…' : ''}`;
 }
 
-// The data folder is read through the background's folder writer, which holds the folder grant
+// { success, content } or { success: false, error } (cfHostReadExport)
 async function contentReadExport(filename) {
-  try {
-    const res = await chrome.runtime.sendMessage({ action: 'readExportFile', filename });
-    if (res && res.success) return res;
-    return { success: false, error: (res && res.error) || 'the background answered nothing' };
-  } catch (e) {
-    return { success: false, error: e.message };
-  }
+  return cfHostReadExport(filename);
 }
 
 // Snippets of the listed rows, one export read at a time. A newer search stops the reading.
@@ -239,9 +233,8 @@ async function fillContentSnippets(seq) {
   }
 }
 
-// The export view page reads the file itself, and a reload of that tab reads it again
 function openContentExport(filename, title) {
-  openExportView(filename, title);
+  cfHostOpenExport(filename, title);
 }
 
 // The mode buttons show which is chosen; the list and the folder grid are drawn again for it
@@ -287,6 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fillContentSnippets(contentSearchSeq);
   });
   document.getElementById('contentSearchAccess')?.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'openFolderAccess' }).catch(e => console.log('[SEARCH] Folder access window not opened:', e.message));
+    cfHostOpenFolderAccess();
   });
 });

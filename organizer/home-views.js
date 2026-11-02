@@ -1,8 +1,10 @@
 // organizer/home-views.js
 // The organizer home's Categories, Cards and List views of the folders and chats the account dropdown shows.
 // Globals: HOME_VIEWS, HOME_PAGE, homeView, homeShown, homeViewItems, renderHomeView, setHomeView, loadHomeView
-// Depends on: organizer/accounts.js (viewFolders), organizer/app.js (searchTerm), organizer/chat-rows.js (renderChatRows),
-//             organizer/chat-sort.js (sortChatItems), lib/storage-keys.js (ORGANIZER_HOME_VIEW_KEY)
+// Shared with the offline library.
+// Depends on: the page's state (viewFolders, searchTerm), organizer/chat-rows.js (renderChatRows),
+//             organizer/chat-sort.js (sortChatItems), cfStoreGet and cfStoreSet (lib/page-store.js, or standalone/library-store.js),
+//             ORGANIZER_HOME_VIEW_KEY (lib/storage-keys.js, or standalone/library-store.js)
 // Notes: docs/notes/organizer/home-views.js.md
 
 const HOME_VIEWS = ['categories', 'cards', 'list'];
@@ -61,14 +63,14 @@ async function renderHomeView() {
 function setHomeView(view) {
   homeView = HOME_VIEWS.includes(view) ? view : 'categories';
   homeShown = HOME_PAGE;
-  chrome.storage.local.set({ [ORGANIZER_HOME_VIEW_KEY]: homeView })
+  cfStoreSet(ORGANIZER_HOME_VIEW_KEY, homeView)
     .catch(e => console.log('[ORGANIZER] View not stored:', e.message));
   renderHomeView();
 }
 
 async function loadHomeView() {
   try {
-    const stored = (await chrome.storage.local.get(ORGANIZER_HOME_VIEW_KEY))[ORGANIZER_HOME_VIEW_KEY];
+    const stored = await cfStoreGet(ORGANIZER_HOME_VIEW_KEY);
     if (HOME_VIEWS.includes(stored)) homeView = stored;
   } catch (e) {
     console.log('[ORGANIZER] View not read:', e.message);

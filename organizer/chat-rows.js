@@ -1,10 +1,10 @@
 // organizer/chat-rows.js
 // Draws chats as rows or cards with their View offline, Download and View chat buttons, for a folder and for the whole view.
+// Shared with the offline library. The page's host file answers what differs: export files, opening and missing exports.
 // Globals: exportedPrefixRun, exportedAtById, loadExportedPrefixes, markExportedPrefixesStale, chatRowHtml, renderChatRows
-// Depends on: organizer/app.js (esc, safeUrl), organizer/chats.js (downloadSingleChat, showChatMenu),
-//             organizer/viewer.js (openMarkdownViewer), lib/chat-markdown.js (exportIdPrefix, exportPrefixOfFilename,
-//             formatStamp), lib/export-state.js (loadExportRecords), lib/storage-keys.js (EXPORTED_CHATS_KEY),
-//             background.js (listExports)
+// Depends on: lib/html-escape.js (esc, safeUrl), lib/chat-markdown.js (exportIdPrefix, formatStamp), the page's host file
+//             (cfHostExportedChats, cfHostOpenChat, cfHostMissingExport, cfHostChatMenu, CF_HOST_MISSING_EXPORT):
+//             organizer/organizer-host.js, or standalone/library-host.js in the library
 // Notes: docs/notes/organizer/chat-rows.js.md
 
 // The lowercase id prefixes of the chats with an export, read once and kept until marked stale
@@ -12,43 +12,15 @@ let exportedPrefixRun = null;
 // Chat id -> the time of its last export in ms, from the export records, for Sort by Export date (organizer/chat-sort.js)
 let exportedAtById = new Map();
 
-// The files in the data folder's chats folder hold every account's exports. A chat of another account
-// has an export there and no record in this browser's storage.
+// The lowercase id prefixes of the chats with an export file, and each chat's last export time (cfHostExportedChats)
 function loadExportedPrefixes() {
-  if (!exportedPrefixRun) exportedPrefixRun = readExportedPrefixes();
+  if (!exportedPrefixRun) {
+    exportedPrefixRun = cfHostExportedChats().then(found => {
+      exportedAtById = found.exportedAt;
+      return found.prefixes;
+    });
+  }
   return exportedPrefixRun;
-}
-
-async function readExportedPrefixes() {
-  const prefixes = new Set();
-  let listed = null;
-  try {
-    listed = await chrome.runtime.sendMessage({ action: 'listExports' });
-  } catch (e) {
-    listed = { success: false, error: e.message };
-  }
-  if (listed && listed.success) {
-    (listed.files || []).forEach(name => {
-      const prefix = exportPrefixOfFilename(name);
-      if (prefix) prefixes.add(prefix);
-    });
-  } else {
-    console.log('[ORGANIZER] The export files were not listed:', (listed && listed.error) || 'no answer');
-  }
-  try {
-    const stored = await chrome.storage.local.get(EXPORTED_CHATS_KEY);
-    Object.keys(stored[EXPORTED_CHATS_KEY] || {}).forEach(id => prefixes.add(exportIdPrefix(id).toLowerCase()));
-    const records = await loadExportRecords();
-    exportedAtById = new Map();
-    Object.entries(records).forEach(([id, record]) => {
-      if (record && record.filename) prefixes.add(exportIdPrefix(id).toLowerCase());
-      const at = Date.parse((record && record.exportedAt) || '');
-      if (Number.isFinite(at)) exportedAtById.set(id, at);
-    });
-  } catch (e) {
-    console.log('[ORGANIZER] The export records were not read:', e.message);
-  }
-  return prefixes;
 }
 
 // A sync, an import or a download writes exports; the next drawing lists the folder again
@@ -63,8 +35,8 @@ function chatRowHtml(item, hasExport, opts) {
   const other = !!chat.cfAccountLabel;
   // Another account's chat cannot be read from this login, so it has no Download button
   const offlineBtn = hasExport || !other ? `
-        <button class="view-offline-btn ${hasExport ? '' : 'download-btn'}" data-chat-id="${esc(chat.id)}" data-title="${esc(chat.title)}" title="${hasExport ? 'View exported markdown' : 'Download chat as markdown'}">
-          ${hasExport ? 'VIEW OFFLINE' : 'DOWNLOAD'}
+        <button class="view-offline-btn ${hasExport ? '' : 'download-btn'}" data-chat-id="${esc(chat.id)}" data-title="${esc(chat.title)}" title="${hasExport ? 'View exported markdown' : CF_HOST_MISSING_EXPORT.title}">
+          ${hasExport ? 'VIEW OFFLINE' : CF_HOST_MISSING_EXPORT.label}
         </button>` : '';
   const folderLabel = opts.showFolder && folder ? `<span class="chat-item-folder">${esc(folder.name)}</span>` : '';
   return `
@@ -91,7 +63,7 @@ function chatRowHtml(item, hasExport, opts) {
       </div>
       <div class="chat-item-actions">
         <div class="chat-item-date">${esc(formatStamp(chat.updatedAt || chat.date))}</div>
-        ${opts.menu && folder && folder.own && !other ? `<button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>` : ''}
+        ${opts.menu && cfHostChatMenu && folder && folder.own && !other ? `<button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>` : ''}
       </div>
     </div>`;
 }
@@ -108,20 +80,10 @@ async function renderChatRows(container, items, view, opts) {
       e.stopPropagation();
       const { chatId, title } = btn.dataset;
       if (prefixes.has(exportIdPrefix(chatId).toLowerCase())) {
-        openMarkdownViewer(chatId, title);
+        cfHostOpenChat(chatId, title);
         return;
       }
-      btn.disabled = true;
-      btn.textContent = 'DOWNLOADING...';
-      if (await downloadSingleChat(chatId, title)) {
-        prefixes.add(exportIdPrefix(chatId).toLowerCase());
-        btn.classList.remove('download-btn');
-        btn.textContent = 'VIEW OFFLINE';
-        btn.disabled = false;
-      } else {
-        btn.textContent = 'FAILED';
-        setTimeout(() => { btn.textContent = 'DOWNLOAD'; btn.disabled = false; }, 2000);
-      }
+      if (await cfHostMissingExport(btn, chatId, title)) prefixes.add(exportIdPrefix(chatId).toLowerCase());
     });
   });
 
@@ -135,7 +97,7 @@ async function renderChatRows(container, items, view, opts) {
   container.querySelectorAll('.chat-menu-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      showChatMenu(btn, btn.dataset.chatId);
+      cfHostChatMenu(btn, btn.dataset.chatId);
     });
   });
 }

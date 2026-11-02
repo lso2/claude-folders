@@ -141,8 +141,11 @@ body.sidebar-resizing {
     flex-direction: column;
 }
 
-/* On a narrow window the footer's items go onto a second line, each kept whole */
+/* On a narrow window the footer's items go onto a second line, each on one line. An item wider than the footer ends in an ellipsis. */
 .app-footer > * {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 

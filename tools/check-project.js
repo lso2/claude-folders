@@ -27,7 +27,26 @@ const RUNTIME_COPIES = {
   'standalone/export-render.js': 'lib/export-render.js',
   'standalone/export-page.js': 'lib/export-page.js',
   'standalone/color-variants.js': 'lib/color-variants.js',
-  'standalone/select-size.js': 'lib/select-size.js'
+  'standalone/select-size.js': 'lib/select-size.js',
+  'standalone/storage-keys.js': 'lib/storage-keys.js',
+  'standalone/sidebar-layout.js': 'lib/sidebar-layout.js',
+  'standalone/search-words.js': 'lib/search-words.js',
+  'standalone/search-store.js': 'lib/search-store.js',
+  'standalone/search-index.js': 'lib/search-index.js',
+  'standalone/account-view.js': 'lib/account-view.js',
+  'standalone/account-entries.js': 'lib/account-entries.js',
+  'standalone/account-file-list.js': 'lib/account-file-list.js',
+  'standalone/accounts.js': 'organizer/accounts.js',
+  'standalone/folders.js': 'organizer/folders.js',
+  'standalone/chats.js': 'organizer/chats.js',
+  'standalone/chat-rows.js': 'organizer/chat-rows.js',
+  'standalone/chat-sort.js': 'organizer/chat-sort.js',
+  'standalone/home-views.js': 'organizer/home-views.js',
+  'standalone/analytics.js': 'organizer/analytics.js',
+  'standalone/content-index.js': 'organizer/content-index.js',
+  'standalone/content-sort.js': 'organizer/content-sort.js',
+  'standalone/content-search.js': 'organizer/content-search.js',
+  'standalone/view-controls.js': 'organizer/view-controls.js'
 };
 
 const problems = [];

@@ -1,8 +1,8 @@
 // organizer/app.js
 // Starts the organizer page: loads folder data from the data folder or cache and wires the controls.
 // Globals: folders, allChats, categories, metadata, currentCategory, currentFolder, currentView,
-//          currentSort, searchTerm, currentTab, esc, safeUrl, countChats, loadAllData, refreshView,
-//          saveData, renderCategoryFilters, showFolderListView, setupEventListeners
+//          currentSort, searchTerm, currentTab, countChats, loadAllData, refreshView,
+//          saveData, setupEventListeners
 // Depends on: the lib/ files and organizer parts listed in organizer/index.html
 // Notes: docs/notes/organizer/app.js.md
 
@@ -16,16 +16,6 @@ let currentView = 'list';
 let currentSort = 'activity';
 let searchTerm = '';
 let currentTab = 'chats';
-
-// Escape user content before it goes into innerHTML (lib/html-escape.js)
-function esc(value) {
-  return cfHtmlEscape(value);
-}
-// Only allow safe links into href attributes
-function safeUrl(url) {
-  const s = String(url || '');
-  return (/^https?:\/\//i.test(s) || s.startsWith('/')) ? esc(s) : '#';
-}
 
 function countChats(data) {
   if (!data || !data.folders) return 0;
@@ -153,101 +143,13 @@ async function saveData() {
   }
 }
 
-// This login's categories, then the categories of other accounts' folders the view shows. Each pill counts
-// the view's folders in it. A category with no folders in the view gets no pill, and the category itself is kept.
-function renderCategoryFilters() {
-  const filterPills = document.getElementById('filterPills');
-  if (!filterPills) return;
-  const counts = new Map();
-  viewFolders.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
-  const shown = [...new Set([...categories, ...viewFolders.map(f => f.category)].filter(Boolean))].filter(cat => counts.get(cat));
-  if (currentCategory !== 'all' && !shown.includes(currentCategory)) currentCategory = 'all';
-
-  const pill = (value, label, count) => `<button class="filter-pill${currentCategory === value ? ' active' : ''}" data-filter="${esc(value)}">${esc(label)} <span class="pill-count">(${count})</span></button>`;
-  filterPills.innerHTML = pill('all', 'All Folders', viewFolders.length) + shown.map(cat => pill(cat, cat, counts.get(cat))).join('');
-  applyCategoryPillFilter();
-  
-  document.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentCategory = btn.dataset.filter;
-      renderFolderList();
-    });
-  });
-}
-
 function setupEventListeners() {
-  document.getElementById('sortSelect')?.addEventListener('change', (e) => {
-    currentSort = e.target.value;
-    renderFolderList();
-  });
-  
-  // Folders filter as each key is typed. Chats are listed after a pause (organizer/content-search.js).
-  document.getElementById('searchInput')?.addEventListener('input', (e) => {
-    searchTerm = e.target.value;
-    renderFolderList();
-    homeShown = HOME_PAGE;
-    renderHomeView();
-    scheduleContentSearch(searchTerm);
-  });
-  
-  document.getElementById('backBtn')?.addEventListener('click', () => {
-    document.getElementById('folderDetailView')?.classList.add('hidden');
-    document.getElementById('folderListView')?.classList.remove('hidden');
-    currentFolder = null;
-  });
-  
-  document.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentView = btn.dataset.view;
-      if (currentTab === 'chats') {
-        renderChatList();
-      }
-    });
-  });
-  
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      currentTab = tab.dataset.tab;
-      if (currentTab === 'chats') {
-        renderChatList();
-      } else if (currentTab === 'activity') {
-        renderActivityTab();
-      }
-    });
-  });
-  
+  setupViewControls();
   document.getElementById('newFolderBtn')?.addEventListener('click', showNewFolderModal);
   document.getElementById('organizeBtn')?.addEventListener('click', startOrganizerOneClick);
   document.getElementById('exportBtn')?.addEventListener('click', exportData);
   document.getElementById('importBtn')?.addEventListener('click', showImportModal);
   document.getElementById('settingsBtn')?.addEventListener('click', () => chrome.runtime.openOptionsPage());
-  
-  // Folders in the top bar, shown above every view, returns to the folder grid
-  document.getElementById('topBarFolders')?.addEventListener('click', showFolderListView);
-
-  // Analytics
-  document.getElementById('analyticsBtn')?.addEventListener('click', toggleAnalyticsView);
-  document.getElementById('analyticsBackBtn')?.addEventListener('click', hideAnalyticsView);
-  
   // The sync of the Folders panel, run in the claude.ai tab (organizer/run-start.js)
   document.getElementById('syncBtn')?.addEventListener('click', startOrganizerSync);
-  
-  // Category search
-  document.getElementById('categorySearchInput')?.addEventListener('input', (e) => {
-    filterCategoriesBySearch(e.target.value);
-  });
-}
-
-// The Folders row in the sidebar and Folders in the top bar return to the folder grid from a folder or the analytics
-function showFolderListView() {
-  document.getElementById('folderDetailView')?.classList.add('hidden');
-  hideAnalyticsView();
-  currentFolder = null;
-  setSearchScope(false);
 }

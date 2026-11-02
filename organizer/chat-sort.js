@@ -3,7 +3,8 @@
 // Globals: CHAT_SORT_DIRECTION, CHAT_SORT_LABELS, chatListSortKey, chatListSortDir, chatSortTime, chatSortValue,
 //          cfSortItems, sortChatItems, renderChatSortControls, setChatListSort, loadChatListSort
 // Depends on: organizer/chat-rows.js (exportedAtById), organizer/content-index.js (contentIndexFiles, contentIndexModified),
-//             lib/chat-markdown.js (exportIdPrefix), lib/storage-keys.js (CHAT_LIST_SORT_KEY),
+//             lib/chat-markdown.js (exportIdPrefix), cfStoreGet and cfStoreSet (lib/page-store.js, or standalone/library-store.js),
+//             CHAT_LIST_SORT_KEY (lib/storage-keys.js, or standalone/library-store.js). Shared with the offline library.
 //             organizer/chats.js (renderChatList), organizer/home-views.js (renderHomeView), organizer/app.js (currentFolder)
 // Notes: docs/notes/organizer/chat-sort.js.md
 
@@ -74,7 +75,7 @@ function setChatListSort(key, dir) {
   chatListSortKey = CHAT_SORT_DIRECTION[key] ? key : 'recent';
   chatListSortDir = dir === 'asc' ? 'asc' : 'desc';
   renderChatSortControls();
-  chrome.storage.local.set({ [CHAT_LIST_SORT_KEY]: { key: chatListSortKey, dir: chatListSortDir } })
+  cfStoreSet(CHAT_LIST_SORT_KEY, { key: chatListSortKey, dir: chatListSortDir })
     .catch(e => console.log('[ORGANIZER] Sort by not stored:', e.message));
   if (currentFolder) renderChatList();
   renderHomeView();
@@ -82,7 +83,7 @@ function setChatListSort(key, dir) {
 
 async function loadChatListSort() {
   try {
-    const stored = (await chrome.storage.local.get(CHAT_LIST_SORT_KEY))[CHAT_LIST_SORT_KEY];
+    const stored = await cfStoreGet(CHAT_LIST_SORT_KEY);
     if (stored && CHAT_SORT_DIRECTION[stored.key]) {
       chatListSortKey = stored.key;
       chatListSortDir = stored.dir === 'asc' ? 'asc' : 'desc';

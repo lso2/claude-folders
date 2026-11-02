@@ -43,6 +43,15 @@ All notable changes to Claude Folders.
 
 - The chat view's top bar is #d1861c.
 - The offline library's View Offline and View chat buttons use the organizer's colors.
+- The offline library has the organizer's Categories, Cards and List views, Filter categories, category counts, Sort by and content search.
+- The offline library's folder pages, sidebar, Analytics button and footer match the organizer.
+- The offline library in the data folder is updated when the extension is updated or reloaded.
+- The offline library has the organizer's account dropdown and shows every account's folders.
+- Fixed the offline library keeping old files when one of its files was not written.
+
+**README**
+
+- Added screenshots of the organizer, settings page, offline library and popup.
 
 ## 1.6.0
 

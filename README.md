@@ -14,23 +14,26 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 Claude Folders transforms Claude.ai's flat conversation list into an organized folder system with:
 
-- **📁 Folder Organization**: Create folders, assign categories, organize hundreds of chats
+- **Folder Organization**: Create folders, assign categories, organize hundreds of chats
 - **Organize in One Click**: Chat titles are sent to Claude and step 2 runs automatically
 - **Content Search**: The organizer's search matches both the titles and text of exported chats
-- **📝 Markdown Export**: Automatically export conversations to `.md` files with full content
-- **👁️ Offline Viewing**: Read your exported conversations without internet access
-- **🔄 Passive Sync**: Monitors for new chats and shows a sync bar as soon as one is ready to import
-- **📥 Shared Chat Import**: Chats shared with you are imported as new chats in your account, with the transcript attached
+- **Markdown Export**: Automatically export conversations to `.md` files with full content
+- **Offline Viewing**: Read your exported conversations without internet access
+- **Passive Sync**: Monitors for new chats and shows a sync bar as soon as one is ready to import
+- **Shared Chat Import**: Chats shared with you are imported as new chats in your account, with the transcript attached
 - **Cowork Sessions**: Cowork sessions are synced into folders and exported to markdown. Exports from another account are imported as Cowork tasks
 - **Account Import**: Another account's chats and Cowork sessions can be imported into matching folders from the Folders panel or the organizer, with Pause, Resume and Stop
-- **📚 Full Account Import**: Reads every organization connected to your login
-- **📊 Analytics**: View category distribution and folder statistics
-- **💾 Local Storage**: All data stored in a folder you choose on your computer
-- **🎨 Native Feel**: UI integrates seamlessly with Claude.ai's design
+- **Full Account Import**: Reads every organization connected to your login
+- **Analytics**: View category distribution and folder statistics
+- **Local Storage**: All data stored in a folder you choose on your computer
+- **Native Feel**: UI integrates seamlessly with Claude.ai's design
 
 ## Features
 
 ### Folder Management
+
+![The organizer's folders, grouped by category](screens/organizer-categories.png)
+
 - Create unlimited folders with custom names and descriptions
 - Assign folders to categories (Business, Personal, Development, etc.)
 - Move chats between folders with drag-and-drop or menu
@@ -63,6 +66,9 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - The title of another account's chat opens its export in a new tab. With no export, the title is plain text
 
 ### Organizer Views
+
+![The organizer's Cards view](screens/organizer-cards.png)
+
 - **Categories**, **Cards** and **List** above the home page choose its view. **Categories** is shown until another view is chosen
 - **List** and **Cards** show every chat of the folders the account dropdown shows, with each chat's folder, 100 at a time with **Show more**. The search box narrows them by chat title or folder name
 - **Categories** shows the category pills, the category filter and the folder cards
@@ -143,6 +149,9 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - The section shows the time and result of the last automatic sync
 
 ### Popup Sync Icon
+
+![The popup](screens/popup.png)
+
 - The half ring between the Folders title and the Organizer button in the popup is orange while chats are waiting: new chats, chats changed after their export, or exports with no message timestamps. It has the other icons' color when nothing is waiting
 - Clicking it while orange starts a sync. Clicking it with nothing waiting opens **Everything is up to date** with **Force resync**, which reads the whole conversation list and writes every export again over the same files
 
@@ -153,6 +162,9 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - The sync runs in its claude.ai tab. Closing or reloading the tab ends it, and the next sync exports the chats not yet exported
 
 ### Settings Page
+
+![The settings page](screens/settings.png)
+
 - Opened from the browser's Extension options, the gear button in the popup and the Folders panel, or **Settings** in the organizer
 - A sidebar on the left has **Settings**, **Import/Export**, **Log**, **Help** and **About**, with the organizer's collapse button, drag edge and row colors. The page opens on **Help** once after the extension is installed, and on **Settings** after that
 - A row of chips above the first section filters the open tab: **All** shows every section and is chosen when a tab opens, and a section's chip shows that section alone. The row scrolls left and right when it is wider than the page
@@ -171,6 +183,10 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - **Claude Folders Helper**: what the helper does, **GitHub releases** for its download, and whether it is installed and finds the data folder, with **Check again**
 - **Clear folder data**: clicking **Clear folders** and confirming empties this login's folders. Other accounts' data files are left as they are
 
+![Button color with a chosen color](screens/settings-color.png)
+
+![The organizer with the chosen button color applied](screens/organizer-color.png)
+
 ### Saved Files and Show in Folder
 - After a single export, the Saved notice stays open until its **×** is clicked
 - An exported chat or Cowork session with messages newer than its export, or with an export that has no message timestamps, shows **Export Update**, which writes over the same file, and hovering over it explains this
@@ -179,12 +195,19 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - Without the helper, the Saved notice shows the file name as plain text, and an exported, current chat shows **Export**, which writes over the same file
 
 ### Offline Viewing
+
+![The offline library](screens/library.png)
+
 - Click "View Offline" to read any exported chat. It opens in its own tab, `organizer/export-view.html` from the organizer and `view.html` from the library, and reloading the tab shows the chat again
 - Styled HTML viewer with proper markdown rendering
 - Code syntax highlighting
 - Works completely offline after export
 - The library page, `index.html` in the data folder, shows each chat's text from `chats/`. Opened from disk, the page needs the data folder chosen once (**Choose folder**) and reading allowed on later visits (**Allow reading**)
 - New exports appear in the library with no rebuild step
+- The library's page and files in the data folder are written again on every save and after the extension is updated or reloaded
+- The library has the organizer's views and controls: **Categories**, **Cards** and **List**, **Filter categories**, the category pills with their counts, **Sort by** with **Asc** and **Desc**, folder pages with their **Activity** tab, the search of titles and exported text with **All**, **Titles** and **Content**, **Analytics**, and the sidebar's collapse button and drag edge
+- The library's account dropdown lists the login of data.js and every account data file in the data folder once reading the folder is allowed, and opens on **All accounts**
+- Sync, Organize, Export, Import, Settings, New folder and Import from another account need the extension and are in the organizer only
 
 ### Passive Chat Monitor
 - Automatically detects new conversations and Cowork sessions in the sidebar
@@ -243,6 +266,9 @@ Or download and extract the ZIP file.
 - Chat is instantly assigned
 
 **From Organizer:**
+
+![A folder's chats in the organizer](screens/organizer-folder.png)
+
 1. Click the extension icon, then **Organizer**
 2. Click any folder to view its chats
 3. Use the search bar to find folders, and chats by title or exported text
@@ -519,7 +545,7 @@ claude-folders-extension/
 
 ## Author
 
-PlexPixel - [PlexPixel](https://plexpixel.com)
+[PlexPixel](https://plexpixel.com)
 
 ## License
 
@@ -536,10 +562,10 @@ If Claude Folders has helped you stay organized, consider supporting its develop
 **[Donate](https://plexpixel.com/donate)**
 
 **Why donate?**
-- ☕ Fuel continued development
-- 🚀 Support new features like search, tagging, and more
-- 🐛 Faster bug fixes and updates
-- 📚 Better documentation
+- Fuel continued development
+- Support new features like search, tagging, and more
+- Faster bug fixes and updates
+- Better documentation
 
 ---
 

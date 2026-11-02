@@ -1,8 +1,11 @@
 // organizer/folders.js
 // Renders the organizer's folder grid and folder detail header and creates new folders.
 // Globals: categoryFilterTerm, showNewFolderModal, sortFolders, filterFolders, renderFolderList, openFolder,
-//          applyCategoryPillFilter, filterCategoriesBySearch
-// Depends on: organizer/app.js (state, esc, saveData, refreshView, showFolderListView),
+//          renderCategoryFilters, applyCategoryPillFilter, filterCategoriesBySearch
+// Shared with the offline library.
+// Depends on: the page's state (folders, categories, currentCategory, currentSort, searchTerm, currentFolder), lib/html-escape.js (esc),
+//             organizer/app.js (saveData, refreshView: New folder in the organizer), organizer/view-controls.js (showFolderListView),
+//             the page's host file (cfHostExportFolder),
 //             organizer/accounts.js (viewFolders), organizer/chats.js (renderChatList),
 //             organizer/content-search.js (contentMatchChatIds, setSearchScope)
 // Notes: docs/notes/organizer/folders.js.md
@@ -88,6 +91,30 @@ function filterFolders() {
   return sortFolders(filtered);
 }
 
+// This login's categories, then the categories of other accounts' folders the view shows. Each pill counts
+// the view's folders in it. A category with no folders in the view gets no pill, and the category itself is kept.
+function renderCategoryFilters() {
+  const filterPills = document.getElementById('filterPills');
+  if (!filterPills) return;
+  const counts = new Map();
+  viewFolders.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
+  const shown = [...new Set([...categories, ...viewFolders.map(f => f.category)].filter(Boolean))].filter(cat => counts.get(cat));
+  if (currentCategory !== 'all' && !shown.includes(currentCategory)) currentCategory = 'all';
+
+  const pill = (value, label, count) => `<button class="filter-pill${currentCategory === value ? ' active' : ''}" data-filter="${esc(value)}">${esc(label)} <span class="pill-count">(${count})</span></button>`;
+  filterPills.innerHTML = pill('all', 'All Folders', viewFolders.length) + shown.map(cat => pill(cat, cat, counts.get(cat))).join('');
+  applyCategoryPillFilter();
+  
+  document.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentCategory = btn.dataset.filter;
+      renderFolderList();
+    });
+  });
+}
+
 function renderFolderList() {
   const folderGrid = document.getElementById('folderGrid');
   if (!folderGrid) return;
@@ -152,7 +179,7 @@ function openFolder(folderId) {
           <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-secondary);"></span>
           Private
         </span>
-        ${currentFolder.own && chatCount ? '<button class="btn-secondary" id="exportFolderBtn" style="margin-left: auto;" title="Save each chat of this folder as a markdown file in the data folder">Export folder</button>' : ''}
+        ${currentFolder.own && chatCount && cfHostExportFolder ? '<button class="btn-secondary" id="exportFolderBtn" style="margin-left: auto;" title="Save each chat of this folder as a markdown file in the data folder">Export folder</button>' : ''}
       </div>
     `;
     
@@ -162,8 +189,8 @@ function openFolder(folderId) {
       showFolderListView();
     });
     
-    // The Folders panel's folder export, run in the claude.ai tab (organizer/run-start.js)
-    document.getElementById('exportFolderBtn')?.addEventListener('click', startOrganizerFolderExport);
+    // The Folders panel's folder export, run in the claude.ai tab (the page's host file)
+    document.getElementById('exportFolderBtn')?.addEventListener('click', cfHostExportFolder);
   }
   
   currentTab = 'chats';
@@ -175,7 +202,7 @@ function openFolder(folderId) {
   renderChatList();
 }
 // ========== CATEGORY SEARCH ==========
-// All Folders stays. Called again each time the pills are drawn (organizer/app.js renderCategoryFilters).
+// All Folders stays. Called again each time the pills are drawn (renderCategoryFilters).
 function applyCategoryPillFilter() {
   document.querySelectorAll('#filterPills .filter-pill').forEach(pill => {
     const category = pill.dataset.filter;

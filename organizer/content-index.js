@@ -2,8 +2,9 @@
 // Brings the content search index up to date through the background, then holds each export file's words in memory.
 // Globals: contentIndexWords, contentIndexFiles, contentIndexModified, contentIndexStale, contentIndexRun, refreshContentIndex,
 //          runContentIndex, markContentIndexStale
-// Depends on: lib/search-store.js (cfSearchStoreAll), lib/chat-markdown.js (exportPrefixOfFilename),
-//             lib/storage-keys.js (RUN_STATE_KEY), background.js (indexExports)
+// Shared with the offline library.
+// Depends on: lib/search-store.js (cfSearchStoreAll), lib/chat-markdown.js (exportPrefixOfFilename), the page's host file
+//             (cfHostIndexStep): organizer/organizer-host.js, or standalone/library-host.js in the library
 // Notes: docs/notes/organizer/content-index.js.md
 
 // Export file name -> its words, read from the index once it is up to date
@@ -28,11 +29,7 @@ async function runContentIndex(onProgress) {
   let after = null;
   let answer = null;
   do {
-    try {
-      answer = await chrome.runtime.sendMessage({ action: 'indexExports', after });
-    } catch (e) {
-      answer = { success: false, error: e.message };
-    }
+    answer = await cfHostIndexStep(after);
     if (!answer || !answer.success) return answer || { success: false, error: 'the background answered nothing' };
     console.log('[SEARCH] Index step:', answer.checked, 'of', answer.total, 'checked,', answer.indexed, 'read,', answer.removed, 'removed,', answer.ms, 'ms');
     onProgress(answer.checked, answer.total);
@@ -57,12 +54,8 @@ function markContentIndexStale() {
   contentIndexStale = true;
 }
 
-// A finished sync or import may have written exports. Exports saved from claude.ai while this page was hidden
-// are found by the update after the page is shown again.
-chrome.storage.onChanged.addListener((changes, area) => {
-  const state = area === 'local' && changes[RUN_STATE_KEY] && changes[RUN_STATE_KEY].newValue;
-  if (state && state.done) markContentIndexStale();
-});
+// Exports saved from claude.ai while this page was hidden are found by the update after the page is shown again.
+// The organizer also marks the index stale after a sync or an import (organizer/organizer-host.js).
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') markContentIndexStale();
 });
