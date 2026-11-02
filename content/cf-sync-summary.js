@@ -1,7 +1,7 @@
 // content/cf-sync-summary.js
 // Words the result of a sync and shows it in the summary modal on Claude's page.
 // Globals: cfSyncSummaryLines, showSyncSuccessModal
-// Depends on: content/cf-text.js (cfEscapeHtml), lib/run-failures.js (cfRenderRunLines)
+// Depends on: content/cf-text.js (cfEscapeHtml), lib/run-failures.js (cfRenderRunLines), content/cf-disk.js (cfFolderAccessAction)
 // Notes: docs/notes/content/cf-sync-summary.js.md
 
 // The same sentences go to the modal and to the run record the popup and organizer show (content/cf-sync.js).
@@ -28,7 +28,8 @@ function cfSyncSummaryLines(totalChats, scannedTotal, outcome, orgSummaries, cow
   if (libraryWritten === false) lines.push('Offline library data was not written (data.js)');
 
   const details = orgLines.length > 1 ? orgLines.slice() : [];
-  if (result.aborted) details.push(`Exports were not written: ${result.aborted}`);
+  // Stopped for folder access, the reason is the window's own message and the run record's error (content/cf-sync.js)
+  if (result.aborted && !result.access) details.push(`Exports were not written: ${result.aborted}`);
   Array.from((result.reasons || new Map()).entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
@@ -36,7 +37,10 @@ function cfSyncSummaryLines(totalChats, scannedTotal, outcome, orgSummaries, cow
   return { lines, details, failures: result.failures || [] };
 }
 
-function showSyncSuccessModal(summary) {
+// access: { code, folderName, permission } when the exports stopped for folder access. The window then
+// offers the access window, and the sync runs again once access is granted (content/cf-sync.js).
+function showSyncSuccessModal(summary, access) {
+  const grant = access ? cfFolderAccessAction(access.code, access.folderName, access.permission) : null;
   document.getElementById('cf-sync-progress')?.remove();
   document.querySelector('.sync-success-modal')?.remove();
 
@@ -45,16 +49,20 @@ function showSyncSuccessModal(summary) {
   modal.innerHTML = `
     <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100000; display: flex; align-items: center; justify-content: center;">
       <div style="background: #2a2a28; border: 1px solid #3d3d3a; border-radius: 0; padding: 32px; max-width: 400px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        <div style="width: 64px; height: 64px; background: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>
+        <div style="width: 64px; height: 64px; background: ${grant ? 'var(--cf-orange)' : '#059669'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+          ${grant
+            ? '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M12 6v8M12 18h.01"/></svg>'
+            : '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>'}
         </div>
-        <h2 style="color: #e8e6e3; margin: 0 0 12px; font-size: 24px;">Sync complete</h2>
+        <h2 style="color: #e8e6e3; margin: 0 0 12px; font-size: 24px;">${grant ? 'Folder access needed' : 'Sync complete'}</h2>
+        ${grant ? `<div style="color: #e8e6e3; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">${cfEscapeHtml(grant.message)} The sync runs again once access is granted.</div>` : ''}
         <div style="color: #e8e6e3; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
           ${summary.lines.map(line => `<div style="margin-bottom: 8px;">${cfEscapeHtml(line)}</div>`).join('')}
           ${summary.details.length || summary.failures.length ? `
             <ul class="cf-sync-details" style="margin: 12px 0 0; padding: 12px 0 0; border-top: 1px solid #3d3d3a; color: #9c9a92; font-size: 13px; text-align: left; list-style: none;"></ul>` : ''}
         </div>
-        <button id="syncSuccessClose" style="background: #d97706; border: none; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">Done</button>
+        ${grant && grant.label ? `<button id="syncAccessGrant" style="background: var(--cf-orange); border: none; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-right: 8px;">${cfEscapeHtml(grant.label)}</button>` : ''}
+        <button id="syncSuccessClose" style="background: ${grant ? '#3d3d3a' : 'var(--cf-orange)'}; border: none; color: #ffffff; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">${grant ? 'Close' : 'Done'}</button>
       </div>
     </div>
   `;
@@ -63,6 +71,10 @@ function showSyncSuccessModal(summary) {
   if (details) cfRenderRunLines(details, summary.details, summary.failures);
   document.body.appendChild(modal);
   modal.querySelector('#syncSuccessClose').addEventListener('click', () => modal.remove());
+  modal.querySelector('#syncAccessGrant')?.addEventListener('click', () => {
+    modal.remove();
+    grant.run();
+  });
   modal.addEventListener('click', (e) => {
     if (e.target === modal.firstElementChild) modal.remove();
   });

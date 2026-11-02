@@ -9,9 +9,10 @@
 
 // The background's other files, run in this order before the code below
 const CF_BACKGROUND_FILES = ['lib/build-reload.js', 'lib/background-build.js', 'lib/helper-host.js', 'lib/storage-keys.js',
+  'lib/activity-log.js', 'lib/activity-watch.js',
   'lib/account-identity.js', 'lib/account-migrate.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
   'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js', 'lib/auto-sync.js', 'lib/first-run.js',
-  'lib/access-window.js'];
+  'lib/access-window.js', 'lib/update-check.js'];
 importScripts(...CF_BACKGROUND_FILES);
 
 let cachedData = null;
@@ -91,12 +92,25 @@ async function setUpOffscreen() {
   }
 }
 
-// Writes the cached data to the data folder
+// Writes the cached data to the data folder, with the button color for the offline library's data.js
 async function syncDataToDisk() {
-  const response = await askFolderWorker({ action: 'folderSyncToDisk', data: cachedData, accountKey: currentAccountKey }, { success: false });
+  let buttonColor = null;
+  try {
+    buttonColor = (await chrome.storage.local.get(BUTTON_COLOR_KEY))[BUTTON_COLOR_KEY] || null;
+  } catch (e) {
+    console.log('[BG] Button color not read:', e.message);
+  }
+  const response = await askFolderWorker({ action: 'folderSyncToDisk', data: cachedData, accountKey: currentAccountKey, buttonColor }, { success: false });
   console.log('[BG] syncToDisk:', response?.success, response?.error || '');
   return response;
 }
+
+// A new button color is written into data.js for the offline library (standalone/library-color.js)
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local' || !changes[BUTTON_COLOR_KEY]) return;
+  if (!cachedData) await loadCachedData();
+  syncDataToDisk();
+});
 
 // Sends one folder request to the offscreen document, creating it first when needed
 async function askOffscreen(request, fallback) {
@@ -434,6 +448,11 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse(await askFolderWorker({ action: 'folderCheckAccess' }, { success: false }));
         break;
 
+      // The version on GitHub against the running one (lib/update-check.js)
+      case 'checkForUpdate':
+        sendResponse(await cfCheckForUpdate(message.force === true));
+        break;
+
       // mode: 'setup', 'restore' or 'hold' (lib/access-window.js)
       case 'openFolderAccess':
         await openAccessWindow(message.mode);
@@ -454,6 +473,7 @@ async function handleMessage(message, sender, sendResponse) {
 
       case 'folderAccessChanged':
         // Sent by the access window once the folder can be written again
+        cfLogActivity('Folders', `Folder access granted${message.written ? `, ${message.written} queued export${message.written === 1 ? '' : 's'} written` : ''}${message.failed ? `, ${message.failed} not written` : ''}`);
         await broadcastToClaudeTabs({ action: 'folderAccessChanged', written: message.written || 0, failed: message.failed || 0 });
         sendResponse({ success: true });
         break;

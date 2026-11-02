@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude - Folders</title>
+    <link rel="stylesheet" href="color-variants.css">
     <link rel="stylesheet" href="styles.css">
     <style>
         .library-access { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 12px 16px; border-radius: 10px; background: #30302e; color: #c2c0b5; font-size: 13px; }
         .library-access[hidden] { display: none; }
-        .library-access-btn { margin-left: auto; padding: 7px 14px; border: none; border-radius: 8px; background: #c2410c; color: #ffffff; font-size: 13px; cursor: pointer; }
-        .library-access-btn:hover { background: #9a3412; }
+        .library-access-btn { margin-left: auto; padding: 7px 14px; border: none; border-radius: 8px; background: var(--cf-rust); color: #ffffff; font-size: 13px; cursor: pointer; }
+        .library-access-btn:hover { background: var(--cf-rust-dark); }
     </style>
 </head>
 <body>
@@ -178,9 +179,12 @@
     </div>
 
     <script src="data.js"></script>
+    <script src="color-variants.js"></script>
+    <script src="library-color.js"></script>
     <script src="chat-markdown.js"></script>
     <script src="library-files.js"></script>
     <script src="page-dialog.js"></script>
+    <script src="html-escape.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

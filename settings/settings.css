@@ -8,12 +8,12 @@
   --text: #1f1e1d;
   --muted: #5e5d59;
   --line: #e2e0d6;
-  /* The orange of the popup's and organizer's buttons and their hover */
-  --accent: #d97706;
-  --accent-hover: #b45309;
+  /* The settings page's orange and its hover */
+  --accent: var(--cf-settings-accent);
+  --accent-hover: var(--cf-settings-accent-hover);
   /* The second button of a pair: white text on gray */
   --light-bg: #535353;
-  --light-hover: #626262;
+  --light-hover: #868686;
   --error-bg: #991b1b;
   /* The organizer's sidebar frame and footer (lib/page-frame.css), with rows tinted dark on the light page */
   --sidebar-bg: #ffffff;
@@ -78,8 +78,14 @@ body {
 .settings-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 14px;
   margin-bottom: 20px;
+}
+
+/* The Organizer button at the right of the title */
+.settings-header .btn {
+  flex-shrink: 0;
 }
 
 .settings-title {
@@ -300,6 +306,68 @@ a.btn {
   cursor: pointer;
 }
 
+/* Button color: the picker and a sample in the chosen color (settings/settings-button-color.js) */
+.settings-field input[type="color"] {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* Chrome draws the picker's color inside a wrapper and a swatch; the custom picker is a square on its own line */
+.settings-field input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.settings-field input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 0;
+}
+
+/* The preset circles; the chosen one has a gray ring, apart from the circle by a gap in the card's color */
+.settings-color-swatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-color-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.settings-color-swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px #838383;
+}
+
+/* Apply to the organizer, under the sample and Reset */
+.settings-color-organizer {
+  margin-top: 12px;
+}
+
+.settings-color-sample {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--cf-orange);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-color-sample:hover {
+  background: var(--cf-orange-hover);
+}
+
 .settings-field select {
   padding: 5px 8px;
   border: 1px solid var(--line);
@@ -362,6 +430,11 @@ code {
 }
 
 /* The chips above the first section: one row that scrolls sideways, with an arrow on each side holding hidden chips */
+/* A tab with one section has no chips row (settings/settings-chips.js) */
+.settings-chips[hidden] {
+  display: none;
+}
+
 .settings-chips {
   display: flex;
   align-items: center;
@@ -398,6 +471,12 @@ code {
 
 .settings-chip:hover {
   background: var(--nav-hover);
+  color: var(--text);
+}
+
+/* The selected chip has the sidebar's current-row tint */
+.settings-chip.active {
+  background: var(--nav-current);
   color: var(--text);
 }
 
@@ -450,4 +529,58 @@ code {
 
 .settings-list a.footer-link:hover {
   text-decoration: underline;
+}
+
+/* The Log tab (settings/settings-log.js): time, kind and text on one row, wrapping on a narrow page */
+.settings-log-actions {
+  align-items: center;
+  margin: 0 0 12px;
+}
+
+.settings-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-log-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.settings-log-time {
+  flex: 0 0 auto;
+  min-width: 11.5em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.settings-log-kind {
+  flex: 0 0 auto;
+  min-width: 6.5em;
+  font-weight: 600;
+}
+
+.settings-log-text {
+  flex: 1 1 260px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-log-empty {
+  padding: 8px 0;
+  color: var(--muted);
+}
+
+.settings-log-more {
+  margin-top: 12px;
+}
+
+.settings-log-more[hidden] {
+  display: none;
 }

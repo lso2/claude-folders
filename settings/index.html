@@ -11,6 +11,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Claude Folders Settings</title>
+  <link rel="stylesheet" href="../lib/color-variants.css">
   <link rel="stylesheet" href="../lib/page-frame.css">
   <link rel="stylesheet" href="settings.css">
 </head>
@@ -34,6 +35,11 @@
         <svg width="14" height="14" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true"><path d="M438.6 150.6c12.5-12.5 12.5-32.8 0-45.3l-96-96c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.7 96 32 96C14.3 96 0 110.3 0 128s14.3 32 32 32l306.7 0-41.4 41.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l96-96zm-333.3 352c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 416 416 416c17.7 0 32-14.3 32-32s-14.3-32-32-32l-306.7 0 41.4-41.4c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-96 96c-12.5 12.5-12.5 32.8 0 45.3l96 96z"/></svg>
         <span class="nav-label">Import/Export</span>
       </button>
+      <!-- List: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+      <button type="button" class="nav-item settings-tab" data-tab="log" aria-controls="tabLog" title="Log">
+        <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M40 48C26.7 48 16 58.7 16 72v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V72c0-13.3-10.7-24-24-24H40zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H192zM16 232v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V232c0-13.3-10.7-24-24-24H40c-13.3 0-24 10.7-24 24zM40 368c-13.3 0-24 10.7-24 24v48c0 13.3 10.7 24 24 24H88c13.3 0 24-10.7 24-24V392c0-13.3-10.7-24-24-24H40z"/></svg>
+        <span class="nav-label">Log</span>
+      </button>
       <button type="button" class="nav-item settings-tab" data-tab="help" aria-controls="tabHelp" title="Help">
         <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM169.8 165.3c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"/></svg>
         <span class="nav-label">Help</span>
@@ -53,6 +59,11 @@
         <h1 class="settings-title">Claude Folders Settings</h1>
         <p class="settings-muted" id="aboutLine"></p>
       </div>
+      <!-- Arrow up right from square: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+      <button type="button" class="btn btn-icon" id="settingsOrganizerBtn" title="Open the organizer in a tab">
+        <svg width="13" height="13" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M320 0c-17.7 0-32 14.3-32 32s14.3 32 32 32h82.7L201.4 265.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L448 109.3V192c0 17.7 14.3 32 32 32s32-14.3 32-32V32c0-17.7-14.3-32-32-32H320zM80 32C35.8 32 0 67.8 0 112V432c0 44.2 35.8 80 80 80H400c44.2 0 80-35.8 80-80V320c0-17.7-14.3-32-32-32s-32 14.3-32 32V432c0 8.8-7.2 16-16 16H80c-8.8 0-16-7.2-16-16V112c0-8.8 7.2-16 16-16H192c17.7 0 32-14.3 32-32s-14.3-32-32-32H80z"/></svg>
+        Organizer
+      </button>
     </header>
 
     <!-- A chip for each section of the open tab, drawn by settings/settings-chips.js -->
@@ -68,6 +79,33 @@
 
     <div class="settings-panel" id="tabMain" data-panel="main" hidden>
 
+    <section class="settings-card" aria-labelledby="autoSyncHeading">
+      <h2 class="settings-heading" id="autoSyncHeading">Automatic sync</h2>
+      <label class="settings-check"><input type="checkbox" id="autoSyncOn"> Sync automatically</label>
+      <label class="settings-field">Every
+        <select id="autoSyncMinutes"></select>
+      </label>
+      <p class="settings-muted">Automatic sync is on every 1 hour until it is changed here. The sync runs in an open claude.ai tab with a writable data folder. A turn with no claude.ai tab open is skipped. A notice appears on claude.ai only after an automatic sync with new, exported or updated chats.</p>
+      <p class="settings-text" id="autoSyncLast"></p>
+      <p class="settings-result" id="autoSyncResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="buttonColorHeading">
+      <h2 class="settings-heading" id="buttonColorHeading">Button color</h2>
+      <p class="settings-muted">The color of the orange buttons on claude.ai, in the popup, on this page and in the offline library. Every other orange there takes a matching shade, and hovering a button shows a lighter one. The organizer keeps its own oranges until Apply to the organizer is checked.</p>
+      <div class="settings-field settings-color-field">
+        <span>Color</span>
+        <div class="settings-color-swatches" id="buttonColorSwatches" role="group" aria-label="Preset colors"></div>
+      </div>
+      <label class="settings-field">Custom color <input type="color" id="buttonColorInput" title="Custom color"></label>
+      <div class="settings-actions">
+        <button type="button" class="settings-color-sample" id="buttonColorSample">Sample button</button>
+        <button type="button" class="btn btn-light" id="buttonColorReset">Reset</button>
+      </div>
+      <label class="settings-check settings-color-organizer"><input type="checkbox" id="buttonColorOrganizer"> Apply to the organizer</label>
+      <p class="settings-result" id="buttonColorResult" hidden></p>
+    </section>
+
     <section class="settings-card" aria-labelledby="folderHeading">
       <h2 class="settings-heading" id="folderHeading">Data folder</h2>
       <p class="settings-text" id="folderStatus">Checking the data folder...</p>
@@ -79,6 +117,22 @@
       </div>
       <p class="settings-result" id="folderResult" hidden></p>
     </section>
+
+    <section class="settings-card" aria-labelledby="helperHeading">
+      <h2 class="settings-heading" id="helperHeading">Claude Folders Helper</h2>
+      <p class="settings-text">Claude Folders Helper is a small Windows program, installed apart from the extension. With it, the saved file names in the claude.ai notices and Show in folder open File Explorer at the exported file.</p>
+      <p class="settings-muted">The helper is a separate download on the extension's GitHub releases page. Run its setup, then click Check again here.</p>
+      <p class="settings-text" id="helperStatus">Checking the helper...</p>
+      <p class="settings-muted" id="helperHint" hidden></p>
+      <div class="settings-actions">
+        <a class="btn btn-icon" href="https://github.com/lso2/claude-folders/releases" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg>
+          GitHub releases
+        </a>
+        <button class="btn btn-light" id="helperCheck">Check again</button>
+      </div>
+    </section>
+
 
     <section class="settings-card" aria-labelledby="accountsHeading">
       <h2 class="settings-heading" id="accountsHeading">Accounts</h2>
@@ -106,25 +160,7 @@
       <p class="settings-result" id="viewResult" hidden></p>
     </section>
 
-    <section class="settings-card" aria-labelledby="autoSyncHeading">
-      <h2 class="settings-heading" id="autoSyncHeading">Automatic sync</h2>
-      <label class="settings-check"><input type="checkbox" id="autoSyncOn"> Sync automatically</label>
-      <label class="settings-field">Every
-        <select id="autoSyncMinutes"></select>
-      </label>
-      <p class="settings-muted">Automatic sync is on every 1 hour until it is changed here. The sync runs in an open claude.ai tab with a writable data folder. A turn with no claude.ai tab open is skipped. A notice appears on claude.ai only after an automatic sync with new, exported or updated chats.</p>
-      <p class="settings-text" id="autoSyncLast"></p>
-      <p class="settings-result" id="autoSyncResult" hidden></p>
-    </section>
 
-    <section class="settings-card" aria-labelledby="helperHeading">
-      <h2 class="settings-heading" id="helperHeading">Claude Folders Helper</h2>
-      <p class="settings-text" id="helperStatus">Checking the helper...</p>
-      <p class="settings-muted" id="helperHint" hidden></p>
-      <div class="settings-actions">
-        <button class="btn btn-light" id="helperCheck">Check again</button>
-      </div>
-    </section>
 
     <section class="settings-card" aria-labelledby="clearHeading">
       <h2 class="settings-heading" id="clearHeading">Clear folder data</h2>
@@ -219,6 +255,22 @@
     </section>
     </div>
 
+    <!-- The activity log, drawn by settings/settings-log.js -->
+    <div class="settings-panel" id="tabLog" data-panel="log" hidden>
+    <section class="settings-card" aria-labelledby="logHeading">
+      <h2 class="settings-heading" id="logHeading">Log</h2>
+      <p class="settings-muted">Syncs, exports, imports, folder changes, folder access and settings changes since the extension was installed, newest first. The last 50,000 entries are kept.</p>
+      <div class="settings-actions settings-log-actions">
+        <button type="button" class="btn btn-light" id="logClear">Clear log</button>
+        <span class="settings-muted" id="logCount"></span>
+      </div>
+      <ol class="settings-log" id="logList"></ol>
+      <div class="settings-actions settings-log-more" id="logOlderWrap" hidden>
+        <button type="button" class="btn btn-light" id="logOlder">Show 500 older</button>
+      </div>
+    </section>
+    </div>
+
     <!-- The help is read from settings/help.html by settings/settings-help.js -->
     <div class="settings-panel" id="tabHelp" data-panel="help" hidden>
       <div id="helpContent"></div>
@@ -245,6 +297,8 @@
   <script src="../lib/build-reload.js"></script>
   <script src="../lib/apply-update.js"></script>
   <script src="../lib/storage-keys.js"></script>
+  <script src="../lib/color-variants.js"></script>
+  <script src="../lib/button-color.js"></script>
   <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
   <script src="../lib/data-file.js"></script>
@@ -260,10 +314,12 @@
   <script src="settings-clear.js"></script>
   <script src="settings-migration.js"></script>
   <script src="settings-auto-sync.js"></script>
+  <script src="settings-button-color.js"></script>
   <script src="settings-transfer.js"></script>
   <script src="settings-folder-lists.js"></script>
   <script src="../lib/sidebar-layout.js"></script>
   <script src="settings-chips.js"></script>
+  <script src="settings-log.js"></script>
   <script src="settings-tabs.js"></script>
   <script src="settings-help.js"></script>
   <script src="settings.js"></script>

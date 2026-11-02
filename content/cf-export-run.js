@@ -85,7 +85,7 @@ async function cfExportChatList(chats, options) {
   const opts = options || {};
   const outcome = {
     total: chats.length, exported: 0, updated: 0, skipped: 0, empty: 0, unavailable: 0, knownMissing: 0, otherOrgs: 0,
-    failed: 0, released: 0, releasedTo: [], reasons: new Map(), aborted: null, cancelled: false, files: [], failures: []
+    failed: 0, released: 0, releasedTo: [], reasons: new Map(), aborted: null, access: null, cancelled: false, files: [], failures: []
   };
   // failures lists each chat that did not produce a file under its reason, for the result's chat links (lib/run-failures.js)
   const noteFailure = (reason, chat) => {
@@ -105,7 +105,10 @@ async function cfExportChatList(chats, options) {
   const access = await cfCheckWriteAccess();
   if (!access.ok) {
     outcome.aborted = access.error;
-    if (access.code === 'no-folder' || access.code === 'permission') cfPromptFolderAccess(access.code, access.folderName, access.permission);
+    if (access.code === 'no-folder' || access.code === 'permission') {
+      outcome.access = { code: access.code, folderName: access.folderName, permission: access.permission };
+      cfPromptFolderAccess(access.code, access.folderName, access.permission);
+    }
     return outcome;
   }
 
@@ -187,6 +190,7 @@ async function cfExportChatList(chats, options) {
           await markChatAsExported(chatId, { filename, mark: result.mark });
         } else if (written.code === 'no-folder' || written.code === 'permission') {
           outcome.aborted = written.error;
+          outcome.access = { code: written.code, folderName: written.folderName, permission: written.permission };
           cfPromptFolderAccess(written.code, written.folderName, written.permission);
           break;
         } else {

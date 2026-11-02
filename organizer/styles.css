@@ -20,8 +20,8 @@
     --body-text: #9c9a92;
     --input-bg: #30302e;
     --input-border: #393935;
-    --button-bg: #784835;
-    --button-hover: #d27753;
+    --button-bg: var(--cf-brown);
+    --button-hover: var(--cf-terracotta);
     --title-color: #c2c0b5;
     --scrollbar: #64645f;
     --chat-title: #faf9f5;
@@ -29,7 +29,7 @@
     --private-text: #97958d;
     --divider: #262624;
     --model-color: #b0afa5;
-    --accent-color: #d97706;
+    --accent-color: var(--cf-gold-deep);
     --accent-bg: #3d3526;
     --text-secondary: #9c9a92;
     --text-primary: #c2c0b5;
@@ -112,6 +112,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 24px;
 }
 
@@ -149,6 +151,7 @@ body {
 .search-controls {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 20px;
 }
@@ -160,7 +163,8 @@ body {
     border-radius: 8px;
     color: var(--title-color);
     font-size: 14px;
-    max-width: 320px;
+    min-width: 0;
+    max-width: min(320px, 100%);
     cursor: pointer;
     outline: none;
 }
@@ -173,7 +177,8 @@ body {
 
 .search-box {
     position: relative;
-    flex: 1;
+    flex: 1 1 240px;
+    min-width: 0;
     max-width: 500px;
 }
 
@@ -206,29 +211,17 @@ body {
     border-color: var(--scrollbar);
 }
 
-.filters-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 24px;
-    gap: 16px;
-}
-
-/* A full-width row above the category filter and the sort */
+/* A full-width row under the view buttons, the category filter and the sort */
 .filter-pills {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 12px;
+    margin-bottom: 20px;
 }
 
 .pill-count {
     color: var(--text-secondary);
     font-size: 12px;
-}
-
-.filter-pill.empty {
-    opacity: 0.55;
 }
 
 .filter-pill {
@@ -244,13 +237,17 @@ body {
 }
 
 .filter-pill:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.14);
     color: var(--title-color);
 }
 
 .filter-pill.active {
-    background: #000;
-    color: var(--title-color);
+    background: var(--cf-gold-pill);
+    color: #ffffff;
+}
+
+.filter-pill.active .pill-count {
+    color: #ffffff;
 }
 
 .sort-controls {
@@ -291,8 +288,14 @@ body {
 }
 
 .folder-card:hover {
-    border-color: var(--button-hover);
+    background: #484848;
+    border-color: transparent;
     transform: translateY(-1px);
+}
+
+.folder-card:hover .folder-name,
+.folder-card:hover .folder-count {
+    color: #ffffff;
 }
 
 .folder-category {
@@ -601,24 +604,14 @@ body {
     color: var(--private-text);
 }
 
+/* The sidebar keeps its place on a narrow window, and its toggle collapses it (lib/page-frame.css) */
 @media (max-width: 768px) {
-    .sidebar {
-        position: fixed;
-        left: -260px;
-        z-index: 100;
-    }
-    
     .content-view {
         padding: 20px;
     }
 
     .top-bar {
         padding: 20px 20px 0;
-    }
-    
-    .filters-bar {
-        flex-direction: column;
-        align-items: stretch;
     }
     
     .folder-grid {
@@ -768,6 +761,60 @@ body {
     background: rgba(255, 255, 255, 0.05);
     color: var(--title-color);
     border-color: var(--scrollbar);
+}
+
+/* The top bar's buttons and Import from another account each have their own color. The gold buttons follow the
+   settings page's Button color (lib/color-variants.js). */
+#analyticsBtn,
+#syncBtn,
+#organizeBtn,
+#exportBtn,
+#importBtn,
+#settingsBtn,
+#newFolderBtn,
+#importAccountBtn {
+    border: none;
+    color: #ffffff;
+}
+
+#analyticsBtn {
+    background: #487f41;
+}
+
+#analyticsBtn:hover {
+    background: #649f5d;
+}
+
+#syncBtn,
+#organizeBtn {
+    background: var(--cf-gold);
+}
+
+#syncBtn:hover,
+#organizeBtn:hover {
+    background: var(--cf-gold-hover);
+}
+
+#exportBtn,
+#importBtn,
+#settingsBtn,
+#importAccountBtn {
+    background: #656565;
+}
+
+#exportBtn:hover,
+#importBtn:hover,
+#settingsBtn:hover,
+#importAccountBtn:hover {
+    background: #8c8c8c;
+}
+
+#newFolderBtn {
+    background: #386780;
+}
+
+#newFolderBtn:hover {
+    background: #4e809a;
 }
 
 /* Modal styles */
@@ -1060,7 +1107,7 @@ body {
 }
 
 .view-offline-btn {
-  background: #d97706;
+  background: var(--cf-view-offline);
   color: white;
   border: none;
   padding: 6px 12px;
@@ -1074,7 +1121,7 @@ body {
 }
 
 .view-offline-btn:hover {
-  background: #b45309;
+  background: var(--cf-view-offline-hover);
   transform: translateY(-1px);
 }
 
@@ -1093,9 +1140,9 @@ body {
 }
 
 .view-chat-btn {
-  background: var(--input-bg);
-  color: var(--body-text);
-  border: 1px solid var(--input-border);
+  background: #515151;
+  color: #ffffff;
+  border: none;
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 11px;
@@ -1110,8 +1157,8 @@ body {
 }
 
 .view-chat-btn:hover {
-  background: var(--input-border);
-  color: var(--title-color);
+  background: #707070;
+  color: #ffffff;
 }
 
 .chat-item-content {
@@ -1258,4 +1305,84 @@ body {
 .cf-run-failures a {
   color: inherit;
   text-decoration: underline;
+}
+
+/* The notice for a newer version on GitHub and the Check for updates button (lib/update-notice.js) */
+.cf-update-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.cf-update-text {
+  flex: 1;
+}
+
+.cf-update-link {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--accent-color);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-update-link:hover {
+  background: var(--cf-amber-dark);
+}
+
+.cf-update-close {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cf-update-close:hover {
+  color: var(--text-primary);
+}
+
+.cf-update-check {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.cf-update-check:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.cf-update-check:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+
+.cf-update-slot:not(:empty) {
+  margin: 0 0 16px;
+}
+
+/* In the footer the button has the footer link's colors (lib/page-frame.css) */
+.app-footer .cf-update-check {
+  color: var(--footer-text);
+}
+
+.app-footer .cf-update-check:hover {
+  color: var(--footer-hover);
+  text-decoration: none;
 }

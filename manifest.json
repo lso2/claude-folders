@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Claude Folders",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Organize your Claude conversations into folders",
   "permissions": [
     "storage",
     "tabs",
     "offscreen",
     "nativeMessaging",
-    "alarms"
+    "alarms",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "https://claude.ai/*"
@@ -29,7 +30,11 @@
         "lib/chat-exporter.js",
         "lib/share-snapshots.js",
         "lib/storage-keys.js",
+        "lib/color-variants.js",
+        "lib/button-color.js",
+        "lib/update-notice.js",
         "lib/account-view.js",
+        "lib/account-view-store.js",
         "lib/export-state.js",
         "lib/folder-picker.js",
         "lib/organize-prompt.js",
@@ -92,6 +97,7 @@
         "content/cf-boot.js"
       ],
       "css": [
+        "lib/color-variants.css",
         "inject.css"
       ],
       "run_at": "document_idle"

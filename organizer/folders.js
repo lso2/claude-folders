@@ -1,11 +1,14 @@
 // organizer/folders.js
 // Renders the organizer's folder grid and folder detail header and creates new folders.
-// Globals: showNewFolderModal, sortFolders, filterFolders, renderFolderList, openFolder,
-//          filterCategoriesBySearch
+// Globals: categoryFilterTerm, showNewFolderModal, sortFolders, filterFolders, renderFolderList, openFolder,
+//          applyCategoryPillFilter, filterCategoriesBySearch
 // Depends on: organizer/app.js (state, esc, saveData, refreshView, showFolderListView),
 //             organizer/accounts.js (viewFolders), organizer/chats.js (renderChatList),
-//             organizer/content-search.js (contentMatchChatIds)
+//             organizer/content-search.js (contentMatchChatIds, setSearchScope)
 // Notes: docs/notes/organizer/folders.js.md
+
+// The Filter categories box's text, lowercased. It narrows the category pills and the folder cards by category name.
+let categoryFilterTerm = '';
 
 function showNewFolderModal() {
   const modal = document.createElement('div');
@@ -71,6 +74,9 @@ function filterFolders() {
   if (currentCategory !== 'all') {
     filtered = filtered.filter(f => f.category === currentCategory);
   }
+  if (categoryFilterTerm) {
+    filtered = filtered.filter(f => String(f.category || '').toLowerCase().includes(categoryFilterTerm));
+  }
   // A folder holding a chat the content search listed is shown too (organizer/content-search.js)
   if (searchTerm) {
     const term = searchTerm.toLowerCase();
@@ -89,10 +95,13 @@ function renderFolderList() {
   const filtered = filterFolders();
   
   if (filtered.length === 0) {
+    const hint = categoryFilterTerm
+      ? 'No category name of the folders shown has the Filter categories text.'
+      : 'Click "+ New folder" to create one, or use Import to add organized data';
     folderGrid.innerHTML = `
       <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--body-text);">
         <h3 style="font-size: 18px; margin-bottom: 8px; color: var(--title-color);">No folders found</h3>
-        <p>Click "+ New folder" to create one, or use Import to add organized data</p>
+        <p>${hint}</p>
       </div>
     `;
     return;
@@ -145,14 +154,6 @@ function openFolder(folderId) {
         </span>
         ${currentFolder.own && chatCount ? '<button class="btn-secondary" id="exportFolderBtn" style="margin-left: auto;" title="Save each chat of this folder as a markdown file in the data folder">Export folder</button>' : ''}
       </div>
-      <div style="margin-bottom: 16px;">
-        <div style="position: relative; max-width: 500px;">
-          <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-          </svg>
-          <input type="text" id="folderChatSearch" placeholder="Search chat titles" style="width: 100%; padding: 10px 12px 10px 40px; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--title-color); font-size: 14px; box-sizing: border-box;">
-        </div>
-      </div>
     `;
     
     // Re-attach back button handler
@@ -161,11 +162,6 @@ function openFolder(folderId) {
       showFolderListView();
     });
     
-    // Attach search handler
-    document.getElementById('folderChatSearch')?.addEventListener('input', (e) => {
-      renderChatList(e.target.value);
-    });
-
     // The Folders panel's folder export, run in the claude.ai tab (organizer/run-start.js)
     document.getElementById('exportFolderBtn')?.addEventListener('click', startOrganizerFolderExport);
   }
@@ -174,19 +170,21 @@ function openFolder(folderId) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelector('.tab[data-tab="chats"]')?.classList.add('active');
   
+  // The search bar of the home searches this folder's chats while the folder is open (organizer/content-search.js)
+  setSearchScope(true);
   renderChatList();
 }
 // ========== CATEGORY SEARCH ==========
-function filterCategoriesBySearch(searchValue) {
-  const search = searchValue.toLowerCase().trim();
-  const pills = document.querySelectorAll('.filter-pill');
-  
-  pills.forEach(pill => {
+// All Folders stays. Called again each time the pills are drawn (organizer/app.js renderCategoryFilters).
+function applyCategoryPillFilter() {
+  document.querySelectorAll('#filterPills .filter-pill').forEach(pill => {
     const category = pill.dataset.filter;
-    if (category === 'all' || search === '' || category.toLowerCase().includes(search)) {
-      pill.style.display = '';
-    } else {
-      pill.style.display = 'none';
-    }
+    pill.style.display = category === 'all' || !categoryFilterTerm || category.toLowerCase().includes(categoryFilterTerm) ? '' : 'none';
   });
+}
+
+function filterCategoriesBySearch(searchValue) {
+  categoryFilterTerm = String(searchValue || '').toLowerCase().trim();
+  applyCategoryPillFilter();
+  renderFolderList();
 }

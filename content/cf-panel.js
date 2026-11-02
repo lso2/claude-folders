@@ -4,7 +4,7 @@
 //          renderPanelContent
 // Depends on: lib/storage-keys.js (SETUP_STEPS_OPEN_KEY), content/cf-state.js, content/cf-text.js, content/cf-account-view.js, content/cf-folder-pane.js,
 //             content/cf-organize.js, content/cf-organize-modal.js, content/cf-export-run.js, content/cf-migrate-button.js,
-//             content/cf-row-hover.js (cfSetFoldersRowOpen)
+//             content/cf-row-hover.js (cfSetFoldersRowOpen), lib/update-notice.js (cfAskForUpdate, cfRenderUpdateNotices, cfWireUpdateCheck)
 // Notes: docs/notes/content/cf-panel.js.md
 
 // The square-check's stored choice: false keeps the organize actions collapsed. The panel is drawn again on
@@ -48,6 +48,7 @@ function toggleFoldersPanel() {
   renderPanelContent(panel);
   document.body.appendChild(panel);
   cfSetFoldersRowOpen(true);
+  cfAskForUpdate(false);
 
   // The stored account view and the other accounts are read on open, then the panel redraws with them
   Promise.all([cfLoadAccountView(), cfLoadAccountList()]).then(() => {
@@ -120,6 +121,9 @@ function renderPanelContent(panel) {
       </div>
     </div>
     
+    <!-- The notice for a newer version on GitHub (lib/update-notice.js) -->
+    <div class="cf-update-slot"></div>
+
     <!-- Analytics View (hidden by default) -->
     <div class="panel-analytics-view" style="display:none;">
       <div class="panel-analytics-header">
@@ -206,10 +210,14 @@ function renderPanelContent(panel) {
     });
   }
   
-  html += `</div></div>`;
+  html += `</div>
+    <div class="panel-update-row"><button type="button" class="cf-update-check panel-update-check">Check for updates</button></div>
+  </div>`;
   // The open folder pane is part of the panel's markup. Its state is read before the redraw replaces that markup.
   const paneState = cfFolderPaneState(panel);
   panel.innerHTML = html;
+  cfRenderUpdateNotices();
+  cfWireUpdateCheck(panel.querySelector('.panel-update-check'));
 
   panel.querySelector('.cf-account-select')?.addEventListener('change', async (e) => {
     cfAccountView = e.target.value;

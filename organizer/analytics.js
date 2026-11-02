@@ -20,6 +20,7 @@ function showAnalyticsView() {
   document.getElementById('folderListView')?.classList.add('hidden');
   document.getElementById('folderDetailView')?.classList.add('hidden');
   document.getElementById('analyticsView')?.classList.remove('hidden');
+  document.getElementById('searchArea').hidden = true;
   setAnalyticsPressed(true);
   renderAnalytics();
 }
@@ -27,6 +28,7 @@ function showAnalyticsView() {
 function hideAnalyticsView() {
   document.getElementById('analyticsView')?.classList.add('hidden');
   document.getElementById('folderListView')?.classList.remove('hidden');
+  document.getElementById('searchArea').hidden = false;
   setAnalyticsPressed(false);
 }
 

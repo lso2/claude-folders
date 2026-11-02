@@ -1,0 +1,71 @@
+/* lib/color-variants.css
+   Every orange of the extension as a CSS relative color of --cf-base, the button color chosen on the settings page.
+   With the default orange, each keeps the OKLCH lightness offset, chroma ratio and hue offset it has from #c48135.
+   With a chosen color, each keeps the chosen hue.
+   Notes: docs/notes/lib/color-variants.css.md */
+
+/* --cf-base is set on the root element by lib/color-variants.js. Its default is the default button orange. */
+:root {
+  --cf-base: #c48135;
+  --cf-orange: var(--cf-base);
+  --cf-orange-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.05600, 0.95) calc(c * 0.9065) calc(h + 1.599));
+  --cf-amber: oklch(from var(--cf-base) clamp(0.05, l + 0.00693, 0.95) calc(c * 1.2884) calc(h - 7.514));
+  --cf-amber-dark: oklch(from var(--cf-base) clamp(0.05, l - 0.10363, 0.95) calc(c * 1.1909) calc(h - 16.835));
+  --cf-brown: oklch(from var(--cf-base) clamp(0.05, l - 0.20579, 0.95) calc(c * 0.5930) calc(h - 23.624));
+  --cf-terracotta: oklch(from var(--cf-base) clamp(0.05, l + 0.00366, 0.95) calc(c * 1.0201) calc(h - 23.882));
+  --cf-gold: oklch(from var(--cf-base) clamp(0.05, l - 0.06840, 0.95) calc(c * 0.9164) calc(h + 10.318));
+  --cf-gold-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.01909, 0.95) calc(c * 1.0613) calc(h + 10.021));
+  --cf-gold-deep: oklch(from var(--cf-base) clamp(0.05, l - 0.08325, 0.95) calc(c * 0.9695) calc(h + 16.809));
+  --cf-gold-pill: oklch(from var(--cf-base) clamp(0.05, l - 0.07588, 0.95) calc(c * 0.9440) calc(h + 13.737));
+  --cf-view-offline: oklch(from var(--cf-base) clamp(0.05, l - 0.06095, 0.95) calc(c * 0.8965) calc(h + 6.951));
+  --cf-view-offline-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.00018, 0.95) calc(c * 1.0495) calc(h + 5.710));
+  --cf-settings-accent: oklch(from var(--cf-base) clamp(0.05, l + 0.00588, 0.95) calc(c * 1.0911) calc(h - 1.236));
+  --cf-settings-accent-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.03338, 0.95) calc(c * 0.9663) calc(h + 2.057));
+  --cf-export-bar: oklch(from var(--cf-base) clamp(0.05, l + 0.02342, 0.95) calc(c * 1.1593) calc(h + 2.562));
+  --cf-copper: oklch(from var(--cf-base) clamp(0.05, l - 0.04096, 0.95) calc(c * 0.9584) calc(h - 5.434));
+  --cf-copper-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.00539, 0.95) calc(c * 0.9842) calc(h - 6.298));
+  --cf-rust: oklch(from var(--cf-base) clamp(0.05, l - 0.10548, 0.95) calc(c * 1.4230) calc(h - 27.430));
+  --cf-rust-dark: oklch(from var(--cf-base) clamp(0.05, l - 0.18911, 0.95) calc(c * 1.1708) calc(h - 28.529));
+}
+
+/* A chosen color other than the default (data-cf-custom-color, set by lib/color-variants.js): every variant keeps the
+   chosen hue, the default's lightness offset, and a chroma no higher than the chosen color's. Chroma follows lightness
+   down toward black or up toward white, which keeps the variant inside sRGB with its hue. */
+:root[data-cf-custom-color] {
+  --cf-orange-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.05600, 0.95)
+    calc(c * 0.9065 * min(1, (1 - clamp(0.05, l + 0.05600, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-amber: oklch(from var(--cf-base) clamp(0.05, l + 0.00693, 0.95)
+    calc(c * 1.0000 * min(1, (1 - clamp(0.05, l + 0.00693, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-amber-dark: oklch(from var(--cf-base) clamp(0.05, l - 0.10363, 0.95)
+    calc(c * 1.0000 * clamp(0.05, l - 0.10363, 0.95) / max(l, 0.01)) h);
+  --cf-brown: oklch(from var(--cf-base) clamp(0.05, l - 0.20579, 0.95)
+    calc(c * 0.5930 * clamp(0.05, l - 0.20579, 0.95) / max(l, 0.01)) h);
+  --cf-terracotta: oklch(from var(--cf-base) clamp(0.05, l + 0.00366, 0.95)
+    calc(c * 1.0000 * min(1, (1 - clamp(0.05, l + 0.00366, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-gold: oklch(from var(--cf-base) clamp(0.05, l - 0.06840, 0.95)
+    calc(c * 0.9164 * clamp(0.05, l - 0.06840, 0.95) / max(l, 0.01)) h);
+  --cf-gold-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.01909, 0.95)
+    calc(c * 1.0000 * min(1, (1 - clamp(0.05, l + 0.01909, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-gold-deep: oklch(from var(--cf-base) clamp(0.05, l - 0.08325, 0.95)
+    calc(c * 0.9695 * clamp(0.05, l - 0.08325, 0.95) / max(l, 0.01)) h);
+  --cf-gold-pill: oklch(from var(--cf-base) clamp(0.05, l - 0.07588, 0.95)
+    calc(c * 0.9440 * clamp(0.05, l - 0.07588, 0.95) / max(l, 0.01)) h);
+  --cf-view-offline: oklch(from var(--cf-base) clamp(0.05, l - 0.06095, 0.95)
+    calc(c * 0.8965 * clamp(0.05, l - 0.06095, 0.95) / max(l, 0.01)) h);
+  --cf-view-offline-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.00018, 0.95)
+    calc(c * 1.0000 * min(1, (1 - clamp(0.05, l + 0.00018, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-settings-accent: oklch(from var(--cf-base) clamp(0.05, l + 0.00588, 0.95)
+    calc(c * 1.0000 * min(1, (1 - clamp(0.05, l + 0.00588, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-settings-accent-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.03338, 0.95)
+    calc(c * 0.9663 * min(1, (1 - clamp(0.05, l + 0.03338, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-export-bar: oklch(from var(--cf-base) clamp(0.05, l + 0.02342, 0.95)
+    calc(c * 1.0000 * min(1, (1 - clamp(0.05, l + 0.02342, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-copper: oklch(from var(--cf-base) clamp(0.05, l - 0.04096, 0.95)
+    calc(c * 0.9584 * clamp(0.05, l - 0.04096, 0.95) / max(l, 0.01)) h);
+  --cf-copper-hover: oklch(from var(--cf-base) clamp(0.05, l + 0.00539, 0.95)
+    calc(c * 0.9842 * min(1, (1 - clamp(0.05, l + 0.00539, 0.95)) / max(1 - l, 0.01))) h);
+  --cf-rust: oklch(from var(--cf-base) clamp(0.05, l - 0.10548, 0.95)
+    calc(c * 1.0000 * clamp(0.05, l - 0.10548, 0.95) / max(l, 0.01)) h);
+  --cf-rust-dark: oklch(from var(--cf-base) clamp(0.05, l - 0.18911, 0.95)
+    calc(c * 1.0000 * clamp(0.05, l - 0.18911, 0.95) / max(l, 0.01)) h);
+}

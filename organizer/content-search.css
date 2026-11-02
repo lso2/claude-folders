@@ -161,7 +161,7 @@ a.content-search-chat:hover {
 }
 
 .content-search-mode.active {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
     color: var(--title-color);
 }
 

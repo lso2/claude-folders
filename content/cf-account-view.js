@@ -1,8 +1,8 @@
 // content/cf-account-view.js
 // The folders panel's account view: the account dropdown and the folders and chats it shows.
-// Globals: cfOwnAccount, cfViewAccounts, cfDefaultAccountView, cfLoadAccountView, cfSaveAccountView,
+// Globals: cfOwnAccount, cfViewAccounts, cfLoadAccountView, cfSaveAccountView,
 //          cfLoadAccountList, cfRenderAccountSelect, cfViewFolders, cfOrgTag, cfAccountTag
-// Depends on: lib/account-view.js, content/cf-state.js, content/cf-account.js, content/cf-text.js,
+// Depends on: lib/account-view.js, lib/account-view-store.js, content/cf-state.js, content/cf-account.js, content/cf-text.js,
 //             lib/storage-keys.js, lib/accounts.js (the listAccounts answer)
 // Notes: docs/notes/content/cf-account-view.js.md
 
@@ -28,35 +28,22 @@ function cfViewAccounts() {
   return [cfOwnAccount(), ...others];
 }
 
-async function cfDefaultAccountView() {
-  try {
-    const stored = await chrome.storage.local.get(ACCOUNT_VIEW_DEFAULT_KEY);
-    if (stored[ACCOUNT_VIEW_DEFAULT_KEY] === 'all') return 'all';
-  } catch (e) {
-    console.log('[CONTENT] The default account view was not read:', e.message);
-  }
-  return 'acct:' + cfAccountKey;
-}
-
-// The choice stored for this login, else the settings page's default
+// The choice stored for this login, else the settings page's default (lib/account-view-store.js)
 async function cfLoadAccountView() {
-  let view = null;
-  try {
-    const stored = await chrome.storage.local.get(cfAccountViewKey());
-    view = stored[cfAccountViewKey()] || null;
-  } catch (e) {
-    console.log('[CONTENT] The account view was not read:', e.message);
-  }
-  cfAccountView = cfParseAccountView(view) ? view : await cfDefaultAccountView();
+  cfAccountView = await cfReadAccountView(cfAccountKey);
 }
 
 async function cfSaveAccountView() {
-  try {
-    await chrome.storage.local.set({ [cfAccountViewKey()]: cfAccountView });
-  } catch (e) {
-    console.log('[CONTENT] The account view was not stored:', e.message);
-  }
+  await cfStoreAccountView(cfAccountKey, cfAccountView);
 }
+
+// A choice made in the organizer or the popup redraws the open panel
+cfWatchAccountView(() => cfAccountKey, (view) => {
+  if (view === cfAccountView) return;
+  cfAccountView = view;
+  const panel = document.querySelector('.claude-folders-panel');
+  if (panel) renderPanelContent(panel);
+});
 
 // Other accounts come from other logins of this browser profile and from their data files
 async function cfLoadAccountList() {

@@ -14,13 +14,20 @@ const ROOT = path.resolve(__dirname, '..');
 const DOCS_ROOT = path.resolve(ROOT, '..', 'docs');
 const SIZE_LIMIT = 30 * 1024;
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'docs', '.bak', '.complete', '.run', '_scripts', '.not__current']);
-const PAGES = ['popup/popup.html', 'organizer/index.html', 'offscreen.html', 'access/index.html', 'standalone/index.html', 'update/index.html', 'settings/index.html'];
+const PAGES = ['popup/popup.html', 'organizer/index.html', 'organizer/export-view.html', 'offscreen.html', 'access/index.html', 'standalone/index.html', 'standalone/view.html', 'update/index.html', 'settings/index.html'];
 // Node tools are run by hand, so this list is their load list
 const NODE_TOOLS = ['tools/check-project.js'];
 // standalone/data.js is written into the user's data folder at runtime, never shipped
 const RUNTIME_GENERATED = ['standalone/data.js'];
 // lib/data-file.js copies these shipped files beside the standalone viewer at runtime
-const RUNTIME_COPIES = { 'standalone/chat-markdown.js': 'lib/chat-markdown.js', 'standalone/page-dialog.js': 'lib/page-dialog.js' };
+const RUNTIME_COPIES = {
+  'standalone/chat-markdown.js': 'lib/chat-markdown.js',
+  'standalone/page-dialog.js': 'lib/page-dialog.js',
+  'standalone/html-escape.js': 'lib/html-escape.js',
+  'standalone/export-render.js': 'lib/export-render.js',
+  'standalone/export-page.js': 'lib/export-page.js',
+  'standalone/color-variants.js': 'lib/color-variants.js'
+};
 
 const problems = [];
 const report = (msg) => problems.push(msg);

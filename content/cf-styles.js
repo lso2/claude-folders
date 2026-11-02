@@ -38,7 +38,7 @@ function injectStyles() {
       gap: 8px;
       width: 100%;
       padding: 10px 12px;
-      background: #d97706;
+      background: var(--cf-orange);
       border: none;
       border-radius: 6px;
       color: #fff;
@@ -47,7 +47,7 @@ function injectStyles() {
       cursor: pointer;
     }
     .organize-auto-btn:hover {
-      background: #b45309;
+      background: var(--cf-orange-hover);
     }
     .organize-steps-label {
       margin: 10px 0 6px;
@@ -60,7 +60,7 @@ function injectStyles() {
       gap: 8px;
       width: 100%;
       padding: 10px 12px;
-      background: #d97706;
+      background: var(--cf-orange);
       border: none;
       border-radius: 6px;
       color: #fff;
@@ -70,7 +70,7 @@ function injectStyles() {
       transition: all 0.15s;
     }
     .ask-claude-btn:hover {
-      background: #b45309;
+      background: var(--cf-orange-hover);
       transform: translateY(-1px);
     }
     .apply-categories-btn {
@@ -251,7 +251,7 @@ function injectStyles() {
     }
     .categories-modal-body textarea:focus {
       outline: none;
-      border-color: #d97706;
+      border-color: var(--cf-orange);
     }
     .modal-stats {
       margin-top: 12px;
@@ -287,11 +287,11 @@ function injectStyles() {
       color: #e8e6e3;
     }
     .modal-btn.preview-btn {
-      background: #d97706;
+      background: var(--cf-orange);
       border: none;
       color: #fff;
     }
-    .modal-btn.preview-btn:hover { background: #b45309; }
+    .modal-btn.preview-btn:hover { background: var(--cf-orange-hover); }
     .modal-btn.preview-btn.done {
       background: #3d3d3a;
       color: #9c9a92;

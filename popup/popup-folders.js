@@ -2,7 +2,8 @@
 // Renders the popup's folder list, category filters and folder menu, and edits categories.
 // Globals: showEditCategoriesModal, renderCategoriesList, renderCategoryFilters, renderFolders,
 //          showFolderMenu, showRenameFolderModal, showDeleteFolderModal, updateStats, popupEsc
-// Depends on: popup/popup.js (state, saveData), popup/popup.html (renameFolderModal, confirmDeleteModal)
+// Depends on: popup/popup.js (state, saveData), popup/popup.html (renameFolderModal, confirmDeleteModal),
+//             popup/popup-accounts.js (popupShownFolders)
 // Notes: docs/notes/popup/popup-folders.js.md
 
 // Names come from the folder data and Claude's answers, and are inserted as text
@@ -52,12 +53,15 @@ function renderCategoryFilters() {
   const container = document.getElementById('filterPills');
   if (!container) return;
   
-  // Each pill counts its folders; categories with folders keep their order, and empty ones follow them, dimmed
+  // Each pill counts the shown folders in it (popup/popup-accounts.js). This login's categories come first, then
+  // other accounts' ones. A category with no folders gets no pill, and the category itself is kept.
+  const shown = popupShownFolders();
   const counts = new Map();
-  folders.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
-  const ordered = categories.filter(cat => counts.get(cat)).concat(categories.filter(cat => !counts.get(cat)));
-  const pill = (value, label, count, active) => `<button class="filter-pill${active ? ' active' : ''}${count ? '' : ' empty'}" data-filter="${popupEsc(value)}">${popupEsc(label)} <span class="pill-count">(${count})</span></button>`;
-  container.innerHTML = pill('all', 'All', folders.length, true) + ordered.map(cat => pill(cat, cat, counts.get(cat) || 0, false)).join('');
+  shown.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
+  const withFolders = [...new Set([...categories, ...shown.map(f => f.category)].filter(Boolean))].filter(cat => counts.get(cat));
+  if (currentFilter !== 'all' && !withFolders.includes(currentFilter)) currentFilter = 'all';
+  const pill = (value, label, count) => `<button class="filter-pill${currentFilter === value ? ' active' : ''}" data-filter="${popupEsc(value)}">${popupEsc(label)} <span class="pill-count">(${count})</span></button>`;
+  container.innerHTML = pill('all', 'All', shown.length) + withFolders.map(cat => pill(cat, cat, counts.get(cat))).join('');
   
   container.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -73,7 +77,8 @@ function renderFolders() {
   const container = document.getElementById('folderList');
   if (!container) return;
   
-  let filtered = folders;
+  const shown = popupShownFolders();
+  let filtered = shown;
   if (currentFilter !== 'all') {
     filtered = filtered.filter(f => f.category === currentFilter);
   }
@@ -84,7 +89,7 @@ function renderFolders() {
     );
   }
   
-  if (folders.length === 0) {
+  if (shown.length === 0) {
     container.innerHTML = `<div class="empty-state"><p>No folders yet</p><p>Import chats using the button above</p></div>`;
     return;
   }
@@ -123,7 +128,7 @@ function renderFolders() {
                 </div>
                 <div class="folder-actions">
                   <span class="folder-count">${folder.chats?.length || 0}</span>
-                  <button class="folder-menu-btn" data-folder-id="${popupEsc(folder.id)}">⋮</button>
+                  ${folder.own ? `<button class="folder-menu-btn" data-folder-id="${popupEsc(folder.id)}">⋮</button>` : ''}
                 </div>
               </div>
             </div>
@@ -238,6 +243,8 @@ function showFolderMenu(btn, folderId) {
 function updateStats() {
   const el = document.getElementById('statsText');
   if (el) {
-    el.textContent = `${folders.length} folders • ${allChats.length} chats`;
+    const shown = popupShownFolders();
+    const chats = shown.reduce((n, f) => n + (f.chats || []).length, 0);
+    el.textContent = `${shown.length} folder${shown.length === 1 ? '' : 's'} • ${chats} chat${chats === 1 ? '' : 's'}`;
   }
 }

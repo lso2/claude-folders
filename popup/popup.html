@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claude Folders</title>
+  <link rel="stylesheet" href="../lib/color-variants.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -58,6 +59,9 @@
         </div>
       </header>
 
+      <!-- The notice for a newer version on GitHub (lib/update-notice.js) -->
+      <div class="cf-update-slot"></div>
+
       <div id="folderAccessBanner" class="access-banner hidden">
         <span id="folderAccessText" class="access-banner-text"></span>
         <button id="folderAccessBtn" class="access-banner-btn">Open access window</button>
@@ -104,6 +108,9 @@
           </div>
         </div>
       </div>
+
+      <!-- The accounts the folders below show, the same choice as the Folders panel and the organizer (popup/popup-accounts.js) -->
+      <select id="popupAccountSelect" class="popup-account-select" aria-label="Accounts shown" hidden></select>
 
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -155,6 +162,7 @@
         <div class="footer-stats">
           <div class="stats" id="statsText"></div>
           <div class="stats-sub" id="lastSyncText"></div>
+          <button type="button" class="cf-update-check" id="popupUpdateCheck">Check for updates</button>
         </div>
         <button id="syncBtn" class="btn-sync-footer" title="Read every chat and Cowork session of this login, export the ones missing in the data folder and update the outdated exports">Sync</button>
       </div>
@@ -254,6 +262,9 @@
   <script src="../lib/build-reload.js"></script>
   <script src="../lib/apply-update.js"></script>
   <script src="../lib/storage-keys.js"></script>
+  <script src="../lib/color-variants.js"></script>
+  <script src="../lib/button-color.js"></script>
+  <script src="../lib/update-notice.js"></script>
   <script src="../lib/page-dialog.js"></script>
   <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
@@ -265,10 +276,13 @@
   <script src="../lib/organize-prompt.js"></script>
   <script src="../lib/organize-apply.js"></script>
   <script src="../lib/organize-json.js"></script>
+  <script src="../lib/account-view.js"></script>
+  <script src="../lib/account-view-store.js"></script>
   <script src="popup-access.js"></script>
   <script src="popup-picker.js"></script>
   <script src="popup.js"></script>
   <script src="popup-folders.js"></script>
+  <script src="popup-accounts.js"></script>
   <script src="popup-organize.js"></script>
   <script src="popup-organize-modal.js"></script>
   <script src="../lib/run-failures.js"></script>

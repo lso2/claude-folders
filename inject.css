@@ -2,6 +2,8 @@
    Styles every element the extension injects into claude.ai pages.
    Notes: docs/notes/inject.css.md */
 
+/* The oranges are defined in lib/color-variants.css, loaded before this file (manifest.json) */
+
 .claude-folders-btn {
   display: inline-flex;
   align-items: center;
@@ -386,7 +388,7 @@
 }
 
 .new-folder-input:focus {
-  border-color: #b87333;
+  border-color: var(--cf-copper);
 }
 
 .new-folder-select {
@@ -400,7 +402,7 @@
 
 .create-folder-btn {
   padding: 8px 16px;
-  background: #b87333;
+  background: var(--cf-copper);
   border: none;
   border-radius: 6px;
   color: white;
@@ -410,7 +412,7 @@
 }
 
 .create-folder-btn:hover {
-  background: #c98040;
+  background: var(--cf-copper-hover);
 }
 
 /* Notifications */
@@ -596,7 +598,7 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 
 .export-progress-bar {
   height: 100%;
-  background: #d97706;
+  background: var(--cf-orange);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -671,7 +673,7 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: #d97706;
+  background: var(--cf-orange);
   border: none;
   border-radius: 4px;
   color: white;
@@ -683,7 +685,7 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 }
 
 .panel-organizer-btn:hover {
-  background: #b45309;
+  background: var(--cf-orange-hover);
 }
 
 .panel-organizer-btn svg {
@@ -720,7 +722,7 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
   padding: 6px 12px;
   border: none;
   border-radius: 6px;
-  background: #d97706;
+  background: var(--cf-orange);
   color: #ffffff;
   font-size: 13px;
   font-weight: 500;
@@ -728,16 +730,16 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 }
 
 .cf-notice-btn:hover {
-  background: #b45309;
+  background: var(--cf-orange-hover);
 }
 
 .cf-notice-btn-primary {
-  background: #c2410c;
+  background: var(--cf-orange);
   color: #ffffff;
 }
 
 .cf-notice-btn-primary:hover {
-  background: #9a3412;
+  background: var(--cf-orange-hover);
 }
 
 .cf-notice-link {
@@ -820,22 +822,26 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 }
 
 .cf-confirm-cancel {
-  background: #d97706;
+  background: #535353;
   color: #ffffff;
 }
 
+.cf-confirm-cancel:hover {
+  background: #626262;
+}
+
 .cf-confirm-ok {
-  background: #c2410c;
+  background: var(--cf-orange);
   color: #ffffff;
 }
 
 .cf-confirm-ok:hover {
-  background: #9a3412;
+  background: var(--cf-orange-hover);
 }
 
 .cf-confirm-ok:disabled,
 .cf-confirm-ok:disabled:hover {
-  background: #c2410c;
+  background: var(--cf-orange);
   opacity: 0.5;
   cursor: default;
 }
@@ -921,7 +927,7 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: #c2410c;
+  accent-color: var(--cf-orange);
 }
 
 .cf-import-box .cf-import-batch-size {
@@ -1035,4 +1041,95 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 .sync-success-modal .cf-run-failures a {
   color: #e8e6e3;
   text-decoration: underline;
+}
+
+/* The notice for a newer version on GitHub and the Check for updates button (lib/update-notice.js) */
+.cf-update-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #30302e;
+  color: #c2c0b5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cf-update-text {
+  flex: 1;
+}
+
+.cf-update-link {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--cf-orange);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-update-link:hover {
+  background: var(--cf-orange-hover);
+}
+
+.cf-update-close {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: #9c9a92;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cf-update-close:hover {
+  color: #c2c0b5;
+}
+
+.cf-update-check {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #9c9a92;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cf-update-check:hover {
+  color: #c2c0b5;
+  text-decoration: underline;
+}
+
+.cf-update-check:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+
+.claude-folders-panel .cf-update-slot:not(:empty) {
+  margin: 8px 12px 0;
+}
+
+/* The 280px panel puts the text and × on the first row and Open GitHub under them */
+.claude-folders-panel .cf-update-notice {
+  flex-wrap: wrap;
+}
+
+.claude-folders-panel .cf-update-text {
+  flex: 1 1 calc(100% - 40px);
+}
+
+.claude-folders-panel .cf-update-close {
+  order: 2;
+}
+
+.claude-folders-panel .cf-update-link {
+  order: 3;
+}
+
+.panel-update-row {
+  padding: 8px 16px 12px;
 }

@@ -44,6 +44,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - The square-check's choice to show or collapse the organize steps is kept, in the panel and the popup
 - At the top are **Organize in One Click** and the 2 steps, **Ask Claude to Organize** and **Apply Claude's Response**. The square-check button shows and hides them
 - The account dropdown is under them, with **Import from another account** below it while another account has chats
+- The popup has the same account dropdown above its search box. The choice is stored once per login and is the same in the popup, the Folders panel and the organizer, and an open one follows a change made in another
 - Clicking a folder opens its chats in a second pane to the right of the panel, with full titles, 30 at a time with **Load more**
 - Clicking the folder again, the pane's **×** or pressing Escape closes the pane
 
@@ -60,6 +61,18 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - **Oldest message** needs the time each chat started. The first sync after 1.6.0 reads the whole conversation list once to record it for chats stored earlier
 - The account dropdown limits the listed chats to the accounts it shows. The search reads every account's exports
 - The title of another account's chat opens its export in a new tab. With no export, the title is plain text
+
+### Organizer Views
+- **Categories**, **Cards** and **List** above the home page choose its view. **Categories** is shown until another view is chosen
+- **List** and **Cards** show every chat of the folders the account dropdown shows, with each chat's folder, 100 at a time with **Show more**. The search box narrows them by chat title or folder name
+- **Categories** shows the category pills, the category filter and the folder cards
+- **Sort by** orders the chats of **List**, **Cards** and a folder's page: **Name**, **Most recent message**, **Oldest message** or **Export date**, with **Asc** and **Desc**
+- A folder's page has the same search bar as the home, searching that folder's chats
+- **View offline** appears on every chat whose export is in the data folder's `chats` folder, another account's chats included
+
+### Update Check
+- The popup, the Folders panel and the organizer show a notice when the version on GitHub is newer than the one installed, with **Open GitHub** and **×**. **×** hides the notice until a later version is published
+- The version is read from the extension's `manifest.json` on GitHub at most every 6 hours. **Check for updates** in the popup, the Folders panel and the organizer's footer reads it at once
 
 ### Organizer Top Bar
 - **Folders**, **Analytics**, **Sync**, **Organize**, **Export**, **Import**, **Settings** and **+ New folder** are at the top of every organizer page: the folder list, a folder and the analytics
@@ -141,29 +154,32 @@ Claude sorts your chat titles into categories and folders. The request is automa
 
 ### Settings Page
 - Opened from the browser's Extension options, the gear button in the popup and the Folders panel, or **Settings** in the organizer
-- A sidebar on the left has **Settings**, **Import/Export**, **Help** and **About**, with the organizer's collapse button, drag edge and row colors. The page opens on **Help** once after the extension is installed, and on **Settings** after that
-- A row of chips above the first section jumps to each section of the open tab, and scrolls left and right when it is wider than the page
+- A sidebar on the left has **Settings**, **Import/Export**, **Log**, **Help** and **About**, with the organizer's collapse button, drag edge and row colors. The page opens on **Help** once after the extension is installed, and on **Settings** after that
+- A row of chips above the first section filters the open tab: **All** shows every section and is chosen when a tab opens, and a section's chip shows that section alone. The row scrolls left and right when it is wider than the page
+- **Organizer** at the right of the title opens the organizer
 - The footer has the version, **GitHub** and **Donate**, as in the organizer
-- **About**: what Claude Folders is, **GitHub** and **Donate**, the version section and the attribution
+- **About**: what Claude Folders is, **Donate**, the version section and the attribution with the GitHub link
 - **Import/Export**: **Export settings** and **Import settings** for `claude-folders-settings.json`, **Export chat list** and **Import organized folders** for Claude's organizing, and the **Import from another account** section with **Open import dialog**
+- **Log**: syncs, exports, imports, folder changes, folder access and settings changes since the extension was installed, newest first, with **Clear log**. The newest 500 entries are shown, with **Show 500 older** for the rest, and the last 50,000 entries are kept
 - **Help**: the setup steps and the main features, with dark screenshots, buttons that do each step from the page, and a line under each setup step showing whether it is done
+- The **Settings** tab starts with **Automatic sync**, then **Button color**, **Data folder** and **Claude Folders Helper**
+- **Button color**: the color of the orange buttons on claude.ai and in the popup, chosen from six preset circles (the default orange first) or the **Custom color** square on the line under them, with a sample button and **Reset**. Every other orange of the extension is a CSS relative color of the chosen one, with the OKLCH lightness offset it has from the default orange and the chosen color's hue (`lib/color-variants.css`). **Apply to the organizer**, unchecked until checked, lets the organizer and its chat view follow the color too. Hovering a button shows a lighter shade of the chosen color, and open claude.ai tabs and popups change as soon as it is saved
 - **Data folder**: the folder and whether the folder writer can save into it, with **Open access window** and **Choose folder**
 - **Accounts**: each account with its chats, folders and organizations, and every account data file in the data folder
 - **Folders panel**: whether a login opens on its own folders or on all accounts
 - **Import from another account**, on the Import/Export tab: the request sent with each imported chat, a short request or a full reconstruction. A choice made in the import dialog is saved here
-- **Claude Folders Helper**: whether the helper is installed and finds the data folder, with **Check again**
-- **Version**: the extension version, its background's build, the extension ID and the last update reload
+- **Claude Folders Helper**: what the helper does, **GitHub releases** for its download, and whether it is installed and finds the data folder, with **Check again**
 - **Clear folder data**: clicking **Clear folders** and confirming empties this login's folders. Other accounts' data files are left as they are
 
 ### Saved Files and Show in Folder
 - After a single export, the Saved notice stays open until its **×** is clicked
 - An exported chat or Cowork session with messages newer than its export, or with an export that has no message timestamps, shows **Export Update**, which writes over the same file, and hovering over it explains this
 - Every sync exports the stored chats and Cowork sessions missing from the data folder, and writes the outdated exports again over their files
-- Chrome extensions cannot open File Explorer. On Windows, the Claude Folders Helper does it (setup steps in INSTALL.md). With the helper installed, the file name in the Saved notice is underlined and an exported, current chat shows **Show in folder**. Clicking either opens File Explorer with the file selected
+- Chrome extensions cannot open File Explorer. On Windows, the Claude Folders Helper does it. Its setup is a separate download on the [GitHub releases page](https://github.com/lso2/claude-folders/releases). With the helper installed, the file name in the Saved notice is underlined and an exported, current chat shows **Show in folder**. Clicking either opens File Explorer with the file selected
 - Without the helper, the Saved notice shows the file name as plain text, and an exported, current chat shows **Export**, which writes over the same file
 
 ### Offline Viewing
-- Click "View Offline" to read any exported chat
+- Click "View Offline" to read any exported chat. It opens in its own tab, `organizer/export-view.html` from the organizer and `view.html` from the library, and reloading the tab shows the chat again
 - Styled HTML viewer with proper markdown rendering
 - Code syntax highlighting
 - Works completely offline after export
@@ -205,10 +221,10 @@ Or download and extract the ZIP file.
 ### Step 3: Select Data Folder
 
 1. Click the extension icon in your toolbar
-2. Click **Select Data Folder**
-3. Choose or create a folder on your computer (e.g., `Documents/Claude-Data`)
-4. Grant permission when prompted
-5. Extension is ready to use
+2. Click **Select Data Folder**. The Data Folder Access window opens
+3. Click **Choose folder**, then choose or create a folder on your computer (e.g., `Documents/Claude-Data`)
+4. Click **Allow** in Chrome's prompt. The window minimizes itself and keeps the access while the browser is open
+5. The next time the browser starts, the window opens once: click **Allow access**, then **Allow on every visit**
 
 ### Step 4: Import Your Chats
 
@@ -274,7 +290,8 @@ Your-Data-Folder/
 ├── data.json            # Active account's folder definitions and chat assignments
 ├── data.<account>.json  # One file per Claude login, so accounts sharing a folder stay separate
 ├── data.js              # Same data for the standalone offline viewer
-├── index.html           # Offline library page, with app.js, styles.css, chat-markdown.js and library-files.js
+├── index.html           # Offline library page, with app.js, styles.css, chat-markdown.js, library-files.js and html-escape.js
+├── view.html            # One chat of the library, with view.js, export-render.js, export-page.js and export-page.css
 ├── chats/               # Exported markdown files
 │   ├── a1b2c3d4_Chat_Title_Here.md
 │   ├── e5f6g7h8_Another_Chat.md
@@ -378,15 +395,17 @@ Claude's response here...
 - After the extension is removed and added again, choose the same data folder. Each login's folders are read back from its `data.<account>.json`
 
 ### Folder access on every visit
-- Right after the data folder is chosen in the popup or the settings page, the Data Folder Access window opens
-- Clicking **Allow access** there, then the choice to allow access on every visit in Chrome's prompt, lets the extension save into the folder with no further prompts
+- The data folder is chosen on the settings page or in the Data Folder Access window, which the popup's **Select Data Folder** opens
+- After **Allow** in Chrome's prompt, the Data Folder Access window minimizes itself and keeps the access while the browser is open
+- Chrome offers **Allow on every visit** only when it asks again in a later browser session. The next time the browser starts, the Data Folder Access window opens once for that choice
+- After **Allow on every visit**, Chrome keeps the access through restarts and reinstalls, and the window does not open again
 
 ### Failed chats in a sync result
-- In the popup, the organizer and the result window on claude.ai, a line such as **32 x not permitted (org ae7efa, 1 tried)** opens the list of those chats as links to claude.ai
+- In the popup, the organizer and the result window on claude.ai, a line such as **32 x not permitted: Free users can only access their 5 most recently updated projects (org ae7efa, 1 tried)** opens the list of those chats as links to claude.ai
+- The text after **not permitted:** is Claude's own error message. On a free plan, chats in projects past the 5 most recently updated cannot be read
 
 ### Export says folder access is needed
-- Chrome's folder prompt for this extension has only Allow and Block
-- Exports are saved while the Data Folder Access window is open with access granted
+- Exports are saved while the Data Folder Access window is open with access granted, and with it closed once access is allowed on every visit
 - With that window closed, single exports are queued, bulk exports stop before the first chat, and the notice shows **Grant access**
 - Clicking **Grant access**, then **Allow access** in the Data Folder Access window, then **Allow** in Chrome's prompt writes the queued exports
 - While the folder writer cannot save, the popup shows a banner with **Open access window**, and the settings page shows the same state

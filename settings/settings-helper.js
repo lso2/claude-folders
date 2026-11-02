@@ -40,5 +40,5 @@ async function renderHelperSection(fresh) {
   hint.hidden = false;
   hint.textContent = answer.error === CF_HOST_FORBIDDEN
     ? `The helper is installed without this extension's ID (${chrome.runtime.id}). Running the helper setup again registers it.`
-    : 'ClaudeFoldersHelperSetup installs the helper on Windows (INSTALL.md, Claude Folders Helper). Without it, saved file names are plain text and an exported chat shows Export.';
+    : 'The helper setup from the GitHub releases page installs it on Windows. Without it, saved file names are plain text and an exported chat shows Export.';
 }

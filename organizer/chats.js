@@ -1,125 +1,31 @@
 // organizer/chats.js
-// Renders the chats inside an organizer folder with their offline, download and move controls.
+// Renders the chats inside an organizer folder, their activity, and the download, move and remove actions.
 // Globals: renderChatList, checkExportFileExists, downloadSingleChat, renderActivityTab,
 //          renderRecentChats, showChatMenu, showMoveChatModal, ownFolderOfView,
 //          reopenCurrentFolder, moveChat, deleteChat
 // Depends on: organizer/app.js, organizer/accounts.js (viewFolders), organizer/viewer.js, lib/export-files.js,
+//             organizer/chat-rows.js (loadExportedPrefixes, renderChatRows), organizer/chat-sort.js (sortChatItems),
 //             lib/chat-markdown.js (formatStamp, EXPORT_FORMAT), lib/export-state.js (recordExports), lib/page-dialog.js (cfPageConfirm)
 // Notes: docs/notes/organizer/chats.js.md
 
-async function renderChatList(searchFilter = '') {
+// The open folder's chats in the Sort by order (organizer/chat-sort.js), as rows or cards (organizer/chat-rows.js)
+async function renderChatList() {
   const container = document.getElementById('chatListContainer');
   if (!container || !currentFolder) return;
-  
-  // Get exported chats to know which have offline versions
-  let exportedChats = {};
-  try {
-    const result = await chrome.storage.local.get('exportedChats');
-    exportedChats = result.exportedChats || {};
-  } catch (e) {}
-  
-  let chats = currentFolder.chats ? [...currentFolder.chats].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)) : [];
-  
-  // Filter by search
-  if (searchFilter) {
-    const term = searchFilter.toLowerCase();
-    chats = chats.filter(c => c.title.toLowerCase().includes(term));
-  }
-  
-  container.className = `chat-list-container ${currentView}-view`;
-  
+  const chats = currentFolder.chats || [];
   if (chats.length === 0) {
+    container.className = `chat-list-container ${currentView}-view`;
     container.innerHTML = `
       <div style="text-align: center; padding: 60px 20px; color: var(--body-text);">
-        <h3 style="font-size: 18px; margin-bottom: 8px; color: var(--title-color);">${searchFilter ? 'No matching chats' : 'No chats in this folder'}</h3>
-        <p>${searchFilter ? 'Try a different search term' : 'Add chats from claude.ai using the "Add to folder" button'}</p>
+        <h3 style="font-size: 18px; margin-bottom: 8px; color: var(--title-color);">No chats in this folder</h3>
+        <p>Add chats from claude.ai using the "Add to folder" button</p>
       </div>
     `;
     return;
   }
-  
-  container.innerHTML = chats.map(chat => {
-    const hasExport = exportedChats[chat.id];
-    // Another account's chat cannot be read from this login, so it has no Download button
-    const other = !!chat.cfAccountLabel;
-    const offlineBtn = hasExport || !other ? `
-        <button class="view-offline-btn ${hasExport ? '' : 'download-btn'}" data-chat-id="${esc(chat.id)}" data-title="${esc(chat.title)}" title="${hasExport ? 'View exported markdown' : 'Download chat as markdown'}">
-          ${hasExport ? 'VIEW OFFLINE' : 'DOWNLOAD'}
-        </button>` : '';
-    return `
-    <div class="chat-item" data-chat-id="${esc(chat.id)}" data-url="${safeUrl(chat.url)}">
-      <div class="chat-item-buttons">${offlineBtn}
-        <button class="view-chat-btn" data-url="${safeUrl(chat.url)}" title="Open chat on Claude">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/>
-            <line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-          VIEW CHAT
-        </button>
-      </div>
-      <div class="chat-item-content">
-        <div class="chat-item-title">${other ? `<span class="chat-account-tag" title="${esc(chat.cfAccountLabel)}">${esc(chat.cfAccountLabel)}</span>` : ''}${esc(chat.title)}</div>
-        ${chat.snippet ? `<div class="chat-item-snippet">${esc(chat.snippet)}</div>` : ''}
-        ${chat.tags && chat.tags.length ? `
-          <div class="chat-item-tags">
-            ${chat.tags.slice(0, 3).map(tag => `<span class="chat-tag">#${esc(tag)}</span>`).join('')}
-          </div>
-        ` : ''}
-      </div>
-      <div class="chat-item-actions">
-        <div class="chat-item-date">${esc(formatStamp(chat.updatedAt || chat.date))}</div>
-        ${currentFolder.own && !other ? `<button class="chat-menu-btn" data-chat-id="${esc(chat.id)}">⋮</button>` : ''}
-      </div>
-    </div>
-  `}).join('');
-  
-  // VIEW OFFLINE / DOWNLOAD button handlers
-  container.querySelectorAll('.view-offline-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const chatId = btn.dataset.chatId;
-      const chatTitle = btn.dataset.title;
-      const hasExport = exportedChats[chatId];
-      
-      if (hasExport) {
-        // Open the markdown viewer
-        openMarkdownViewer(chatId, chatTitle);
-      } else {
-        // Download this chat
-        btn.disabled = true;
-        btn.textContent = 'DOWNLOADING...';
-        const success = await downloadSingleChat(chatId, chatTitle);
-        if (success) {
-          btn.classList.remove('download-btn');
-          btn.textContent = 'VIEW OFFLINE';
-          exportedChats[chatId] = new Date().toISOString();
-        } else {
-          btn.textContent = 'FAILED';
-          setTimeout(() => { btn.textContent = 'DOWNLOAD'; btn.disabled = false; }, 2000);
-        }
-      }
-    });
-  });
-  
-  // VIEW CHAT button handlers
-  container.querySelectorAll('.view-chat-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const url = btn.dataset.url;
-      if (url) window.open(url, '_blank');
-    });
-  });
-  
-  container.querySelectorAll('.chat-item').forEach(item => {
-    const menuBtn = item.querySelector('.chat-menu-btn');
-    if (menuBtn) {
-      menuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        showChatMenu(menuBtn, item.dataset.chatId);
-      });
-    }
-  });
+  await loadExportedPrefixes();
+  const items = sortChatItems(chats.map(chat => ({ chat, folder: currentFolder })));
+  await renderChatRows(container, items, currentView, { menu: true });
 }
 
 // Uses lib/export-files.js and the shared filename from lib/chat-markdown.js

@@ -12,18 +12,18 @@
       <h2 class="settings-heading" id="helpFolderHeading">Step 1: Choose the Data Folder</h2>
       <p class="help-status" id="helpFolderStatus">Checking the data folder...</p>
       <ol class="help-steps">
-        <li>Click <strong>Go to Data folder</strong> below, then <strong>Choose folder</strong> in the Data folder section.</li>
+        <li>Click <strong>Go to Data folder</strong> below, then <strong>Choose folder</strong> in the Data folder section. In the popup, <strong>Select Data Folder</strong> opens the Data Folder Access window with the same <strong>Choose folder</strong>.</li>
         <li>Pick an empty folder, such as <code>Documents/Claude-Data</code>, or the data folder you used before.</li>
-        <li>Click <strong>Select Folder</strong>, then <strong>Allow</strong> in Chrome's prompt.</li>
-        <li>The Data Folder Access window opens. Click <strong>Allow access</strong>, then in Chrome's prompt pick the choice that allows access on every visit.</li>
+        <li>Click <strong>Select Folder</strong>, then <strong>Allow</strong> in Chrome's prompt. The Data Folder Access window minimizes itself and keeps the access while the browser is open.</li>
+        <li>The next time the browser starts, the Data Folder Access window opens once. Click <strong>Allow access</strong>, then <strong>Allow on every visit</strong> in Chrome's prompt. Chrome keeps that choice after restarts and reinstalls.</li>
       </ol>
       <div class="settings-actions">
         <button type="button" class="btn" data-help-action="tab" data-tab="main" data-target="folderHeading">Go to Data folder</button>
         <button type="button" class="btn btn-light" data-help-action="access">Open Data Folder Access</button>
       </div>
       <figure class="help-figure">
-        <img src="help/help-access.png" alt="The Data Folder Access window with the last setup step, Allow access and Choose folder" width="460" height="330">
-        <figcaption>The Data Folder Access window right after a folder is chosen.</figcaption>
+        <img src="help/help-access.png" alt="The Data Folder Access window at the next browser start, with Allow access and Choose another folder" width="460" height="330">
+        <figcaption>The Data Folder Access window at the next browser start.</figcaption>
       </figure>
     </section>
 
@@ -55,7 +55,7 @@
       </figure>
       <p class="settings-text">The result lists the counts. A line such as <strong>32 x not permitted</strong> opens the list of those chats as links to claude.ai.</p>
       <figure class="help-figure">
-        <img src="help/help-sync-result.png" alt="The popup's sync result with the not permitted line opened to 3 chat links" width="400" height="207">
+        <img src="help/help-sync-result.png" alt="The popup's sync result with the not permitted line, with Claude's message, opened to 3 chat links" width="400" height="207">
         <figcaption>A sync result in the popup with a failure reason opened.</figcaption>
       </figure>
     </section>
@@ -99,16 +99,18 @@
         <li><strong>Search box</strong>: typing 2 or more characters lists the matching chats under it, by title and by the text of their exports.</li>
         <li><strong>All, Titles and Content</strong> pick the matches listed. <strong>Sort by</strong> orders them by best match, name, most recent message, oldest message or export date, with <strong>Asc</strong> or <strong>Desc</strong> beside it.</li>
         <li><strong>Account dropdown</strong>: picks the account whose folders and chats are shown.</li>
+        <li><strong>List, Cards and Categories</strong>: List and Cards show every chat of the folders shown, with <strong>Sort by</strong>. Categories shows the folder cards by category. List is shown until another view is chosen.</li>
+        <li><strong>A folder's page</strong>: the search box searches that folder's chats, and <strong>Sort by</strong> orders them. <strong>View offline</strong> opens a chat's export, also for another account's chats.</li>
       </ul>
       <div class="settings-actions">
         <button type="button" class="btn" data-help-action="organizer">Open the organizer</button>
       </div>
       <figure class="help-figure">
-        <img src="help/help-organizer.png" alt="The organizer with lisbon typed in the search box, the Chats list of 2 matches and the Lisbon Trip folder" width="1200" height="720">
+        <img src="help/help-organizer.png" alt="The organizer with lisbon typed in the search box, the Chats list of 2 matches and the List view of the same 2 chats" width="1200" height="720">
         <figcaption>The organizer with "lisbon" in the search box.</figcaption>
       </figure>
       <figure class="help-figure">
-        <img src="help/help-folder.png" alt="The Kitchen Remodel folder in the organizer with 3 chats and the date and time of each" width="1200" height="720">
+        <img src="help/help-folder.png" alt="The Kitchen Remodel folder in the organizer with the search box, Sort by, and 3 chats with the date and time of each" width="1200" height="720">
         <figcaption>A folder in the organizer. Each chat shows the date and time of its last change.</figcaption>
       </figure>
     </section>
@@ -179,10 +181,27 @@
       </figure>
     </section>
 
+    <section class="settings-card" aria-labelledby="helpHelperHeading">
+      <h2 class="settings-heading" id="helpHelperHeading">Claude Folders Helper</h2>
+      <p class="settings-text">Claude Folders Helper is a small Windows program, installed apart from the extension. With it, the saved file names in the claude.ai notices and <strong>Show in folder</strong> open File Explorer at the exported file. Without it, saved file names are plain text.</p>
+      <ol class="help-steps">
+        <li>Click <strong>GitHub releases</strong> below and download the helper from the latest release. The helper is a separate file from the extension's .zip.</li>
+        <li>Run the helper's setup on Windows and pick the same data folder as the extension.</li>
+        <li>Click <strong>Go to Claude Folders Helper</strong>, then <strong>Check again</strong>. The section shows the helper's version and the data folder it found.</li>
+      </ol>
+      <div class="settings-actions">
+        <a class="btn btn-icon" href="https://github.com/lso2/claude-folders/releases" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg>
+          GitHub releases
+        </a>
+        <button type="button" class="btn btn-light" data-help-action="tab" data-tab="main" data-target="helperHeading">Go to Claude Folders Helper</button>
+      </div>
+    </section>
+
     <section class="settings-card" aria-labelledby="helpTroubleHeading">
       <h2 class="settings-heading" id="helpTroubleHeading">Troubleshooting</h2>
       <ul class="help-steps">
-        <li><strong>Export says folder access is needed</strong>: click <strong>Open Data Folder Access</strong> below, then <strong>Allow access</strong>, then the choice to allow access on every visit in Chrome's prompt.</li>
+        <li><strong>Export says folder access is needed</strong>: click <strong>Open Data Folder Access</strong> below, then <strong>Allow access</strong>, then <strong>Allow on every visit</strong> when Chrome's prompt offers it.</li>
         <li><strong>Sync does not start after the extension was reloaded</strong>: clicking <strong>Sync</strong> opens a new claude.ai tab when the open one has none of the extension's scripts, and the sync runs in the new tab.</li>
         <li><strong>Folders are empty after adding the extension again</strong>: choose the same data folder on the Settings tab. Each account's folders are read back from its <code>data.&lt;account&gt;.json</code> file.</li>
         <li><strong>Some chats did not produce a file</strong>: open the reason line in the sync result to list those chats as links, and open each one on claude.ai.</li>

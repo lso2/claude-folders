@@ -1,13 +1,14 @@
 // organizer/content-search.js
-// Lists the chats of the account view whose title or exported text has the search box's words.
+// Lists the chats of the account view, or of the open folder, whose title or exported text has the search box's words.
 // Globals: CONTENT_SEARCH_MIN, CONTENT_SEARCH_PAGE, CONTENT_SEARCH_WAIT_MS, contentMatchChatIds, contentSearchSeq,
 //          contentSearchTimer, contentSearchState, contentSearchMode, contentSearchCollapsed, scheduleContentSearch,
 //          runContentSearch, contentSearchRows, contentSearchShownRows, renderContentSearch, contentSearchRowHtml,
 //          contentSnippetHtml, contentReadExport, fillContentSnippets, openContentExport, setContentSearchMode,
-//          setContentSearchCollapsed, refreshContentSearchRows, setContentSearchProgress
+//          setContentSearchCollapsed, refreshContentSearchRows, setContentSearchProgress, contentSearchInFolder,
+//          contentSearchFolders, setSearchScope
 // Depends on: organizer/content-index.js, lib/search-words.js (cfSearchTokens), lib/chat-markdown.js (exportIdPrefix),
-//             organizer/content-sort.js (sortContentRows), organizer/accounts.js (viewFolders), organizer/app.js (esc, safeUrl), organizer/folders.js
-//             (renderFolderList), organizer/viewer.js (renderMarkdownAsHtml), lib/page-dialog.js (cfPageAlert)
+//             organizer/content-sort.js (sortContentRows), organizer/accounts.js (viewFolders), organizer/app.js (esc, safeUrl, currentFolder), organizer/folders.js
+//             (renderFolderList), organizer/viewer.js (openExportView)
 // Notes: docs/notes/organizer/content-search.js.md
 
 // Characters typed before chats are listed, rows shown at first and added by Show more, and the pause after typing
@@ -24,6 +25,8 @@ let contentSearchState = null;
 let contentSearchMode = 'all';
 // The list and its Show more button are hidden while collapsed; the heading and status stay
 let contentSearchCollapsed = false;
+// True while a folder is open: the search lists that folder's chats (setSearchScope)
+let contentSearchInFolder = false;
 
 function scheduleContentSearch(term) {
   clearTimeout(contentSearchTimer);
@@ -100,7 +103,7 @@ function contentSearchRows(text, tokens, withText) {
   }
   const rows = [];
   const seen = new Set();
-  viewFolders.forEach(folder => (folder.chats || []).forEach(chat => {
+  contentSearchFolders().forEach(folder => (folder.chats || []).forEach(chat => {
     if (seen.has(chat.id)) return;
     const files = contentIndexFiles.get(exportIdPrefix(chat.id).toLowerCase()) || [];
     const matchFiles = files.filter(name => matched.has(name));
@@ -110,6 +113,20 @@ function contentSearchRows(text, tokens, withText) {
     rows.push({ chat, folder, byTitle, matchFiles, files });
   }));
   return rows.sort((a, b) => (b.byTitle - a.byTitle) || (new Date(b.chat.date || 0) - new Date(a.chat.date || 0)));
+}
+
+// The open folder while a folder is shown, else the folders of the account view
+function contentSearchFolders() {
+  return contentSearchInFolder && currentFolder ? [currentFolder] : viewFolders;
+}
+
+// A folder opened or closed changes what the search bar searches. The account dropdown and the import button
+// apply to the home, and are hidden while a folder is open.
+function setSearchScope(inFolder) {
+  contentSearchInFolder = !!inFolder;
+  document.getElementById('searchArea').classList.toggle('in-folder', contentSearchInFolder);
+  document.getElementById('searchInput').placeholder = contentSearchInFolder ? "Search this folder's chats..." : 'Search folders and chats...';
+  refreshContentSearchRows();
 }
 
 // The account dropdown changes viewFolders. The last search's rows are built again from the index already
@@ -222,21 +239,9 @@ async function fillContentSnippets(seq) {
   }
 }
 
-// The tab is opened during the click, then filled once the export is read
-async function openContentExport(filename, title) {
-  const tab = window.open('', '_blank');
-  if (!tab) {
-    cfPageAlert('Export not opened', 'The browser returned no new tab for the export.');
-    return;
-  }
-  const res = await contentReadExport(filename);
-  if (!res.success) {
-    tab.close();
-    cfPageAlert('Export not opened', `${filename} could not be read: ${res.error}`);
-    return;
-  }
-  tab.document.write(renderMarkdownAsHtml(title, res.content));
-  tab.document.close();
+// The export view page reads the file itself, and a reload of that tab reads it again
+function openContentExport(filename, title) {
+  openExportView(filename, title);
 }
 
 // The mode buttons show which is chosen; the list and the folder grid are drawn again for it

@@ -9,8 +9,8 @@
   --border-color: #393935;
   --text-primary: #c2c0b5;
   --text-secondary: #9c9a92;
-  --button-bg: #784835;
-  --button-hover: #d27753;
+  --button-bg: var(--cf-brown);
+  --button-hover: var(--cf-terracotta);
   --divider: #262624;
   /* Used by the modals, inputs and analytics; the same values as organizer/styles.css */
   --title-color: #c2c0b5;
@@ -20,6 +20,9 @@
   --filter-border: #393935;
   --divider-color: #393935;
   --card-bg: #30302e;
+  /* The dialogs of lib/page-dialog.js use the popup's orange and its hover (lib/color-variants.css) */
+  --cf-dialog-primary: var(--cf-orange);
+  --cf-dialog-primary-hover: var(--cf-orange-hover);
 }
 
 * {
@@ -123,7 +126,7 @@ body {
 
 .btn-orange {
   padding: 10px 24px;
-  background: #d97706;
+  background: var(--cf-orange);
   border: none;
   border-radius: 8px;
   color: #ffffff;
@@ -133,7 +136,7 @@ body {
 }
 
 .btn-orange:hover {
-  background: #b45309;
+  background: var(--cf-orange-hover);
 }
 
 /* Main Screen */
@@ -547,7 +550,7 @@ body {
 /* The sync icon while a sync has new or changed chats (popup/popup-sync-check.js) */
 .icon-btn.sync-available,
 .icon-btn.sync-available:hover {
-  color: #d97706;
+  color: var(--cf-orange);
 }
 
 .icon-btn:disabled {
@@ -644,8 +647,13 @@ body {
 }
 
 .folder-item:hover {
-  border-color: var(--button-hover);
+  background: #4b4b4b;
+  border-color: transparent;
   transform: translateY(-1px);
+}
+
+.folder-item:hover .folder-name {
+  color: #ffffff;
 }
 
 .folder-header {
@@ -717,7 +725,7 @@ body {
   padding: 6px 14px;
   border: none;
   border-radius: 6px;
-  background: #d97706;
+  background: var(--cf-orange);
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -725,7 +733,7 @@ body {
 }
 
 .btn-sync-footer:hover {
-  background: #b45309;
+  background: var(--cf-orange-hover);
 }
 
 .btn-sync-footer:disabled {
@@ -878,7 +886,7 @@ body {
 .step-number {
   width: 28px;
   height: 28px;
-  background: #d97706;
+  background: var(--cf-orange);
   color: #fff;
   border-radius: 50%;
   display: flex;
@@ -918,7 +926,8 @@ body {
 }
 
 .folder-category-header:hover {
-  background: var(--button-hover);
+  background: #4a4a48;
+  color: #ffffff;
 }
 
 .category-toggle-icon {
@@ -968,12 +977,12 @@ body {
 }
 
 .btn-organize {
-  background: #d97706;
+  background: var(--cf-orange);
   color: #fff;
 }
 
 .btn-organize:hover {
-  background: #b45309;
+  background: var(--cf-orange-hover);
 }
 
 .btn-apply {
@@ -993,7 +1002,7 @@ body {
   padding: 8px 14px;
   border: none;
   border-radius: 6px;
-  background: #d97706;
+  background: var(--cf-orange);
   color: #ffffff;
   font-size: 12px;
   font-weight: 600;
@@ -1001,7 +1010,7 @@ body {
 }
 
 .btn-organize-auto:hover {
-  background: #b45309;
+  background: var(--cf-orange-hover);
 }
 
 .setup-or {
@@ -1128,7 +1137,7 @@ body {
   gap: 6px;
   flex-shrink: 0;
   padding: 6px 10px;
-  background: #d97706 !important;
+  background: var(--cf-orange) !important;
   color: white !important;
   border: none !important;
   border-radius: 6px;
@@ -1140,7 +1149,7 @@ body {
 }
 
 .btn-organizer-orange:hover {
-  background: #b45309 !important;
+  background: var(--cf-orange-hover) !important;
 }
 
 .btn-organizer-orange svg {
@@ -1186,14 +1195,10 @@ body {
   background: #e06b67;
 }
 
-/* Folder counts on the category pills; empty categories are dimmed and listed last (popup/popup-folders.js) */
+/* Folder counts on the category pills. A category with no folders gets no pill (popup/popup-folders.js) */
 .pill-count {
   color: var(--text-secondary);
   font-size: 11px;
-}
-
-.filter-pill.empty {
-  opacity: 0.55;
 }
 
 /* A failure reason in a run's result: clicking it lists the chats it stopped, as links (lib/run-failures.js) */
@@ -1213,4 +1218,94 @@ body {
 .cf-run-failures a {
   color: inherit;
   text-decoration: underline;
+}
+
+/* The notice for a newer version on GitHub and the Check for updates button (lib/update-notice.js) */
+.cf-update-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cf-update-text {
+  flex: 1;
+}
+
+.cf-update-link {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--cf-orange);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-update-link:hover {
+  background: var(--cf-orange-hover);
+}
+
+.cf-update-close {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cf-update-close:hover {
+  color: var(--text-primary);
+}
+
+.cf-update-check {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.cf-update-check:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.cf-update-check:disabled {
+  cursor: default;
+  text-decoration: none;
+}
+
+.cf-update-slot:not(:empty) {
+  margin: 0 12px 10px;
+}
+
+/* The account dropdown above the search box (popup/popup-accounts.js), in the search box's colors */
+.popup-account-select {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 12px 16px 0;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.popup-account-select[hidden] {
+  display: none;
 }

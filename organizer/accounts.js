@@ -1,8 +1,8 @@
 // organizer/accounts.js
 // The organizer's account dropdown and the folders of the accounts it shows.
 // Globals: organizerOtherAccounts, organizerAccountView, organizerCurrentKey, viewFolders, ownAccountEntry,
-//          loadOrganizerAccounts, buildViewFolders, renderAccountSelect
-// Depends on: lib/account-view.js, lib/storage-keys.js (ACCOUNT_VIEW_KEY_PREFIX, ACCOUNT_VIEW_DEFAULT_KEY),
+//          loadOrganizerAccounts, buildViewFolders, renderAccountSelect, applyOrganizerAccountView
+// Depends on: organizer/home-views.js (renderHomeView), lib/account-view.js, lib/account-view-store.js,
 //             organizer/app.js (folders, metadata, esc), organizer/run-start.js (startOrganizerAccountImport),
 //             organizer/content-search.js (refreshContentSearchRows)
 // Notes: docs/notes/organizer/accounts.js.md
@@ -45,10 +45,7 @@ async function loadOrganizerAccounts() {
     const stored = await chrome.storage.local.get('activeAccountKey');
     organizerCurrentKey = stored.activeAccountKey || null;
   }
-  const viewKey = ACCOUNT_VIEW_KEY_PREFIX + organizerCurrentKey;
-  const stored = await chrome.storage.local.get([viewKey, ACCOUNT_VIEW_DEFAULT_KEY]);
-  organizerAccountView = cfParseAccountView(stored[viewKey]) ? stored[viewKey]
-    : (stored[ACCOUNT_VIEW_DEFAULT_KEY] === 'all' ? 'all' : 'acct:' + organizerCurrentKey);
+  organizerAccountView = await cfReadAccountView(organizerCurrentKey);
 }
 
 // Folder objects in the shape of this login's own: { id, name, category, chats, own, lastActivity }.
@@ -80,15 +77,24 @@ function renderAccountSelect() {
   select.innerHTML = choices.map(c => `<option value="${esc(c.value)}"${c.selected ? ' selected' : ''}>${c.indent ? '&nbsp;&nbsp;&nbsp;&nbsp;' : ''}${esc(c.label)}</option>`).join('');
   select.onchange = async () => {
     organizerAccountView = select.value;
-    try {
-      await chrome.storage.local.set({ [ACCOUNT_VIEW_KEY_PREFIX + organizerCurrentKey]: organizerAccountView });
-    } catch (e) {
-      console.log('[ORGANIZER] Account view not stored:', e.message);
-    }
-    buildViewFolders();
-    renderCategoryFilters();
-    renderFolderList();
-    // The Chats list under the search box shows the matches of the accounts chosen
-    refreshContentSearchRows();
+    await cfStoreAccountView(organizerCurrentKey, organizerAccountView);
+    applyOrganizerAccountView();
   };
 }
+
+// The Chats list under the search box and the List or Cards view show the chats of the accounts chosen
+function applyOrganizerAccountView() {
+  buildViewFolders();
+  renderCategoryFilters();
+  renderFolderList();
+  refreshContentSearchRows();
+  renderHomeView();
+}
+
+// A choice made in the Folders panel or the popup is shown here too
+cfWatchAccountView(() => organizerCurrentKey, (view) => {
+  if (view === organizerAccountView) return;
+  organizerAccountView = view;
+  renderAccountSelect();
+  applyOrganizerAccountView();
+});

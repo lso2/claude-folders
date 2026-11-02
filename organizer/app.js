@@ -17,15 +17,9 @@ let currentSort = 'activity';
 let searchTerm = '';
 let currentTab = 'chats';
 
-// Escape user content before it goes into innerHTML
+// Escape user content before it goes into innerHTML (lib/html-escape.js)
 function esc(value) {
-  if (value === null || value === undefined) return '';
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return cfHtmlEscape(value);
 }
 // Only allow safe links into href attributes
 function safeUrl(url) {
@@ -45,6 +39,9 @@ function countChats(data) {
 document.addEventListener('DOMContentLoaded', async () => {
   const footerName = document.querySelector('.footer-name');
   if (footerName) footerName.textContent = 'Claude Folders v' + chrome.runtime.getManifest().version;
+  cfWireUpdateCheck(document.getElementById('organizerUpdateCheck'));
+  cfAskForUpdate(false);
+  await Promise.all([loadHomeView(), loadChatListSort()]);
   await loadSidebarLayout();
   applySidebarLayout();
   setupSidebar();
@@ -132,7 +129,8 @@ async function loadAllData() {
 }
 
 // Redraws everything that depends on the folders shown: the account dropdown, the category pills,
-// the folder grid, the recent chats and the Chats list of the last search (organizer/content-search.js)
+// the folder grid, the recent chats, the Chats list of the last search (organizer/content-search.js) and the
+// List or Cards view (organizer/home-views.js). Exports may have been written, so their files are listed again.
 function refreshView() {
   buildViewFolders();
   renderAccountSelect();
@@ -140,6 +138,8 @@ function refreshView() {
   renderFolderList();
   renderRecentChats();
   refreshContentSearchRows();
+  markExportedPrefixesStale();
+  renderHomeView();
 }
 
 // The background stores the change and writes the data file through the folder writer
@@ -154,18 +154,18 @@ async function saveData() {
 }
 
 // This login's categories, then the categories of other accounts' folders the view shows. Each pill counts
-// the view's folders in it; categories with folders keep their order, and empty ones follow them, dimmed.
+// the view's folders in it. A category with no folders in the view gets no pill, and the category itself is kept.
 function renderCategoryFilters() {
   const filterPills = document.getElementById('filterPills');
   if (!filterPills) return;
-  const shown = [...new Set([...categories, ...viewFolders.map(f => f.category)].filter(Boolean))];
-  if (currentCategory !== 'all' && !shown.includes(currentCategory)) currentCategory = 'all';
   const counts = new Map();
   viewFolders.forEach(f => counts.set(f.category, (counts.get(f.category) || 0) + 1));
-  const ordered = shown.filter(cat => counts.get(cat)).concat(shown.filter(cat => !counts.get(cat)));
+  const shown = [...new Set([...categories, ...viewFolders.map(f => f.category)].filter(Boolean))].filter(cat => counts.get(cat));
+  if (currentCategory !== 'all' && !shown.includes(currentCategory)) currentCategory = 'all';
 
-  const pill = (value, label, count) => `<button class="filter-pill${currentCategory === value ? ' active' : ''}${count ? '' : ' empty'}" data-filter="${esc(value)}">${esc(label)} <span class="pill-count">(${count})</span></button>`;
-  filterPills.innerHTML = pill('all', 'All Folders', viewFolders.length) + ordered.map(cat => pill(cat, cat, counts.get(cat) || 0)).join('');
+  const pill = (value, label, count) => `<button class="filter-pill${currentCategory === value ? ' active' : ''}" data-filter="${esc(value)}">${esc(label)} <span class="pill-count">(${count})</span></button>`;
+  filterPills.innerHTML = pill('all', 'All Folders', viewFolders.length) + shown.map(cat => pill(cat, cat, counts.get(cat))).join('');
+  applyCategoryPillFilter();
   
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -187,6 +187,8 @@ function setupEventListeners() {
   document.getElementById('searchInput')?.addEventListener('input', (e) => {
     searchTerm = e.target.value;
     renderFolderList();
+    homeShown = HOME_PAGE;
+    renderHomeView();
     scheduleContentSearch(searchTerm);
   });
   
@@ -247,4 +249,5 @@ function showFolderListView() {
   document.getElementById('folderDetailView')?.classList.add('hidden');
   hideAnalyticsView();
   currentFolder = null;
+  setSearchScope(false);
 }

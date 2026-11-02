@@ -29,7 +29,7 @@ function showApplyCategoriesModal() {
       </div>
       <div style="padding: 16px 20px; border-top: 1px solid #3d3d3a; display: flex; justify-content: flex-end; gap: 10px;">
         <button class="modal-cancel" style="padding: 10px 20px; background: #3d3d3a; border: none; border-radius: 6px; color: #e8e6e3; cursor: pointer;">Cancel</button>
-        <button id="previewBtn" style="padding: 10px 20px; background: #d97706; border: none; border-radius: 6px; color: #fff; cursor: pointer;">Preview Categories</button>
+        <button id="previewBtn" style="padding: 10px 20px; background: var(--cf-orange); border: none; border-radius: 6px; color: #fff; cursor: pointer;">Preview Categories</button>
         <button id="applyBtn" style="padding: 10px 20px; background: #3d3d3a; border: none; border-radius: 6px; color: #9c9a92; cursor: not-allowed; opacity: 0.6;" disabled>Apply & Save</button>
       </div>
     </div>
@@ -69,7 +69,7 @@ function showApplyCategoriesModal() {
       previewBtn.style.color = '#9c9a92';
       previewBtn.textContent = 'Previewed';
       applyBtn.disabled = false;
-      applyBtn.style.background = '#d97706';
+      applyBtn.style.background = 'var(--cf-orange)';
       applyBtn.style.color = '#fff';
       applyBtn.style.cursor = 'pointer';
       applyBtn.style.opacity = '1';

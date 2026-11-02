@@ -147,7 +147,7 @@ function showSyncProgressBar(message, buttons, paused) {
       <div class="sync-box" style="
         position: fixed;
         ${positionStyle}
-        background: #b45309;
+        background: var(--cf-orange);
         color: white;
         padding: 12px 20px;
         border-radius: 8px;
@@ -206,7 +206,7 @@ function showSyncProgressBar(message, buttons, paused) {
     }
     btn.style.cssText = def.key === 'close'
       ? 'flex: 0 0 auto; padding: 0 2px; border: none; background: transparent; color: #ffffff; font-size: 20px; line-height: 1; font-family: inherit; cursor: pointer;'
-      : 'flex: 0 0 auto; padding: 4px 10px; border: none; border-radius: 6px; background: #d97706; color: #ffffff; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;';
+      : 'flex: 0 0 auto; padding: 4px 10px; border: none; border-radius: 6px; background: rgba(0, 0, 0, 0.22); color: #ffffff; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;';
     btn.onclick = (e) => { e.stopPropagation(); def.onClick(); };
     box.appendChild(btn);
   });

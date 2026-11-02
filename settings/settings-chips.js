@@ -1,26 +1,55 @@
 // settings/settings-chips.js
-// The row of chips above the first section that jumps to each section of the open tab.
-// Globals: renderSettingsChips, updateSettingsChipArrows
+// The row of chips above the first section that filters the open tab to one section, or shows all of them.
+// Globals: settingsChipFilter, renderSettingsChips, filterSettingsSections, updateSettingsChipArrows
 // Depends on: settings/index.html (#settingsChips, #settingsChipsLeft, #settingsChipsRight, #settingsScroll),
 //             settings/settings-help.js (the Help sections, read in after the page loads)
 // Notes: docs/notes/settings/settings-chips.js.md
 
-// One chip per section heading (.settings-heading) of the panel shown
+// The heading id of the one section shown, or null while All is selected
+let settingsChipFilter = null;
+
+// All, then one chip per section heading (.settings-heading) of the panel shown. A tab opens on All.
+// A tab with one section has no row: All and its one chip would show the same section.
 function renderSettingsChips(tab) {
   const row = document.getElementById('settingsChips');
   const panel = document.querySelector(`.settings-panel[data-panel="${tab}"]`);
   row.replaceChildren();
+  settingsChipFilter = null;
+  const headings = panel ? panel.querySelectorAll('.settings-heading[id]') : [];
+  document.getElementById('settingsChipsWrap').hidden = headings.length < 2;
   if (!panel) return;
-  panel.querySelectorAll('.settings-heading[id]').forEach(heading => {
+  const addChip = (label, headingId) => {
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'settings-chip';
-    chip.textContent = heading.textContent;
-    chip.addEventListener('click', () => heading.closest('section').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    chip.textContent = label;
+    chip.dataset.heading = headingId || '';
+    chip.addEventListener('click', () => filterSettingsSections(headingId));
     row.appendChild(chip);
-  });
+  };
+  addChip('All', null);
+  headings.forEach(heading => addChip(heading.textContent, heading.id));
+  filterSettingsSections(null);
   row.scrollLeft = 0;
   updateSettingsChipArrows();
+}
+
+// headingId null shows every section of the open tab
+function filterSettingsSections(headingId) {
+  settingsChipFilter = headingId || null;
+  const panel = document.querySelector('.settings-panel:not([hidden])');
+  if (panel) {
+    panel.querySelectorAll('.settings-heading[id]').forEach(heading => {
+      const section = heading.closest('section');
+      if (section) section.hidden = !!settingsChipFilter && heading.id !== settingsChipFilter;
+    });
+  }
+  document.querySelectorAll('#settingsChips .settings-chip').forEach(chip => {
+    const on = chip.dataset.heading === (settingsChipFilter || '');
+    chip.classList.toggle('active', on);
+    chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  document.getElementById('settingsScroll').scrollTop = 0;
 }
 
 // The arrows appear on the side where chips are hidden

@@ -130,7 +130,7 @@ function showSyncNotification(count) {
         bottom: 20px;
         left: 50%;
         transform: translateX(-50%);
-        background: #b45309;
+        background: var(--cf-orange);
         color: white;
         padding: 12px 20px;
         border-radius: 12px;
@@ -157,7 +157,7 @@ function showSyncNotification(count) {
         height: 20px;
       }
       #claude-folders-sync-notification .sync-btn {
-        background: #d97706;
+        background: rgba(0, 0, 0, 0.22);
         border: none;
         color: #ffffff;
         padding: 6px 14px;
@@ -168,7 +168,7 @@ function showSyncNotification(count) {
         transition: background 0.15s;
       }
       #claude-folders-sync-notification .sync-btn:hover {
-        background: #e5850b;
+        background: rgba(0, 0, 0, 0.32);
       }
       #claude-folders-sync-notification .dismiss-btn {
         background: none;

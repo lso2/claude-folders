@@ -25,6 +25,11 @@ function init() {
         setupEventListeners();
         showStepsWhenUnorganized();
         renderPopupSyncIcon();
+        // The account dropdown and the folders it shows (popup/popup-accounts.js)
+        return loadPopupAccounts();
+      }).then(() => {
+        renderPopupAccountSelect();
+        applyPopupAccountView();
       });
     } else {
       showSetupScreen();
@@ -54,9 +59,12 @@ function showSetupScreen() {
   });
 }
 
+// The update check runs with the main screen (lib/update-notice.js)
 function showMainScreen() {
   document.getElementById('setupScreen').classList.add('hidden');
   document.getElementById('mainScreen').classList.remove('hidden');
+  cfWireUpdateCheck(document.getElementById('popupUpdateCheck'));
+  cfAskForUpdate(false);
 }
 
 function countChatsInData(data) {

@@ -15,7 +15,9 @@ const SETTINGS_FILE_CHECKS = {
   [SETUP_STEPS_OPEN_KEY]: v => typeof v === 'boolean',
   [AUTO_SYNC_KEY]: v => !!v && typeof v.enabled === 'boolean' && AUTO_SYNC_MINUTES.includes(v.minutes),
   [ORGANIZER_LAYOUT_KEY]: v => !!v && Number.isFinite(v.width) && typeof v.collapsed === 'boolean',
-  [SETTINGS_LAYOUT_KEY]: v => !!v && Number.isFinite(v.width) && typeof v.collapsed === 'boolean'
+  [SETTINGS_LAYOUT_KEY]: v => !!v && Number.isFinite(v.width) && typeof v.collapsed === 'boolean',
+  [ORGANIZER_HOME_VIEW_KEY]: v => ['list', 'cards', 'categories'].includes(v),
+  [CHAT_LIST_SORT_KEY]: v => !!v && ['name', 'recent', 'oldest', 'exported'].includes(v.key) && (v.dir === 'asc' || v.dir === 'desc')
 };
 
 // The check for a key: a fixed setting, or a login's Folders panel view (ACCOUNT_VIEW_KEY_PREFIX + account key)

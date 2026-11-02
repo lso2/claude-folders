@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-cf-color-scope="organizer">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude - Folders</title>
+    <link rel="stylesheet" href="../lib/color-variants.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="../lib/page-frame.css">
     <link rel="stylesheet" href="sidebar.css">
     <link rel="stylesheet" href="content-search.css">
+    <link rel="stylesheet" href="chat-lists.css">
 </head>
 <body>
     <div class="app-layout" id="appLayout">
@@ -63,6 +65,8 @@
                     <div id="runPaneText" class="run-pane-text"></div>
                     <ul id="runPaneLines" class="run-pane-lines"></ul>
                 </div>
+                <!-- The notice for a newer version on GitHub (lib/update-notice.js) -->
+                <div class="cf-update-slot"></div>
                 <!-- The top bar, shown above the folder list, a folder and the analytics -->
                 <div class="top-bar" id="topBar">
                     <header class="page-header">
@@ -111,8 +115,8 @@
                         </div>
                     </header>
                 </div>
-                <!-- Folder List View -->
-                <div id="folderListView" class="content-view">
+                <!-- The search bar and its Chats list, above the home and a folder (organizer/content-search.js) -->
+                <div id="searchArea" class="search-area">
                     <div class="search-controls">
                         <select id="accountSelect" class="account-select" aria-label="Accounts shown" hidden></select>
                         <button class="btn-secondary" id="importAccountBtn" title="Open the import dialog in a new claude.ai tab" hidden>Import from another account</button>
@@ -167,14 +171,22 @@
                             <button id="contentSearchMore" class="btn-secondary content-search-more" hidden></button>
                         </div>
                     </section>
+                </div>
 
-                    <!-- Categories on their own row; the category filter and the sort below them -->
-                    <div class="filter-pills" id="filterPills"></div>
-                    <div class="filters-bar">
-                        <div class="filter-search">
+                <!-- Folder List View -->
+                <div id="folderListView" class="content-view">
+                    <!-- The Categories, Cards and List buttons with the category filter at their right. At the far right, the folder
+                         sort of Categories, or the chat count and sort of Cards and List (organizer/home-views.js) -->
+                    <div class="home-view-bar">
+                        <div class="content-search-modes home-view-modes" role="group" aria-label="View">
+                            <button type="button" class="content-search-mode home-view-btn active" data-home-view="categories" aria-pressed="true" title="The folders by category">Categories</button>
+                            <button type="button" class="content-search-mode home-view-btn" data-home-view="cards" aria-pressed="false" title="Every chat of the folders shown, as cards">Cards</button>
+                            <button type="button" class="content-search-mode home-view-btn" data-home-view="list" aria-pressed="false" title="Every chat of the folders shown, as rows">List</button>
+                        </div>
+                        <div class="filter-search" id="categoryFilterSearch">
                             <input type="text" id="categorySearchInput" placeholder="Filter categories..." class="category-search-input">
                         </div>
-                        <div class="sort-controls">
+                        <div class="sort-controls" id="categorySortControls">
                             <span class="sort-label">Sort by</span>
                             <select id="sortSelect" class="sort-select">
                                 <option value="activity">Activity</option>
@@ -182,9 +194,32 @@
                                 <option value="created">Created</option>
                             </select>
                         </div>
+                        <div class="home-chat-tools" id="homeChatTools">
+                            <span class="home-chat-count" id="homeChatCount"></span>
+                            <label class="content-search-sort chat-sort">
+                                <span class="content-search-sort-label">Sort by</span>
+                                <select class="content-search-sort-select chat-sort-select" aria-label="Sort the chats by">
+                                    <option value="name">Name</option>
+                                    <option value="recent">Most recent message</option>
+                                    <option value="oldest">Oldest message</option>
+                                    <option value="exported">Export date</option>
+                                </select>
+                            </label>
+                            <!-- Arrow up: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+                            <button type="button" class="content-search-sort-dir chat-sort-dir">
+                                <svg width="10" height="12" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true"><path d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"/></svg>
+                                <span class="chat-sort-dir-text">Desc</span>
+                            </button>
+                        </div>
                     </div>
 
+
+                    <!-- Categories on their own row -->
+                    <div class="filter-pills" id="filterPills"></div>
+
                     <div id="folderGrid" class="folder-grid"></div>
+                    <div id="homeChatList" class="chat-list-container list-view" hidden></div>
+                    <button type="button" id="homeChatMore" class="btn-secondary home-chat-more" hidden></button>
                 </div>
 
                 <!-- Analytics View -->
@@ -232,6 +267,22 @@
                             <button class="tab active" data-tab="chats">Your chats</button>
                             <button class="tab" data-tab="activity">Activity</button>
                         </div>
+                        <div class="folder-chat-tools">
+                        <label class="content-search-sort chat-sort">
+                            <span class="content-search-sort-label">Sort by</span>
+                            <select class="content-search-sort-select chat-sort-select" aria-label="Sort the chats by">
+                                <option value="name">Name</option>
+                                <option value="recent">Most recent message</option>
+                                <option value="oldest">Oldest message</option>
+                                <option value="exported">Export date</option>
+                            </select>
+                        </label>
+                        <!-- Arrow up: Font Awesome Free 6.5.2 (https://fontawesome.com/license/free, CC BY 4.0) -->
+                        <button type="button" class="content-search-sort-dir chat-sort-dir">
+                            <svg width="10" height="12" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true"><path d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"/></svg>
+                            <span class="chat-sort-dir-text">Desc</span>
+                        </button>
+                        </div>
                         <div class="view-toggle">
                             <button class="view-btn active" data-view="list" title="List view">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -276,6 +327,8 @@
                     <svg width="15" height="15" viewBox="0 0 640 512" fill="currentColor" aria-hidden="true"><path d="M96 64c0-17.7 14.3-32 32-32H448h64c70.7 0 128 57.3 128 128s-57.3 128-128 128H480c0 53-43 96-96 96H192c-53 0-96-43-96-96V64zM480 224h32c35.3 0 64-28.7 64-64s-28.7-64-64-64H480V224zM32 416H544c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg>
                     Donate
                 </a>
+                <span class="footer-sep">•</span>
+                <button type="button" class="footer-link cf-update-check" id="organizerUpdateCheck">Check for updates</button>
             </footer>
         </div>
     </div>
@@ -283,6 +336,9 @@
     <script src="../lib/build-reload.js"></script>
     <script src="../lib/apply-update.js"></script>
     <script src="../lib/storage-keys.js"></script>
+    <script src="../lib/color-variants.js"></script>
+    <script src="../lib/button-color.js"></script>
+    <script src="../lib/update-notice.js"></script>
     <script src="../lib/chat-markdown.js"></script>
     <script src="../lib/handle-storage.js"></script>
     <script src="../lib/data-file.js"></script>
@@ -290,18 +346,23 @@
     <script src="../lib/export-state.js"></script>
     <script src="../lib/folder-access.js"></script>
     <script src="../lib/account-view.js"></script>
+    <script src="../lib/account-view-store.js"></script>
     <script src="../lib/shell-address.js"></script>
     <script src="../lib/sidebar-layout.js"></script>
     <script src="../lib/page-dialog.js"></script>
     <script src="../lib/organize-prompt.js"></script>
     <script src="../lib/search-words.js"></script>
     <script src="../lib/search-store.js"></script>
+    <script src="../lib/html-escape.js"></script>
     <script src="app.js"></script>
     <script src="sidebar.js"></script>
     <script src="accounts.js"></script>
     <script src="folders.js"></script>
     <script src="chats.js"></script>
     <script src="viewer.js"></script>
+    <script src="chat-rows.js"></script>
+    <script src="chat-sort.js"></script>
+    <script src="home-views.js"></script>
     <script src="data-io.js"></script>
     <script src="analytics.js"></script>
     <script src="../lib/run-failures.js"></script>

@@ -1,0 +1,175 @@
+/* organizer/chat-lists.css
+   Styles the home's List, Cards and Categories switcher, the chat lists' Sort by and the search bar above a folder.
+   Notes: docs/notes/organizer/chat-lists.css.md */
+
+/* The switcher on the left, the chat count and Sort by on the right */
+.home-view-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 0 16px;
+}
+
+.home-view-modes {
+    background: var(--input-bg);
+}
+
+/* The category filter at the right of the view buttons; the chat count and sort stay at the far right */
+.home-view-bar .filter-search {
+    margin-right: auto;
+}
+
+.home-chat-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.home-chat-tools[hidden] {
+    display: none;
+}
+
+.home-chat-count {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+/* The views not chosen; the pills, the filter bar and the grids set their own display */
+#filterPills[hidden],
+#categoryFilterSearch[hidden],
+#categorySortControls[hidden],
+#folderGrid[hidden],
+#homeChatList[hidden] {
+    display: none;
+}
+
+/* The home's lists sit in the page's own padding */
+#homeChatList.chat-list-container {
+    padding: 0;
+}
+
+.home-chat-empty {
+    padding: 40px 0;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.home-chat-more {
+    display: block;
+    margin: 16px auto 0;
+}
+
+/* The folder each chat is in, under its title in the List and Cards views */
+.chat-item-folder {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* Sort by beside the List and Cards buttons of a folder */
+.folder-chat-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    margin-right: 12px;
+}
+
+/* The search bar has the width and side padding of the views under it (.content-view in organizer/styles.css) */
+.search-area {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+}
+
+/* A folder's own page hides the home's account controls */
+.search-area.in-folder .account-select,
+.search-area.in-folder #importAccountBtn {
+    display: none;
+}
+
+.search-area[hidden] {
+    display: none;
+}
+
+#homeChatMore[hidden] {
+    display: none;
+}
+
+/* A card: the title and folder, then the date and menu, then the buttons. The global .chat-item lays these out in one row. */
+.chat-list-container.card-view .chat-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    border-bottom: 1px solid var(--input-border);
+}
+
+.chat-list-container.card-view .chat-item-content {
+    order: 1;
+}
+
+.chat-list-container.card-view .chat-item-actions {
+    order: 2;
+    justify-content: space-between;
+}
+
+.chat-list-container.card-view .chat-item-buttons {
+    order: 3;
+}
+
+/* A card's tags, such as #cowork, are placed at its top right and take no row of their own. The title keeps clear of them. */
+.chat-list-container.card-view .chat-item {
+    position: relative;
+}
+
+.chat-list-container.card-view .chat-item-tags {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    margin: 0;
+}
+
+.chat-list-container.card-view .chat-item-content:has(.chat-item-tags) .chat-item-title {
+    padding-right: 90px;
+}
+
+/* A lighter fill on hover; the border keeps its gray */
+.chat-list-container.card-view .chat-item:hover {
+    border-color: var(--input-border);
+    background: #353533;
+}
+
+/* A narrow page wraps a List row: the title and folder go under the buttons once they have less than 260px,
+   and the date follows on the right */
+.chat-list-container.list-view .chat-item {
+    flex-wrap: wrap;
+}
+
+.chat-list-container.list-view .chat-item-content {
+    flex: 1 1 260px;
+}
+
+.chat-list-container.list-view .chat-item-title {
+    flex: 0 1 auto;
+    min-width: 60px;
+}
+
+.chat-list-container.list-view .chat-item-folder {
+    flex-shrink: 0;
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+.chat-list-container.list-view .chat-item-actions {
+    margin-left: auto;
+}
+
+/* The search bar keeps the side padding of .content-view and .top-bar on a narrow window (organizer/styles.css) */
+@media (max-width: 768px) {
+    .search-area {
+        padding: 0 20px;
+    }
+}

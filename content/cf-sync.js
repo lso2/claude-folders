@@ -490,6 +490,9 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
 
   // Mark sync complete
   syncInProgress = false;
+  // Exports stopped for folder access: the sync runs again once access is granted (content/cf-core.js folderAccessChanged)
+  const accessNeeded = outcome && outcome.access ? outcome.access : null;
+  if (accessNeeded && !auto) cfRememberSyncRequest(fullResync, rewriteAll);
   
   // The account total counts conversations; Cowork sessions are added to it
   const chatTotal = accountTotal || (collected.length - coworkCount);
@@ -501,9 +504,10 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
     cfShowSyncStopped(`Sync stopped: ${done}`);
     return;
   }
-  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], null, outcome ? outcome.failures : []);
+  const accessError = accessNeeded ? `${outcome.aborted}. The sync runs again in the claude.ai tab once access is granted.` : null;
+  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], accessError, outcome ? outcome.failures : []);
   if (!auto) {
-    showSyncSuccessModal(summary);
+    showSyncSuccessModal(summary, accessNeeded);
     return;
   }
   // An automatic sync closes its progress bar, and a notice appears only when it changed something

@@ -3,9 +3,9 @@
 // Globals: SETTINGS_SIDEBAR_IDS, renderSettings, startSettingsSidebar
 // Depends on: settings/settings-folder.js, settings/settings-accounts.js, settings/settings-helper.js,
 //             settings/settings-about.js, settings/settings-clear.js, settings/settings-migration.js,
-//             settings/settings-auto-sync.js,
+//             settings/settings-auto-sync.js, settings/settings-button-color.js,
 //             lib/folder-picker.js (cfOpenPickerFlag), lib/sidebar-layout.js (the organizer's sidebar frame),
-//             lib/storage-keys.js (SETTINGS_LAYOUT_KEY)
+//             lib/storage-keys.js (SETTINGS_LAYOUT_KEY), background.js (openOrganizer)
 // Notes: docs/notes/settings/settings.js.md
 
 async function renderSettings() {
@@ -17,7 +17,8 @@ async function renderSettings() {
     renderAboutSection(),
     renderClearSection(),
     renderMigrationChoice(),
-    renderAutoSyncSection()
+    renderAutoSyncSection(),
+    renderButtonColorSection()
   ]);
 }
 
@@ -31,6 +32,9 @@ clearEls.no.addEventListener('click', onClearCancel);
 document.querySelectorAll('input[name="accountView"]').forEach(input => input.addEventListener('change', onAccountViewChange));
 document.querySelectorAll('input[name="migrationRequest"]').forEach(input => input.addEventListener('change', onMigrationChange));
 document.getElementById('migrationOpen').addEventListener('click', openMigrationDialog);
+document.getElementById('settingsOrganizerBtn').addEventListener('click', () => {
+  chrome.runtime.sendMessage({ action: 'openOrganizer' }).catch(e => console.log('[SETTINGS] Organizer not opened:', e.message));
+});
 
 // A tab shown again reads everything again, after an install or a sync elsewhere
 document.addEventListener('visibilitychange', () => {

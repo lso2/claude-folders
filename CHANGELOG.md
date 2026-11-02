@@ -2,6 +2,44 @@
 
 All notable changes to Claude Folders.
 
+## 1.6.1
+
+**Organizer**
+
+- View Offline is #a77429, and View chat is #515151 with white text.
+- New colors for the top bar buttons, Import from another account, the folder cards, the active category chip and the avatar.
+- Categories is the home's first view and opens by default, followed by Cards and List.
+- Moved Filter categories and the folder sort up beside the view buttons.
+- Filter categories narrows the folder cards too.
+- Hid category chips with no folders.
+- Fixed the extra row on chat cards with a tag.
+- Fixed the layout on narrow windows.
+- View Offline opens a page that keeps the chat on reload.
+
+**Popup and claude.ai**
+
+- Added the account dropdown to the popup.
+- The account choice is shared and remembered by the popup, the Folders panel and the organizer.
+- Hid category chips with no folders in the popup.
+- Popup category rows and folders have a gray hover with white text.
+- Removed the Import Cowork chats button from Chats and tasks.
+- A sync stopped by folder access offers Grant access and runs again once access is granted.
+
+**Settings page**
+
+- Added Button color, with six preset circles and a custom picker.
+- Every orange in the extension is a CSS relative color of the chosen Button color, with its own offset from the default orange.
+- Custom color variants keep the chosen hue and are never more saturated than the chosen color.
+- Added Apply to the organizer under Button color, off by default.
+- Added the Log tab with syncs, exports, imports, folder changes, folder access and settings changes.
+- The log keeps the last 50,000 entries, with Show 500 older.
+- Hid the section chips on tabs with one section.
+
+**Offline view**
+
+- The chat view's top bar is #d1861c.
+- The offline library's View Offline and View chat buttons use the organizer's colors.
+
 ## 1.6.0
 
 **Markdown export**
@@ -24,6 +62,12 @@ All notable changes to Claude Folders.
 - Titles of another account's chats in the search open their export.
 - Chat rows show the date and time of the chat's last change.
 - Fixed "CodeUpgrade" in the organizer's sidebar on a free plan.
+- Added List, Cards and Categories views to the organizer home, with List as the default.
+- The account dropdown filters the List and Cards views.
+- Added Sort by to folder pages and to the List and Cards views.
+- Folder pages use the home's search bar, which searches the open folder.
+- Fixed View offline missing on another account's chats in a folder.
+- Added Check for updates to the footer.
 
 **Folders panel and popup**
 
@@ -34,14 +78,21 @@ All notable changes to Claude Folders.
 - Removed the × from the Folders panel.
 - Clicking Folders again closes the Folders panel.
 - The Folders row is highlighted while the Folders panel is open.
+- Moved the popup's sync icon next to the Folders title.
+- The popup and the Folders panel use a softer orange.
+- The folder access banner's button is light red.
+- The popup, the Folders panel and the organizer show a notice when GitHub has a newer version.
+- Added Check for updates to the popup and the Folders panel.
 
 **Sync**
 
 - Sync stores the start time of each chat.
 - Fixed the sync not starting in a claude.ai tab opened before the extension was reloaded or added again.
 - Folders are restored from the data folder after the extension is removed and added again.
-- Choosing the data folder asks for access on every visit right away.
+- Fixed exports losing folder access after the folder was chosen in the popup.
+- The first browser start after setup asks once for access on every visit.
 - The sync result lists the chats behind each failure, as links.
+- Failure reasons include Claude's own error message, such as the free plan's limit of 5 recently updated projects.
 - Added automatic sync, hourly by default, with an interval of 15 minutes to 4 hours.
 - Added Pause, Resume, Stop, Start and × to the sync's progress bar.
 - Sync Now on the sync bar syncs on the page it is clicked on.
@@ -62,6 +113,12 @@ All notable changes to Claude Folders.
 - The sidebar has the organizer's collapse button, drag edge, width and row colors.
 - Second buttons are gray with white text.
 - Buttons, the open tab and the checkboxes use the extension's orange.
+- The section chips filter the tab to one section, with All first.
+- Settings lists Automatic sync first, then Data folder and Claude Folders Helper.
+- Added a description of Claude Folders Helper and a GitHub releases button, and a Helper section in Help.
+- Added an Organizer button next to the title.
+- The settings page uses its own orange, and gray buttons are lighter on hover.
+- Fixed the Donate icon's alignment on the About tab.
 
 **Offline library**
 
@@ -89,7 +146,6 @@ All notable changes to Claude Folders.
 - Added Import from another account to the organizer.
 - The Folders panel shows Import from another account whenever another account has chats.
 - The popup and the organizer show the import's progress and result.
-- Removed the Import Cowork chats button from Chats and tasks. Import from another account imports Cowork sessions.
 
 **Folders panel**
 

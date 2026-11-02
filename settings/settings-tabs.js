@@ -1,11 +1,11 @@
 // settings/settings-tabs.js
-// Switches the settings page between its Settings, Import/Export, Help and About tabs in the sidebar.
+// Switches the settings page between its Settings, Import/Export, Log, Help and About tabs in the sidebar.
 // The Settings tab's name in the page and its address is main.
 // Globals: SETTINGS_TABS, showSettingsTab, firstSettingsTab
 // Depends on: lib/storage-keys.js (HELP_ON_OPEN_KEY), settings/settings-chips.js (renderSettingsChips)
 // Notes: docs/notes/settings/settings-tabs.js.md
 
-const SETTINGS_TABS = ['main', 'transfer', 'help', 'about'];
+const SETTINGS_TABS = ['main', 'transfer', 'log', 'help', 'about'];
 
 // The tab's name goes in the address, and a reload of the page keeps the tab
 function showSettingsTab(tab) {

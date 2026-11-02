@@ -1,7 +1,7 @@
 // settings/settings-help.js
 // Reads the Help tab's content from settings/help.html, runs its buttons and fills its status lines.
 // Globals: helpLoaded, loadHelpContent, helpScrollTo, runHelpAction, helpShowResult, renderHelpStatus
-// Depends on: settings/settings-tabs.js (showSettingsTab), settings/settings-transfer.js (exportSettingsFile),
+// Depends on: settings/settings-tabs.js (showSettingsTab), settings/settings-chips.js (filterSettingsSections), settings/settings-transfer.js (exportSettingsFile),
 //             settings/settings-format.js (settingsTime, settingsShowResult), lib/storage-keys.js (RUN_STATE_KEY,
 //             AUTO_SYNC_KEY, AUTO_SYNC_DEFAULT), background.js (checkWriteAccess, openFolderAccess, startAutoScrape,
 //             openImportDialog, openOrganizer), settings/settings-auto-sync.js (autoSyncLabel),
@@ -27,7 +27,9 @@ async function loadHelpContent() {
   }
 }
 
+// A chip filter showing one section is cleared first, so the target is in the page (settings/settings-chips.js)
 function helpScrollTo(id) {
+  filterSettingsSections(null);
   const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }

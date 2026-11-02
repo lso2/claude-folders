@@ -112,7 +112,7 @@
     height: 32px;
     flex: 0 0 32px;
     border-radius: 50%;
-    background: var(--button-bg);
+    background: #3f6781;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -7,8 +7,8 @@
   --text: #1f1e1d;
   --muted: #5e5d59;
   /* The orange of the extension's buttons and their hover */
-  --accent: #d97706;
-  --accent-hover: #b45309;
+  --accent: var(--cf-amber);
+  --accent-hover: var(--cf-amber-dark);
   /* The second button of a pair: white text on gray */
   --light-bg: #535353;
   --light-hover: #626262;
