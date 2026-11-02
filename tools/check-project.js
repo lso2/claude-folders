@@ -26,7 +26,8 @@ const RUNTIME_COPIES = {
   'standalone/html-escape.js': 'lib/html-escape.js',
   'standalone/export-render.js': 'lib/export-render.js',
   'standalone/export-page.js': 'lib/export-page.js',
-  'standalone/color-variants.js': 'lib/color-variants.js'
+  'standalone/color-variants.js': 'lib/color-variants.js',
+  'standalone/select-size.js': 'lib/select-size.js'
 };
 
 const problems = [];

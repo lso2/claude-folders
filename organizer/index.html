@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude - Folders</title>
     <link rel="stylesheet" href="../lib/color-variants.css">
+    <link rel="stylesheet" href="../lib/select-picker.css">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="../lib/page-frame.css">
     <link rel="stylesheet" href="sidebar.css">
@@ -118,7 +119,7 @@
                 <!-- The search bar and its Chats list, above the home and a folder (organizer/content-search.js) -->
                 <div id="searchArea" class="search-area">
                     <div class="search-controls">
-                        <select id="accountSelect" class="account-select" aria-label="Accounts shown" hidden></select>
+                        <select id="accountSelect" class="account-select cf-select" aria-label="Accounts shown" hidden></select>
                         <button class="btn-secondary" id="importAccountBtn" title="Open the import dialog in a new claude.ai tab" hidden>Import from another account</button>
                         <div class="search-box">
                             <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -145,7 +146,7 @@
                                 <!-- The order of the chats listed (organizer/content-sort.js) -->
                                 <label class="content-search-sort">
                                     <span class="content-search-sort-label">Sort by</span>
-                                    <select id="contentSearchSort" class="content-search-sort-select">
+                                    <select id="contentSearchSort" class="content-search-sort-select cf-select">
                                         <option value="match">Best match</option>
                                         <option value="name">Name</option>
                                         <option value="recent">Most recent message</option>
@@ -188,7 +189,7 @@
                         </div>
                         <div class="sort-controls" id="categorySortControls">
                             <span class="sort-label">Sort by</span>
-                            <select id="sortSelect" class="sort-select">
+                            <select id="sortSelect" class="sort-select cf-select">
                                 <option value="activity">Activity</option>
                                 <option value="name">Name</option>
                                 <option value="created">Created</option>
@@ -198,7 +199,7 @@
                             <span class="home-chat-count" id="homeChatCount"></span>
                             <label class="content-search-sort chat-sort">
                                 <span class="content-search-sort-label">Sort by</span>
-                                <select class="content-search-sort-select chat-sort-select" aria-label="Sort the chats by">
+                                <select class="content-search-sort-select chat-sort-select cf-select" aria-label="Sort the chats by">
                                     <option value="name">Name</option>
                                     <option value="recent">Most recent message</option>
                                     <option value="oldest">Oldest message</option>
@@ -270,7 +271,7 @@
                         <div class="folder-chat-tools">
                         <label class="content-search-sort chat-sort">
                             <span class="content-search-sort-label">Sort by</span>
-                            <select class="content-search-sort-select chat-sort-select" aria-label="Sort the chats by">
+                            <select class="content-search-sort-select chat-sort-select cf-select" aria-label="Sort the chats by">
                                 <option value="name">Name</option>
                                 <option value="recent">Most recent message</option>
                                 <option value="oldest">Oldest message</option>
@@ -337,6 +338,7 @@
     <script src="../lib/apply-update.js"></script>
     <script src="../lib/storage-keys.js"></script>
     <script src="../lib/color-variants.js"></script>
+    <script src="../lib/select-size.js"></script>
     <script src="../lib/button-color.js"></script>
     <script src="../lib/update-notice.js"></script>
     <script src="../lib/chat-markdown.js"></script>

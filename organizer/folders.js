@@ -19,7 +19,7 @@ function showNewFolderModal() {
       <label style="display:block;margin-bottom:8px;color:var(--text-secondary);font-size:13px;">Folder Name</label>
       <input type="text" id="newFolderNameInput" placeholder="Enter folder name..." style="width:100%;padding:10px;border:1px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--title-color);margin-bottom:16px;box-sizing:border-box;">
       <label style="display:block;margin-bottom:8px;color:var(--text-secondary);font-size:13px;">Category</label>
-      <select id="newFolderCategorySelect" style="width:100%;padding:10px;border:1px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--title-color);margin-bottom:20px;">
+      <select id="newFolderCategorySelect" class="cf-select" style="width:100%;padding:10px;border:1px solid var(--input-border);border-radius:6px;background:var(--input-bg);color:var(--title-color);margin-bottom:20px;">
         ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
       </select>
       <div style="display:flex;gap:10px;justify-content:flex-end;">

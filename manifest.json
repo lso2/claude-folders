@@ -31,6 +31,7 @@
         "lib/share-snapshots.js",
         "lib/storage-keys.js",
         "lib/color-variants.js",
+        "lib/select-size.js",
         "lib/button-color.js",
         "lib/update-notice.js",
         "lib/account-view.js",
@@ -98,6 +99,7 @@
       ],
       "css": [
         "lib/color-variants.css",
+        "lib/select-picker.css",
         "inject.css"
       ],
       "run_at": "document_idle"

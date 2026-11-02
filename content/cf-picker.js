@@ -38,7 +38,7 @@ function showFolderPicker(anchorElement) {
     <div class="folder-picker-divider"></div>
     <div class="folder-picker-new">
       <input type="text" id="newFolderName" placeholder="New folder name..." class="new-folder-input">
-      <select id="newFolderCategory" class="new-folder-select">
+      <select id="newFolderCategory" class="new-folder-select cf-select">
         ${(categories.length > 0 ? categories : ['Personal', 'Work', 'Projects']).map(cat => `<option value="${cfEscapeHtml(cat)}">${cfEscapeHtml(cat)}</option>`).join('')}
       </select>
       <button class="create-folder-btn">Create & Add</button>

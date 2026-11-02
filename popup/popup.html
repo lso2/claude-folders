@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claude Folders</title>
   <link rel="stylesheet" href="../lib/color-variants.css">
+  <link rel="stylesheet" href="../lib/select-picker.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -110,7 +111,7 @@
       </div>
 
       <!-- The accounts the folders below show, the same choice as the Folders panel and the organizer (popup/popup-accounts.js) -->
-      <select id="popupAccountSelect" class="popup-account-select" aria-label="Accounts shown" hidden></select>
+      <select id="popupAccountSelect" class="popup-account-select cf-select" aria-label="Accounts shown" hidden></select>
 
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -196,7 +197,7 @@
           <label class="form-label">Folder Name:</label>
           <input type="text" id="renameFolderInput" class="edit-input" style="width: 100%; margin-bottom: 12px;">
           <label class="form-label">Category:</label>
-          <select id="renameFolderCategory" class="edit-select" style="width: 100%;"></select>
+          <select id="renameFolderCategory" class="edit-select cf-select" style="width: 100%;"></select>
           <div class="modal-actions" style="margin-top: 20px;">
             <button class="btn-secondary" data-modal="renameFolderModal">Cancel</button>
             <button id="confirmRenameFolder" class="btn-primary">Save</button>
@@ -263,6 +264,7 @@
   <script src="../lib/apply-update.js"></script>
   <script src="../lib/storage-keys.js"></script>
   <script src="../lib/color-variants.js"></script>
+  <script src="../lib/select-size.js"></script>
   <script src="../lib/button-color.js"></script>
   <script src="../lib/update-notice.js"></script>
   <script src="../lib/page-dialog.js"></script>

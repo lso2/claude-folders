@@ -60,7 +60,7 @@ async function cfOpenImportDialog(preselectKey) {
       <div class="cf-confirm-title" id="cf-import-title">Import chats from another account</div>
       ${choices.length ? `
       <label class="cf-import-label" for="cf-import-from">From</label>
-      <select id="cf-import-from" class="cf-import-select">${options}</select>
+      <select id="cf-import-from" class="cf-import-select cf-select">${options}</select>
       <div class="cf-import-into">Into ${cfEscapeHtml(cfAccountLabel(cfOwnAccount()))} (signed in here)</div>
       <div class="cf-import-plan" aria-live="polite">Reading the data folder...</div>
       <fieldset class="cf-import-request">

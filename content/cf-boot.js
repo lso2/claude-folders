@@ -14,6 +14,7 @@ const CF_PART_CHECKS = [
   ['lib/share-snapshots.js', typeof fetchSnapshot],
   ['lib/storage-keys.js', typeof QUEUED_EXPORTS_KEY === 'string' ? 'function' : 'undefined'],
   ['lib/color-variants.js', typeof cfApplyButtonColor],
+  ['lib/select-size.js', typeof cfSizeSelect],
   ['lib/button-color.js', typeof cfLoadButtonColor],
   ['lib/account-view.js', typeof cfFoldersForView],
   ['lib/account-view-store.js', typeof cfReadAccountView],

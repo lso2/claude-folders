@@ -66,7 +66,7 @@ function cfRenderAccountSelect() {
   const choices = cfAccountViewChoices(cfViewAccounts(), cfAccountView, cfAccountKey);
   if (!choices.length) return '';
   const html = choices.map(c => `<option value="${cfEscapeHtml(c.value)}"${c.selected ? ' selected' : ''}>${c.indent ? '&nbsp;&nbsp;&nbsp;&nbsp;' : ''}${cfEscapeHtml(c.label)}</option>`).join('');
-  return `<div class="cf-account-view"><select class="cf-account-select" aria-label="Accounts shown">${html}</select></div>`;
+  return `<div class="cf-account-view"><select class="cf-account-select cf-select" aria-label="Accounts shown">${html}</select></div>`;
 }
 
 // The folders the view shows (lib/account-view.js cfFoldersForView)

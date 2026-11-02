@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude - Folders</title>
     <link rel="stylesheet" href="color-variants.css">
+    <link rel="stylesheet" href="select-picker.css">
     <link rel="stylesheet" href="styles.css">
     <style>
         .library-access { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 12px 16px; border-radius: 10px; background: #30302e; color: #c2c0b5; font-size: 13px; }
@@ -95,7 +96,7 @@
                     <div class="filter-pills" id="filterPills"></div>
                     <div class="sort-controls">
                         <span class="sort-label">Sort by</span>
-                        <select id="sortSelect" class="sort-select">
+                        <select id="sortSelect" class="sort-select cf-select">
                             <option value="activity">Activity</option>
                             <option value="name">Name</option>
                             <option value="created">Created</option>
@@ -180,6 +181,7 @@
 
     <script src="data.js"></script>
     <script src="color-variants.js"></script>
+    <script src="select-size.js"></script>
     <script src="library-color.js"></script>
     <script src="chat-markdown.js"></script>
     <script src="library-files.js"></script>

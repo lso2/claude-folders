@@ -21,6 +21,7 @@
     --divider: #262624;
     --model-color: #b0afa5;
     --accent-color: var(--cf-amber);
+    --cf-select-accent: var(--accent-color);
     --accent-bg: #3d3526;
     --text-secondary: #9c9a92;
 }

@@ -11,6 +11,7 @@
   /* The settings page's orange and its hover */
   --accent: var(--cf-settings-accent);
   --accent-hover: var(--cf-settings-accent-hover);
+  --cf-select-accent: var(--accent);
   /* The second button of a pair: white text on gray */
   --light-bg: #535353;
   --light-hover: #868686;
@@ -77,6 +78,7 @@ body {
 
 .settings-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
@@ -474,6 +476,11 @@ code {
   color: var(--text);
 }
 
+/* The Log tab's chips show how many entries each kind has */
+.settings-chip-count {
+  font-size: 12px;
+}
+
 /* The selected chip has the sidebar's current-row tint */
 .settings-chip.active {
   background: var(--nav-current);
@@ -537,6 +544,10 @@ code {
   margin: 0 0 12px;
 }
 
+.settings-log-actions .settings-muted {
+  margin: 0;
+}
+
 .settings-log {
   margin: 0;
   padding: 0;
@@ -555,9 +566,8 @@ code {
 
 .settings-log-time {
   flex: 0 0 auto;
-  min-width: 11.5em;
+  min-width: min(11.5em, 100%);
   color: var(--muted);
-  white-space: nowrap;
 }
 
 .settings-log-kind {
@@ -577,10 +587,15 @@ code {
   color: var(--muted);
 }
 
-.settings-log-more {
-  margin-top: 12px;
+/* Per page at the right end of the row with Clear log and the count */
+.settings-log-size {
+  margin: 0 0 0 auto;
 }
 
-.settings-log-more[hidden] {
+.settings-log-pager {
+  align-items: center;
+}
+
+.settings-log-pager[hidden] {
   display: none;
 }

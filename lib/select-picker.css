@@ -1,0 +1,55 @@
+/* lib/select-picker.css
+   The open list of the extension's dropdowns (class cf-select), with the page's accent on the option under the pointer.
+   Chrome's customizable select (appearance: base-select) styles the list; a plain select shows the system's blue.
+   Notes: docs/notes/lib/select-picker.css.md */
+
+.cf-select,
+.cf-select::picker(select) {
+  appearance: base-select;
+}
+
+/* The text and chevron are centered. A plain select ignores the page's line height, and lib/select-size.js sets its height. */
+.cf-select {
+  align-items: center;
+  line-height: normal;
+}
+
+/* The list takes the dropdown's own background and text color */
+.cf-select::picker(select) {
+  margin-top: 2px;
+  padding: 4px 0;
+  border: 1px solid var(--cf-select-line, #3d3d3a);
+  border-radius: 6px;
+  background-color: inherit;
+  color: inherit;
+}
+
+/* A thin chevron in the text color, as the plain select on Windows draws it */
+.cf-select::picker-icon {
+  content: '';
+  width: 10px;
+  height: 6px;
+  margin-left: auto;
+  background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='black' stroke-width='1.4'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.cf-select option {
+  padding: 6px 10px;
+}
+
+.cf-select option::checkmark {
+  display: none;
+}
+
+/* A page names its accent in --cf-select-accent. The button orange applies on claude.ai and in the popup. */
+.cf-select option:hover,
+.cf-select option:focus-visible {
+  outline: none;
+  background: var(--cf-select-accent, var(--cf-orange));
+  color: #ffffff;
+}
+
+.cf-select option:checked {
+  font-weight: 600;
+}

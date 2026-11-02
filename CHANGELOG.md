@@ -18,6 +18,7 @@ All notable changes to Claude Folders.
 
 **Popup and claude.ai**
 
+- The option under the pointer in every dropdown has the page's accent color.
 - Added the account dropdown to the popup.
 - The account choice is shared and remembered by the popup, the Folders panel and the organizer.
 - Hid category chips with no folders in the popup.
@@ -32,8 +33,11 @@ All notable changes to Claude Folders.
 - Custom color variants keep the chosen hue and are never more saturated than the chosen color.
 - Added Apply to the organizer under Button color, off by default.
 - Added the Log tab with syncs, exports, imports, folder changes, folder access and settings changes.
-- The log keeps the last 50,000 entries, with Show 500 older.
+- The log keeps the last 50,000 entries, with pages and a Per page dropdown.
+- Added kind chips to the log, which filter its entries by one or more kinds.
+- Log entries have their own kinds in place of Settings, entries already logged included.
 - Hid the section chips on tabs with one section.
+- Fixed the header and footer on narrow windows.
 
 **Offline view**
 

@@ -30,6 +30,7 @@
     --divider: #262624;
     --model-color: #b0afa5;
     --accent-color: var(--cf-gold-deep);
+    --cf-select-accent: var(--accent-color);
     --accent-bg: #3d3526;
     --text-secondary: #9c9a92;
     --text-primary: #c2c0b5;

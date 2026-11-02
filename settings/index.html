@@ -12,6 +12,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Claude Folders Settings</title>
   <link rel="stylesheet" href="../lib/color-variants.css">
+  <link rel="stylesheet" href="../lib/select-picker.css">
   <link rel="stylesheet" href="../lib/page-frame.css">
   <link rel="stylesheet" href="settings.css">
 </head>
@@ -83,7 +84,7 @@
       <h2 class="settings-heading" id="autoSyncHeading">Automatic sync</h2>
       <label class="settings-check"><input type="checkbox" id="autoSyncOn"> Sync automatically</label>
       <label class="settings-field">Every
-        <select id="autoSyncMinutes"></select>
+        <select id="autoSyncMinutes" class="cf-select"></select>
       </label>
       <p class="settings-muted">Automatic sync is on every 1 hour until it is changed here. The sync runs in an open claude.ai tab with a writable data folder. A turn with no claude.ai tab open is skipped. A notice appears on claude.ai only after an automatic sync with new, exported or updated chats.</p>
       <p class="settings-text" id="autoSyncLast"></p>
@@ -263,10 +264,17 @@
       <div class="settings-actions settings-log-actions">
         <button type="button" class="btn btn-light" id="logClear">Clear log</button>
         <span class="settings-muted" id="logCount"></span>
+        <label class="settings-field settings-log-size">Per page
+          <select id="logPageSize" class="cf-select"></select>
+        </label>
       </div>
       <ol class="settings-log" id="logList"></ol>
-      <div class="settings-actions settings-log-more" id="logOlderWrap" hidden>
-        <button type="button" class="btn btn-light" id="logOlder">Show 500 older</button>
+      <div class="settings-actions settings-log-pager" id="logPager" hidden>
+        <button type="button" class="btn btn-light" id="logNewest">Newest</button>
+        <button type="button" class="btn btn-light" id="logNewer">Newer</button>
+        <span class="settings-muted" id="logPage"></span>
+        <button type="button" class="btn btn-light" id="logOlder">Older</button>
+        <button type="button" class="btn btn-light" id="logOldest">Oldest</button>
       </div>
     </section>
     </div>
@@ -298,6 +306,7 @@
   <script src="../lib/apply-update.js"></script>
   <script src="../lib/storage-keys.js"></script>
   <script src="../lib/color-variants.js"></script>
+  <script src="../lib/select-size.js"></script>
   <script src="../lib/button-color.js"></script>
   <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
