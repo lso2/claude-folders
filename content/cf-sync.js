@@ -262,15 +262,16 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
         if (org.reachedEnd && org.oldestStamp) await cfWriteWatermark(org.id, org.oldestStamp);
       }
 
-      // Cowork sessions are listed in full on every sync, from the organizations read above
+      // Cowork and Claude Code sessions are listed in full on every sync, from the organizations read above
       const cowork = await cfCollectCoworkSessions(result.orgs.filter(o => !o.error));
       if (result.records.length || cowork.length) {
         const readToEnd = result.orgs.every(o => o.error || o.reachedEnd);
-        console.log('[SCRAPER] Collected', result.records.length, 'conversations and', cowork.length, 'Cowork sessions across',
+        console.log('[SCRAPER] Collected', result.records.length, 'conversations and', cowork.length, 'Cowork and Claude Code sessions across',
           result.orgs.length, 'organizations,', result.accountTotal, 'conversations on this login');
         return {
           chats: result.records.concat(cowork), source: 'api', stoppedEarly: !readToEnd,
-          accountTotal: result.accountTotal, orgs: result.orgs, coworkCount: cowork.length
+          accountTotal: result.accountTotal, orgs: result.orgs, coworkCount: cowork.length,
+          codeCount: cowork.filter(r => r.tags.includes('claude-code')).length
         };
       }
       console.log('[SCRAPER] The list endpoint returned no conversations, reading the page instead');
@@ -283,7 +284,7 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
   const scraped = await cfCollectChatsByScrolling(rootEl, (count) => {
     if (onProgress) onProgress(count, null, 'dom');
   });
-  return { chats: scraped, source: 'dom', stoppedEarly: false, accountTotal: null, orgs: null, coworkCount: 0 };
+  return { chats: scraped, source: 'dom', stoppedEarly: false, accountTotal: null, orgs: null, coworkCount: 0, codeCount: 0 };
 }
 
 async function scrapeAllChats() {
@@ -417,7 +418,7 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
   // Fallback root for the page-reading path (never the sidebar)
   const mainContent = document.querySelector('main') || document.body;
 
-  const { chats: collected, source, stoppedEarly, accountTotal, orgs: orgSummaries, coworkCount } = await cfCollectAllChats(mainContent, (count, total) => {
+  const { chats: collected, source, stoppedEarly, accountTotal, orgs: orgSummaries, coworkCount, codeCount } = await cfCollectAllChats(mainContent, (count, total) => {
     cfSyncProgress(total ? `Reading ${count} of ${total} chats...` : `Reading... ${count} chats found`);
   }, fullResync);
   // scrapedChats = the genuinely new ones (used below for passive export + counts)
@@ -494,9 +495,9 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
   const accessNeeded = outcome && outcome.access ? outcome.access : null;
   if (accessNeeded && !auto) cfRememberSyncRequest(fullResync, rewriteAll);
   
-  // The account total counts conversations; Cowork sessions are added to it
+  // The account total counts conversations; Cowork and Claude Code sessions are added to it
   const chatTotal = accountTotal || (collected.length - coworkCount);
-  const summary = cfSyncSummaryLines(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount, libraryWritten);
+  const summary = cfSyncSummaryLines(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount - codeCount, libraryWritten, codeCount);
   if (cfSyncStopRequested()) {
     const done = outcome ? `${outcome.exported} exported, ${outcome.updated} updated` : 'no chats exported';
     cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], `Stopped with Stop on the sync bar: ${done}`, outcome ? outcome.failures : []);

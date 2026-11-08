@@ -56,16 +56,17 @@ function scanForNewChats() {
     }
   }
 
-  // Chat and Cowork session links in the sidebar
-  const chatLinks = document.querySelectorAll('a[href*="/chat/"], a[href*="/cowork/cse_"]');
+  // Chat, Cowork session and Claude Code session links in the sidebar
+  const chatLinks = document.querySelectorAll('a[href*="/chat/"], a[href*="/cowork/cse_"], a[href*="/code/session_"]');
   let foundNew = false;
   let scanned = 0;
 
   for (const link of chatLinks) {
     const href = link.getAttribute('href') || '';
+    const code = href.match(/\/code\/session_([A-Za-z0-9]+)/);
     const match = href.match(/\/chat\/([a-f0-9-]+)/i) || href.match(/\/cowork\/(cse_[A-Za-z0-9]+)/);
-    if (!match) continue;
-    const chatId = match[1];
+    if (!match && !code) continue;
+    const chatId = code ? 'cse_' + code[1] : match[1];
     scanned++;
 
     // Skip if already known or already tracked as new

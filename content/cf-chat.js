@@ -1,5 +1,5 @@
 // content/cf-chat.js
-// Places the extension's buttons on chat, Cowork and shared-chat pages.
+// Places the extension's buttons on chat, Cowork, Claude Code and shared-chat pages.
 // Globals: CF_EXPORT_ICON, CF_IMPORT_ICON, CF_FOLDER_BTN_ICON, CF_FOLDER_OPEN_ICON, CF_EXPORT_UPDATE_ICON,
 //          cfMakeButton, cfClearChatButtons, injectChatButton, cfInjectShareButtons
 // Depends on: content/cf-routes.js, content/cf-export.js, content/cf-export-state.js, content/cf-picker.js,
@@ -39,12 +39,15 @@ function injectChatButton() {
   const actionsGroup = header && header.querySelector('[data-testid="wiggle-controls-actions-group"]');
   const usableActions = actionsGroup && actionsGroup.getBoundingClientRect().width > 0 ? actionsGroup : null;
   const coworkTrailing = document.querySelector('[data-testid="cowork-title-row-trailing"]');
+  // A Claude Code page has no header element. Its title is an h2 in this group, which holds the buttons.
+  const codeTitleGroup = ref.product === 'code' ? document.querySelector('.cc-lined-title-group') : null;
   const titleControl = document.querySelector('[data-testid="chat-title-split"]')
     || document.querySelector('[data-testid="session-title-split"]')
     || (header && header.querySelector('h1'));
 
   const titleContainer = usableActions
     || (coworkTrailing && coworkTrailing.parentElement)
+    || codeTitleGroup
     || (titleControl && titleControl.parentElement)
     || header;
   const placeFirst = !!usableActions;

@@ -2,6 +2,16 @@
 
 All notable changes to Claude Folders.
 
+## 1.6.3
+
+**Claude Code sessions**
+
+- Sync and Export include Claude Code sessions on the web, with each message's date and time.
+- Claude Code session pages show Export and Add to folder beside the session title.
+- Claude Code sessions link to their claude.ai/code page and have a Claude Code label in the Folders panel.
+- The sync result counts Cowork and Claude Code sessions on separate lines.
+- New Claude Code sessions in the sidebar count toward the Sync Now notice.
+
 ## 1.6.1
 
 **Organizer**

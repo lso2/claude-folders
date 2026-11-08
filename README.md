@@ -22,6 +22,7 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - **Passive Sync**: Monitors for new chats and shows a sync bar as soon as one is ready to import
 - **Shared Chat Import**: Chats shared with you are imported as new chats in your account, with the transcript attached
 - **Cowork Sessions**: Cowork sessions are synced into folders and exported to markdown. Exports from another account are imported as Cowork tasks
+- **Claude Code Sessions**: Claude Code sessions on the web are synced into folders and exported to markdown
 - **Account Import**: Another account's chats and Cowork sessions can be imported into matching folders from the Folders panel or the organizer, with Pause, Resume and Stop
 - **Full Account Import**: Reads every organization connected to your login
 - **Analytics**: View category distribution and folder statistics
@@ -97,7 +98,7 @@ Claude sorts your chat titles into categories and folders. The request is automa
 ### Markdown Export
 - Export individual chats or bulk export all conversations
 - Full conversation content including all messages and responses
-- Automatic filename generation: `{first 8 characters of the chat id}_{title}.md`, and `{session id}_{title}.md` for Cowork sessions
+- Automatic filename generation: `{first 8 characters of the chat id}_{title}.md`, and `{session id}_{title}.md` for Cowork and Claude Code sessions
 - Each message has its date and time under its **Human** or **Claude** heading, such as `*Oct 30, 2026, 9:22 AM CDT*`, in the time zone of the browser that wrote the export
 - Skip exports that are on disk and current (no duplicates)
 - An export with no message timestamps, or older than the chat's newest change, is written again over its file by the next sync or folder export
@@ -115,6 +116,13 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - Cowork sessions (`claude.ai/cowork/...`) show **Export** and **Add to folder** beside the session title
 - Clicking **Export** saves the whole session to `chats/`: your messages, Claude's replies, tool calls and tool results
 - Syncing stores Cowork sessions in the folders beside your chats and exports the new ones. Their rows in the folders panel have a **Cowork** label
+
+### Claude Code Sessions
+- Claude Code sessions on the web (`claude.ai/code/session_...`) show **Export** and **Add to folder** beside the session title
+- Syncing stores them in the folders beside your chats and exports the new ones. Their rows in the folders panel have a **Claude Code** label
+- An export has each message with its date and time, and the session's `claude.ai/code` link. Thinking with text is a collapsed **Thinking** section, and the session's setup and status events are left out
+- Claude Code and Cowork are read through the same session list. A session without the Cowork tag is a Claude Code session
+- From another account, a Claude Code session's export is imported as a Cowork task, the same as a Cowork session's
 
 ### Moving Cowork Sessions to Another Account
 - Export the sessions in the first account with **Export** or a sync
@@ -189,8 +197,8 @@ Claude sorts your chat titles into categories and folders. The request is automa
 
 ### Saved Files and Show in Folder
 - After a single export, the Saved notice stays open until its **×** is clicked
-- An exported chat or Cowork session with messages newer than its export, or with an export that has no message timestamps, shows **Export Update**, which writes over the same file, and hovering over it explains this
-- Every sync exports the stored chats and Cowork sessions missing from the data folder, and writes the outdated exports again over their files
+- An exported chat, Cowork session or Claude Code session with messages newer than its export, or with an export that has no message timestamps, shows **Export Update**, which writes over the same file, and hovering over it explains this
+- Every sync exports the stored chats, Cowork sessions and Claude Code sessions missing from the data folder, and writes the outdated exports again over their files
 - Chrome extensions cannot open File Explorer. On Windows, the Claude Folders Helper does it. Its setup is a separate download on the [GitHub releases page](https://github.com/lso2/claude-folders/releases). With the helper installed, the file name in the Saved notice is underlined and an exported, current chat shows **Show in folder**. Clicking either opens File Explorer with the file selected
 - Without the helper, the Saved notice shows the file name as plain text, and an exported, current chat shows **Export**, which writes over the same file
 
@@ -210,7 +218,7 @@ Claude sorts your chat titles into categories and folders. The request is automa
 - Sync, Organize, Export, Import, Settings, New folder and Import from another account need the extension and are in the organizer only
 
 ### Passive Chat Monitor
-- Automatically detects new conversations and Cowork sessions in the sidebar
+- Automatically detects new conversations, Cowork sessions and Claude Code sessions in the sidebar
 - Shows a sync bar as soon as a new chat is available
 - One-click sync to import all new chats
 - Smart skip logic - only imports chats not already in folders
@@ -287,7 +295,7 @@ Or download and extract the ZIP file.
 
 **All chats, from the popup or the organizer:**
 1. Click **Sync**
-2. Every chat and Cowork session of this login is read. The ones missing from `chats/` are exported, and outdated exports are written again over their files
+2. Every chat, Cowork session and Claude Code session of this login is read. The ones missing from `chats/` are exported, and outdated exports are written again over their files
 3. The popup and the organizer show the progress and the result, with the counts of imported, exported and updated chats
 4. In the organizer, clicking **Download** saves the files written by that sync as one combined markdown file
 
@@ -469,7 +477,7 @@ claude-folders-extension/
 │   ├── cf-sidebar.js      # Folders row in Claude's sidebar
 │   ├── cf-panel.js        # Folders flyout panel
 │   ├── cf-folder-pane.js  # A folder's chats in the pane beside the Folders panel
-│   ├── cf-chat.js         # Buttons on chat, Cowork and shared-chat pages
+│   ├── cf-chat.js         # Buttons on chat, Cowork, Claude Code and shared-chat pages
 │   ├── cf-export*.js      # Single and bulk exports, their records and the export button's state
 │   ├── cf-reveal.js       # Show in folder through the Claude Folders Helper
 │   ├── cf-tooltip.js      # Hover tooltips
@@ -483,7 +491,7 @@ claude-folders-extension/
 │   ├── cf-project-import.js # Import button on a project's Activity tab
 │   ├── cf-composer.js     # Claude's message composer
 │   ├── cf-sync*.js        # Conversation sync and its summary
-│   ├── cf-cowork-sync.js  # Cowork sessions for a sync
+│   ├── cf-cowork-sync.js  # Cowork and Claude Code sessions for a sync
 │   ├── cf-cowork-import.js # Attachment and request of a Cowork session imported from another account
 │   ├── cf-monitor.js      # New-chat monitor
 │   ├── cf-build-check.js  # Reload check for a background older than the page scripts
@@ -491,9 +499,9 @@ claude-folders-extension/
 ├── lib/                   # Shared by the content scripts and the extension pages
 │   ├── chat-markdown.js   # Markdown format and export filenames
 │   ├── chat-exporter.js   # Conversation reads from Claude's API
-│   ├── cowork-api.js      # Cowork session and event reads
-│   ├── cowork-markdown.js # Cowork event log to markdown
-│   ├── cowork-export.js   # One Cowork session's export
+│   ├── cowork-api.js      # Cowork and Claude Code session and event reads
+│   ├── cowork-markdown.js # Cowork and Claude Code event logs to markdown
+│   ├── cowork-export.js   # One Cowork or Claude Code session's export
 │   ├── share-snapshots.js # Shared chat and project activity reads
 │   ├── handle-storage.js  # Data folder handle and access state
 │   ├── data-file.js       # data.json and the standalone library

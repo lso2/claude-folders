@@ -4,7 +4,7 @@
 //          cfFolderPaneHtml, cfToggleFolderPane, cfOpenFolderPane, cfCloseFolderPane, cfFolderPaneState,
 //          cfPlaceFolderPane, cfFolderPaneKeydown
 // Depends on: content/cf-text.js, content/cf-account-view.js (cfViewFolders, cfOrgTag),
-//             lib/account-view.js (cfAccountLabel), lib/cowork-api.js (isCoworkSessionId)
+//             lib/account-view.js (cfAccountLabel), lib/cowork-api.js (isCoworkSessionId, sessionProductOfUrl)
 // Notes: docs/notes/content/cf-folder-pane.js.md
 
 // Chats shown when a folder is opened, and added by each Load more
@@ -13,9 +13,10 @@ const CF_FOLDER_PANE_STEP = 30;
 const CF_FOLDER_PANE_WIDTH = 360;
 const CF_FOLDER_PANE_MIN_WIDTH = 260;
 
-// Rows for Cowork sessions have a Cowork label
+// Rows for Cowork sessions have a Cowork label, and rows for Claude Code sessions a Claude Code label
 function cfCoworkTag(chat) {
-  return chat && isCoworkSessionId(chat.id) ? '<span class="folder-chat-org">Cowork</span>' : '';
+  if (!chat || !isCoworkSessionId(chat.id)) return '';
+  return `<span class="folder-chat-org">${sessionProductOfUrl(chat.url) === 'code' ? 'Claude Code' : 'Cowork'}</span>`;
 }
 
 // row: { chat, account } from cfViewFolders. The second line has the account's label when the folder holds chats of
