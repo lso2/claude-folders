@@ -42,7 +42,10 @@ Claude Folders transforms Claude.ai's flat conversation list into an organized f
 - Category pills show each category's folder count, with empty categories last
 - View chat count and last activity per folder
 
-### Folders Panel
+### Folders Sidebar Panel
+
+![The sidebar panel in Claude](screens/sidebar.png)
+
 - Clicking **Folders** in Claude's sidebar opens the panel beside it
 - Clicking **Folders** again or clicking outside the panel closes it. The Folders row is highlighted while the panel is open
 - The square-check's choice to show or collapse the organize steps is kept, in the panel and the popup
