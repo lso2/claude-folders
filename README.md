@@ -560,7 +560,11 @@ claude-folders-extension/
 
 ## License
 
-GPLv3 - See LICENSE file for details
+Copyright (C) 2026 PlexPixel
+
+Claude Folders is licensed under the GNU General Public License version 3 (GPL-3.0-only). The full text is in [LICENSE](LICENSE). Sections 15 and 16 of the license disclaim any warranty and limit liability.
+
+Third-party parts are under their own licenses: acorn (MIT, `node_modules/acorn/LICENSE`) and the Font Awesome Free 6.5.2 icons (CC BY 4.0).
 
 ---
 
