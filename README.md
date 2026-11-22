@@ -547,10 +547,11 @@ claude-folders-extension/
 
 ## Contributing
 
-Run the synthetic backup regression tests with Node.js 18 or later:
+Run the synthetic backup regression tests with Node.js 24:
 
 ```bash
 npm test
+npm run check:code
 ```
 
 These tests cover export identity, source revision tracking, queued writes,
@@ -558,6 +559,16 @@ rediscovery and incomplete pagination without accessing a real Claude account.
 They supplement the manual Chrome testing below. Existing export records without
 a fetched source revision are refreshed on their next sync; local save time is
 not evidence that a later source change was included.
+
+`check:code` runs the project's code/load/size/header checks without requiring
+the author's external sibling `../docs` notes. It reports how many notes were
+not checked. The original `node tools/check-project.js` remains strict and
+still requires those notes; this mode does not certify documentation completeness.
+
+The Backup checks workflow also runs synthetic source-module and real DOM smoke
+checks in Chrome on an isolated GitHub runner. To run that check on a disposable
+test machine with Chrome installed, use `npm run test:browser`. It does not test
+extension installation, real account access or persistent folder permissions.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
