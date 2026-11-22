@@ -1,7 +1,8 @@
 // content/cf-migrate-source.js
 // Builds the attachment, request and target folder of each chat imported from another account.
 // Globals: cfMigrationStyle, cfMigrationPrompt, cfMigrateImportSource
-// Depends on: lib/storage-keys.js (MIGRATION_REQUEST_KEY), content/cf-cowork-import.js (cfReadExportFile)
+// Depends on: lib/storage-keys.js (MIGRATION_REQUEST_KEY), content/cf-cowork-import.js (cfReadExportFile),
+//             lib/chat-markdown.js (exportSourceId)
 // Notes: docs/notes/content/cf-migrate-source.js.md
 
 // 'short' or 'full' as chosen on the settings page. Nothing stored means the short request (1.6.0).
@@ -27,11 +28,15 @@ function cfMigrationPrompt(item) {
 // The export file is attached as it is on disk, and the new chat is filed in the folder planned for it
 // (content/cf-migrate.js cfMigrationFolderId)
 async function cfMigrateImportSource(item) {
+  const attachMarkdown = await cfReadExportFile(item.filename);
+  if (exportSourceId(attachMarkdown) !== String(item.sourceId)) {
+    throw new Error('The export source ID does not match the chat selected for import');
+  }
   return {
     sourceId: item.sourceId,
     surface: 'chat',
     filename: item.filename,
-    attachMarkdown: await cfReadExportFile(item.filename),
+    attachMarkdown,
     prompt: cfMigrationPrompt(item),
     importedFrom: { chatId: item.sourceId, accountKey: item.accountKey, filename: item.filename },
     folderId: item.folderId,

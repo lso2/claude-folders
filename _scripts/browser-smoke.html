@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Claude Folders synthetic browser checks</title>
+<style>body{font:16px system-ui;max-width:850px;margin:40px auto}pre{white-space:pre-wrap}</style>
+<h1>Claude Folders synthetic browser checks</h1>
+<p>This page uses synthetic data only. It does not connect to Claude or request folder access.</p>
+<pre id="result">Loading source modules…</pre>
+<script src="../lib/chat-markdown.js"></script>
+<script src="../content/cf-export-run.js"></script>
+<script src="../content/cf-text.js"></script>
+<script src="../lib/run-failures.js"></script>
+<script src="../content/cf-sync-summary.js"></script>
+<script>
+window.runSmokeChecks = async function () {
+  const passed = [];
+  function check(name, condition) { if (!condition) throw new Error(name); passed.push(name); }
+  const a='deadbeef-aaaa-4000-8000-000000000001';
+  const b='deadbeef-bbbb-4000-8000-000000000002';
+  check('Distinct full-ID names for colliding prefixes',generateExportFilename(a,'Test')!==generateExportFilename(b,'Test'));
+  const source=`# Test\n\n**Chat ID:** ${a}\n\n---\n\n**Chat ID:** ${b}`;
+  check('Header identity ignores body lookalikes',exportSourceId(await new Blob([source]).text())===a);
+  check('Fetched source revision controls freshness',cfExportIsOutdated({updatedAt:'2026-01-02T00:00:00Z'},
+    {format:EXPORT_FORMAT,sourceUpdatedAt:'2026-01-01T00:00:00Z',exportedAt:'2099-01-01T00:00:00Z'}));
+  const summary=cfSyncSummaryLines(1,250,null,[{name:'<img src=x onerror="window.unexpected=true">',error:'repeated page'}],0,true,0);
+  check('Incomplete result survives summary formatting',summary.incomplete);
+  showSyncSuccessModal(summary,null);
+  check('Real DOM renders incomplete status',document.querySelector('.sync-success-modal h2').textContent==='Sync incomplete');
+  check('Summary escapes markup from source metadata',!document.querySelector('.sync-success-modal img')&&!window.unexpected);
+  document.getElementById('result').textContent=JSON.stringify({passed},null,2);
+  return {passed};
+};
+</script>
+</html>

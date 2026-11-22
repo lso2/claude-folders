@@ -1,6 +1,6 @@
 // content/cf-export-records.js
 // Records each chat's export outcome in extension storage.
-// Globals: markChatAsExported, cfMarkChatsExported, cfMarkChatUnavailable, cfLoadUnavailableChats
+// Globals: markChatAsExported, cfMarkChatsExported, cfMarkChatUnavailable, cfLoadUnavailableChats, cfClearUnavailableChats
 // Depends on: lib/storage-keys.js (EXPORTED_CHATS_KEY), lib/export-state.js (recordExports),
 //             lib/chat-markdown.js (EXPORT_FORMAT),
 //             content/cf-export-state.js (cfOnExportRecorded)
@@ -10,7 +10,9 @@
 // disk whether or not its record was written, and the state of the page's export button is read again.
 async function markChatAsExported(chatId, details) {
   try {
-    await recordExports([{ chatId, filename: details && details.filename, mark: details && details.mark, format: EXPORT_FORMAT }]);
+    await recordExports([{ chatId, filename: details && details.filename, mark: details && details.mark,
+      sourceUpdatedAt: details && details.sourceUpdatedAt, format: EXPORT_FORMAT }]);
+    await cfClearUnavailableChats([chatId]);
   } catch (e) {
     console.log('[EXPORT] Failed to mark as exported:', e.message);
   }
@@ -53,4 +55,15 @@ async function cfLoadUnavailableChats() {
   } catch (e) {
     return {};
   }
+}
+
+// Authoritative rediscovery or a successful export invalidates an old negative result.
+async function cfClearUnavailableChats(chatIds) {
+  if (!chatIds.length) return;
+  const unavailable = await cfLoadUnavailableChats();
+  let changed = false;
+  for (const id of chatIds) {
+    if (unavailable[id]) { delete unavailable[id]; changed = true; }
+  }
+  if (changed) await chrome.storage.local.set({ unavailableChats: unavailable });
 }

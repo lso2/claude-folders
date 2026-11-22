@@ -1,5 +1,13 @@
 {
+  "scripts": {
+    "test": "node --test",
+    "check:code": "node tools/check-project.js --code-only",
+    "test:browser": "node _scripts/browser-smoke.cjs"
+  },
   "dependencies": {
     "acorn": "^8.17.0"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
   }
 }

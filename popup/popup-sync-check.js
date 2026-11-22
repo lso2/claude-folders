@@ -38,7 +38,7 @@ async function readPopupSyncWork() {
           newIds.add(convo.uuid);
           continue;
         }
-        const exportedAt = Date.parse((records[convo.uuid] && records[convo.uuid].exportedAt) || stamps[convo.uuid] || '');
+        const exportedAt = Date.parse((records[convo.uuid] && records[convo.uuid].sourceUpdatedAt) || '');
         const updatedAt = Date.parse(convo.updated_at || '');
         if (!Number.isFinite(exportedAt) || (Number.isFinite(updatedAt) && updatedAt > exportedAt)) changedChats++;
       }

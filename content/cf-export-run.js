@@ -27,17 +27,20 @@ async function cfLoadExportedFiles() {
 }
 
 // An export on disk is outdated when its record has no format or another format than EXPORT_FORMAT,
-// or when the chat's updatedAt is later than the export. A file with no record counts as outdated.
+// or when the chat's updatedAt is later than the fetched source revision. Legacy records refresh once.
 function cfExportIsOutdated(chat, record) {
   if (!record || record.format !== EXPORT_FORMAT) return true;
   const changed = Date.parse((chat && chat.updatedAt) || '');
-  const exported = Date.parse(record.exportedAt || '');
-  return Number.isFinite(changed) && Number.isFinite(exported) && changed > exported;
+  const exported = Date.parse(record.sourceUpdatedAt || '');
+  return !Number.isFinite(changed) || !Number.isFinite(exported) || changed > exported;
 }
 
-// An outdated export is written over its recorded file when that file is on disk, else over the first file with its id prefix
-function cfOutdatedTarget(record, names) {
-  return record && record.filename && names.includes(record.filename) ? record.filename : names[0];
+// A prefix is only a candidate index. The writer checks the full ID in the source header.
+async function cfOutdatedTarget(record, names, chatId) {
+  const response = await chrome.runtime.sendMessage({ action: 'findExport', chatId,
+    filename: record && record.filename && names.includes(record.filename) ? record.filename : null });
+  if (!response || !response.success) throw new Error((response && response.error) || 'Export identity could not be checked');
+  return response.filename || null;
 }
 
 // Records sent by the popup and organizer carry no organization. The stored record supplies it.
@@ -115,6 +118,7 @@ async function cfExportChatList(chats, options) {
   if (opts.onCheck) opts.onCheck(chats.length);
   const onDiskFiles = opts.skipExisting === false ? new Map() : await cfLoadExportedFiles();
   const records = await loadExportRecords();
+  if (opts.listedIds) await cfClearUnavailableChats(Array.from(opts.listedIds));
   const unavailable = await cfLoadUnavailableChats();
   const readable = opts.readableOrgIds || await cfReadableOrgIds();
 
@@ -139,7 +143,7 @@ async function cfExportChatList(chats, options) {
       await cfMarkChatUnavailable(String((chat && chat.title) || 'Untitled'), 'stored record has no id');
       continue;
     }
-    if (unavailable[chatId]) {
+    if (unavailable[chatId] && !opts.rewriteAll) {
       outcome.knownMissing++;
       continue;
     }
@@ -148,12 +152,19 @@ async function cfExportChatList(chats, options) {
       continue;
     }
     const names = onDiskFiles.get(exportIdPrefix(chatId).toLowerCase());
-    if (names && !opts.rewriteAll && !cfExportIsOutdated(chat, records[chatId])) {
+    let target = null;
+    try {
+      target = names ? await cfOutdatedTarget(records[chatId], names, chatId) : null;
+    } catch (e) {
+      outcome.aborted = 'Export identity check: ' + e.message;
+      return outcome;
+    }
+    if (target && !opts.rewriteAll && !cfExportIsOutdated(chat, records[chatId])) {
       outcome.skipped++;
       onDisk.push(chatId);
       continue;
     }
-    toExport.push({ chat, target: names ? cfOutdatedTarget(records[chatId], names) : null });
+    toExport.push({ chat, target });
   }
   await cfMarkChatsExported(onDisk);
   const updates = toExport.filter(entry => entry.target).length;
@@ -187,7 +198,7 @@ async function cfExportChatList(chats, options) {
           if (target) outcome.updated++;
           else outcome.exported++;
           outcome.files.push(filename);
-          await markChatAsExported(chatId, { filename, mark: result.mark });
+          await markChatAsExported(chatId, { filename, mark: result.mark, sourceUpdatedAt: result.sourceUpdatedAt });
         } else if (written.code === 'no-folder' || written.code === 'permission') {
           outcome.aborted = written.error;
           outcome.access = { code: written.code, folderName: written.folderName, permission: written.permission };

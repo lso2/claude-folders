@@ -265,7 +265,7 @@ async function cfCollectAllChats(rootEl, onProgress, fullResync) {
       // Cowork and Claude Code sessions are listed in full on every sync, from the organizations read above
       const cowork = await cfCollectCoworkSessions(result.orgs.filter(o => !o.error));
       if (result.records.length || cowork.length) {
-        const readToEnd = result.orgs.every(o => o.error || o.reachedEnd);
+        const readToEnd = result.orgs.every(o => !o.error && o.reachedEnd);
         console.log('[SCRAPER] Collected', result.records.length, 'conversations and', cowork.length, 'Cowork and Claude Code sessions across',
           result.orgs.length, 'organizations,', result.accountTotal, 'conversations on this login');
         return {
@@ -475,6 +475,7 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
   if (chatsToExport.length > 0 && !cfSyncStopRequested()) {
     outcome = await cfExportChatList(chatsToExport, {
       readableOrgIds,
+      listedIds,
       notListed,
       rewriteAll,
       waitIfPaused: cfSyncWaitIfPaused,
@@ -506,7 +507,8 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
     return;
   }
   const accessError = accessNeeded ? `${outcome.aborted}. The sync runs again in the claude.ai tab once access is granted.` : null;
-  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], accessError, outcome ? outcome.failures : []);
+  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [],
+    accessError || (summary.incomplete ? 'Sync incomplete; see the listing and export errors' : null), outcome ? outcome.failures : []);
   if (!auto) {
     showSyncSuccessModal(summary, accessNeeded);
     return;
@@ -518,7 +520,7 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
   if (outcome && outcome.exported) changed.push(`${outcome.exported} exported`);
   if (outcome && outcome.updated) changed.push(`${outcome.updated} updated`);
   if (changed.length) showNotification('Automatic sync: ' + changed.join(', '));
-  cfNoteAutoResult(true, 'Finished: ' + summary.lines.join('. '));
+  cfNoteAutoResult(true, (summary.incomplete ? 'Incomplete: ' : 'Finished: ') + summary.lines.concat(summary.details).join('. '));
 }
 
 // The progress bar on this page and the run record the popup and organizer read (content/cf-run-state.js)

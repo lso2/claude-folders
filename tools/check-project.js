@@ -12,6 +12,9 @@ const ROOT = path.resolve(__dirname, '..');
 // The notes are kept outside the repository, in the docs folder beside it.
 // Each header's "docs/notes/..." pointer is read from that folder.
 const DOCS_ROOT = path.resolve(ROOT, '..', 'docs');
+// Public checkouts do not contain the author's sibling notes. Keep all code checks in this explicit mode.
+const CODE_ONLY = process.argv.includes('--code-only');
+let missingNotes = 0;
 const SIZE_LIMIT = 30 * 1024;
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'docs', '.bak', '.complete', '.run', '_scripts', '.not__current']);
 const PAGES = ['popup/popup.html', 'organizer/index.html', 'organizer/export-view.html', 'offscreen.html', 'access/index.html', 'standalone/index.html', 'standalone/view.html', 'update/index.html', 'settings/index.html'];
@@ -159,7 +162,10 @@ for (const file of files) {
   if (head[0].trim() !== `// ${file}`) report(`${file} does not open with its header line "// ${file}"`);
   const notes = head.find(line => /^\/\/ Notes: docs\/notes\//.test(line));
   if (!notes) report(`${file} has no "// Notes: docs/notes/..." pointer in its first 12 lines`);
-  else if (!fs.existsSync(path.join(DOCS_ROOT, notes.replace(/^\/\/ Notes: /, '').trim()))) report(`${file} points to ${notes.replace(/^\/\/ Notes: /, '').trim()}, which does not exist in ${DOCS_ROOT}`);
+  else if (!fs.existsSync(path.join(DOCS_ROOT, notes.replace(/^\/\/ Notes: /, '').trim()))) {
+    missingNotes++;
+    if (!CODE_ONLY) report(`${file} points to ${notes.replace(/^\/\/ Notes: /, '').trim()}, which does not exist in ${DOCS_ROOT}`);
+  }
 }
 
 if (fs.existsSync(path.join(ROOT, 'docs'))) report(`docs/ is inside the repository; the notes belong in ${DOCS_ROOT}`);
@@ -174,6 +180,7 @@ checkWorld('content scripts', contentList);
 checkWorld('service worker', workerList);
 PAGES.forEach(page => checkWorld(page, loadLists[page].filter(f => !RUNTIME_GENERATED.includes(f))));
 
+if (CODE_ONLY && missingNotes) console.log(`NOTE: --code-only omitted ${missingNotes} missing external notes; strict documentation validation remains unchecked`);
 if (problems.length) {
   problems.forEach(p => console.log('FAIL', p));
   console.log(`${problems.length} problem(s) found`);
