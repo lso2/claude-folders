@@ -64,7 +64,7 @@ async function cfExportStatus(ref) {
 
 // 'export', 'show' or 'update' from the files and the conversation. A recorded export written in another
 // format than EXPORT_FORMAT is 'update' with reason 'format'. An export with a mark is up to date while the
-// mark is the same. An export without one is up to date while no message is newer than its file.
+// mark is the same. Without one, compare against the fetched source revision, never the file's save time.
 async function cfExportFileStatus(ref) {
   const record = await loadExportRecord(ref.id);
   // A record means the turn is needed unless the file is missing. It is read during the folder check.
@@ -85,9 +85,9 @@ async function cfExportFileStatus(ref) {
   }
   const now = turn.now;
   if (record && record.mark) return { state: now.mark && now.mark !== record.mark ? 'update' : 'show', filename };
-  // A file found by a sync has the time of that sync in its record. The file's own time is checked first.
-  const exportedAt = disk.lastModified || (record && record.exportedAt);
-  const newer = !!(now.at && exportedAt && Date.parse(now.at) > Date.parse(exportedAt));
+  // A legacy export without a source revision is refreshed conservatively.
+  const exportedAt = record && record.sourceUpdatedAt;
+  const newer = !exportedAt || !!(now.at && Date.parse(now.at) > Date.parse(exportedAt));
   return { state: newer ? 'update' : 'show', filename };
 }
 

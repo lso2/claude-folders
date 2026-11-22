@@ -5,7 +5,7 @@
 //          cfHostReadAccountView, cfHostStoreAccountView, cfHostExportedChats, cfHostOpenChat,
 //          cfHostMissingExport, cfHostIndexStep, cfHostReadExport, cfHostOpenExport, cfHostOpenFolderAccess
 // Depends on: library-files.js (libraryAccessState, libraryListExports, libraryExports, libraryChatsFolder, libraryOpenFolder),
-//             search-index.js (cfIndexChatsStep), chat-markdown.js (exportIdPrefix, exportPrefixOfFilename),
+//             search-index.js (cfIndexChatsStep), chat-markdown.js (exportIdPrefix, exportPrefixOfFilename, exportSourceId),
 //             page-dialog.js (cfPageAlert), app.js (renderLibraryAccess), data.js (claudeFoldersData), account-file-list.js
 //             (cfListAccountFiles), account-entries.js, account-view.js (cfParseAccountView), library-store.js, storage-keys.js
 // Notes: docs/notes/standalone/library-host.js.md
@@ -122,9 +122,12 @@ async function cfHostReadExport(filename) {
   }
 }
 
-// view.html finds the export by the chat id prefix of its file name
-function cfHostOpenExport(filename, title) {
-  cfHostOpenChat(exportPrefixOfFilename(filename) || '', title);
+// A legacy prefix can name several chats; resolve the source header before opening the viewer.
+async function cfHostOpenExport(filename, title) {
+  const result = await cfHostReadExport(filename);
+  const id = result.success && exportSourceId(result.content);
+  if (id) cfHostOpenChat(id, title);
+  else cfPageAlert('Export not opened', 'The export has no verifiable source ID.');
 }
 
 // Runs in the click on Choose folder in the search's Chats list

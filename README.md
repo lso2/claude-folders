@@ -101,7 +101,8 @@ Claude sorts your chat titles into categories and folders. The request is automa
 ### Markdown Export
 - Export individual chats or bulk export all conversations
 - Full conversation content including all messages and responses
-- Automatic filename generation: `{first 8 characters of the chat id}_{title}.md`, and `{session id}_{title}.md` for Cowork and Claude Code sessions
+- Automatic filename generation: `{full chat id}_{title}.md`, and `{session id}_{title}.md` for Cowork and Claude Code sessions
+- Existing short-ID filenames remain readable and are reused only when their source header matches the full chat ID. Files with another or unverifiable source ID are not overwritten
 - Each message has its date and time under its **Human** or **Claude** heading, such as `*Oct 30, 2026, 9:22 AM CDT*`, in the time zone of the browser that wrote the export
 - Skip exports that are on disk and current (no duplicates)
 - An export with no message timestamps, or older than the chat's newest change, is written again over its file by the next sync or folder export
@@ -545,6 +546,18 @@ claude-folders-extension/
 - **MutationObserver** - Detect new chats in Claude.ai sidebar
 
 ## Contributing
+
+Run the synthetic backup regression tests with Node.js 18 or later:
+
+```bash
+npm test
+```
+
+These tests cover export identity, source revision tracking, queued writes,
+rediscovery and incomplete pagination without accessing a real Claude account.
+They supplement the manual Chrome testing below. Existing export records without
+a fetched source revision are refreshed on their next sync; local save time is
+not evidence that a later source change was included.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)

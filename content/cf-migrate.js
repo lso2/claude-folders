@@ -60,7 +60,8 @@ function cfPlanMigration(accounts, context) {
     seen.add(chat.id);
     if ((context.imported[chat.id] && context.imported[chat.id].chatId) || context.importedHere.has(chat.id)) { plan.imported++; continue; }
     if (context.own.has(chat.id)) { plan.alsoHere++; continue; }
-    const filename = context.byPrefix.get(exportIdPrefix(chat.id).toLowerCase());
+    const filename = context.byPrefix.get(String(chat.id).toLowerCase())
+      || context.byPrefix.get(exportIdPrefix(chat.id).toLowerCase());
     if (!filename) { plan.noExport++; continue; }
     const common = {
       filename, title: chat.title || 'Untitled', orgId: context.orgId, accountKey: account.key, migrated: true,

@@ -30,13 +30,17 @@ function cfSyncSummaryLines(totalChats, scannedTotal, outcome, orgSummaries, cow
   if (libraryWritten === false) lines.push('Offline library data was not written (data.js)');
 
   const details = orgLines.length > 1 ? orgLines.slice() : [];
+  const listErrors = (orgSummaries || []).filter(org => org && org.error);
+  const incomplete = listErrors.length > 0 || !!result.aborted || result.failed > 0;
+  if (listErrors.length) lines.push('Conversation listing incomplete; coverage was not advanced for failed organizations');
+  listErrors.forEach(org => details.push(`${org.name}: ${org.error}`));
   // Stopped for folder access, the reason is the window's own message and the run record's error (content/cf-sync.js)
   if (result.aborted && !result.access) details.push(`Exports were not written: ${result.aborted}`);
   Array.from((result.reasons || new Map()).entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, 4)
     .forEach(([reason, count]) => details.push(`${count} x ${reason}`));
-  return { lines, details, failures: result.failures || [] };
+  return { lines, details, incomplete, failures: result.failures || [] };
 }
 
 // access: { code, folderName, permission } when the exports stopped for folder access. The window then
@@ -56,7 +60,7 @@ function showSyncSuccessModal(summary, access) {
             ? '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><path d="M12 6v8M12 18h.01"/></svg>'
             : '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>'}
         </div>
-        <h2 style="color: #e8e6e3; margin: 0 0 12px; font-size: 24px;">${grant ? 'Folder access needed' : 'Sync complete'}</h2>
+        <h2 style="color: #e8e6e3; margin: 0 0 12px; font-size: 24px;">${grant ? 'Folder access needed' : summary.incomplete ? 'Sync incomplete' : 'Sync complete'}</h2>
         ${grant ? `<div style="color: #e8e6e3; font-size: 15px; line-height: 1.6; margin-bottom: 16px;">${cfEscapeHtml(grant.message)} The sync runs again once access is granted.</div>` : ''}
         <div style="color: #e8e6e3; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
           ${summary.lines.map(line => `<div style="margin-bottom: 8px;">${cfEscapeHtml(line)}</div>`).join('')}

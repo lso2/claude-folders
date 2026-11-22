@@ -60,7 +60,7 @@ async function handleExportCurrentChat(btn, overwrite) {
       return;
     }
     const filename = await cfExportTarget(currentChatId, overwrite, result.filename);
-    cfReportSave(await cfSaveExport(filename, result.markdown, currentChatId, result.mark));
+    cfReportSave(await cfSaveExport(filename, result.markdown, currentChatId, result.mark, result.sourceUpdatedAt));
   } catch (e) {
     showNotification('Export error: ' + e.message, true);
   } finally {
@@ -80,7 +80,7 @@ async function handleExportCoworkPage(btn, sessionId, overwrite) {
       return;
     }
     const filename = await cfExportTarget(sessionId, overwrite, result.filename);
-    cfReportSave(await cfSaveExport(filename, result.markdown, sessionId, result.mark));
+    cfReportSave(await cfSaveExport(filename, result.markdown, sessionId, result.mark, result.sourceUpdatedAt));
   } catch (e) {
     showNotification('Export failed: ' + e.message, true);
   } finally {

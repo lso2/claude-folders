@@ -19,26 +19,27 @@ async function cfWriteExport(filename, content) {
 // A single export is kept in the queue when folder access is missing, and the
 // access window writes it once access is granted. The mark is the conversation's
 // state at export (lib/export-state.js).
-async function cfSaveExport(filename, content, chatId, mark) {
+async function cfSaveExport(filename, content, chatId, mark, sourceUpdatedAt) {
   const res = await cfWriteExport(filename, content);
   if (res.success) {
-    if (chatId) await markChatAsExported(chatId, { filename, mark });
+    if (chatId) await markChatAsExported(chatId, { filename, mark, sourceUpdatedAt });
     return { saved: true, filename, chatId: chatId || null };
   }
   if (res.code === 'no-folder' || res.code === 'permission') {
-    const queued = await cfQueueExport(filename, content, chatId, mark);
+    const queued = await cfQueueExport(filename, content, chatId, mark, sourceUpdatedAt);
     cfPromptFolderAccess(res.code, res.folderName, res.permission);
     return { saved: false, queued, code: res.code, error: res.error, filename };
   }
   return { saved: false, queued: false, code: res.code, error: res.error, filename };
 }
 
-async function cfQueueExport(filename, content, chatId, mark) {
+async function cfQueueExport(filename, content, chatId, mark, sourceUpdatedAt) {
   try {
     const stored = await chrome.storage.local.get(QUEUED_EXPORTS_KEY);
     const queue = (Array.isArray(stored[QUEUED_EXPORTS_KEY]) ? stored[QUEUED_EXPORTS_KEY] : [])
       .filter(item => item.filename !== filename);
-    queue.push({ filename, content, chatId: chatId || null, mark: mark || null, format: EXPORT_FORMAT, queuedAt: new Date().toISOString() });
+    queue.push({ filename, content, chatId: chatId || null, mark: mark || null,
+      sourceUpdatedAt: sourceUpdatedAt || null, format: EXPORT_FORMAT, queuedAt: new Date().toISOString() });
     await chrome.storage.local.set({ [QUEUED_EXPORTS_KEY]: queue });
     return true;
   } catch (e) {

@@ -26,7 +26,8 @@ async function downloadSingleChat(chatId, chatTitle) {
       console.log('[ORGANIZER] Not downloaded:', chatTitle, '-', (response && response.error) || 'the response was empty');
       return false;
     }
-    await recordExports([{ chatId, filename: response.filename, mark: response.mark, format: EXPORT_FORMAT }]);
+    await recordExports([{ chatId, filename: response.filename, mark: response.mark,
+      sourceUpdatedAt: response.sourceUpdatedAt, format: EXPORT_FORMAT }]);
     return true;
   } catch (e) {
     console.log('[ORGANIZER] Not downloaded:', chatTitle, '-', e.message);

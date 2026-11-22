@@ -2,14 +2,14 @@
 // Reads exported chats from the chats folder beside the library page, opened straight from disk.
 // Globals: LIBRARY_DB, libraryHandle, libraryExports, libraryDb, libraryLoadHandle, librarySaveHandle,
 //          libraryAccessState, libraryOpenFolder, libraryListExports, libraryExportPrefix, libraryReadExport
-// Depends on: chat-markdown.js (exportIdPrefix, exportPrefixOfFilename), copied beside this page
+// Depends on: chat-markdown.js (exportIdPrefix, exportPrefixOfFilename, exportSourceId), copied beside this page
 // Notes: docs/notes/standalone/library-files.js.md
 
 // A page opened from file:// cannot fetch chats/*.md. Chrome's folder access reads them once the
 // person picks the library folder, and the handle is kept in this page's IndexedDB for later visits.
 const LIBRARY_DB = { name: 'claudeFoldersLibrary', store: 'handles', key: 'libraryFolder' };
 let libraryHandle = null;
-// Export file names in chats/ by lowercased id prefix
+// Candidate export file names in chats/ by lowercased id prefix; headers resolve collisions.
 let libraryExports = new Map();
 
 function libraryDb() {
@@ -81,7 +81,10 @@ async function libraryListExports() {
   for await (const entry of folder.values()) {
     if (entry.kind !== 'file' || !entry.name.endsWith('.md')) continue;
     const prefix = exportPrefixOfFilename(entry.name);
-    if (prefix && !libraryExports.has(prefix)) libraryExports.set(prefix, entry.name);
+    if (prefix) {
+      if (!libraryExports.has(prefix)) libraryExports.set(prefix, []);
+      libraryExports.get(prefix).push(entry.name);
+    }
   }
   return libraryExports.size;
 }
@@ -92,8 +95,11 @@ function libraryExportPrefix(chatId) {
 
 // The chat's export text, or null when its file is not in the chats folder
 async function libraryReadExport(chatId) {
-  const name = libraryExports.get(libraryExportPrefix(chatId));
-  if (!name) return null;
+  const names = libraryExports.get(libraryExportPrefix(chatId)) || [];
   const folder = await libraryChatsFolder();
-  return (await (await folder.getFileHandle(name)).getFile()).text();
+  for (const name of names) {
+    const file = await (await folder.getFileHandle(name)).getFile();
+    if (exportSourceId(await file.slice(0, 4096).text()) === String(chatId)) return file.text();
+  }
+  return null;
 }
