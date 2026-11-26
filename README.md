@@ -117,7 +117,7 @@ View the walkthrough video on YouTube:
 
 </details>
 
-[Development](#development) · [Contributing](#contributing) · [Author](#author) · [License](#license) · [Support This Project](#support-this-project)
+[Contributing](#contributing) · [Author](#author) · [License](#license) · [Support This Project](#support-this-project)
 
 ## Installation
 
@@ -463,10 +463,6 @@ Claude's response here...
 ### Offline view shows "File not found"
 - The chat hasn't been exported yet
 - Run a sync or click Download first
-
-## Development
-
-The project structure and the browser APIs the extension uses are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Contributing
 

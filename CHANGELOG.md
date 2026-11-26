@@ -60,7 +60,6 @@ All notable changes to Claude Folders.
 - Replaced the screenshots with the 1.7.0 interface.
 - Added a table of contents with collapsible subsections.
 - Added the screenshots and descriptions of each feature to the Usage section.
-- Moved the project structure and the browser APIs to DEVELOPMENT.md.
 
 **Fixes**
 
