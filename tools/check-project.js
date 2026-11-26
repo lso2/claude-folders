@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '..');
 const DOCS_ROOT = path.resolve(ROOT, '..', 'docs');
 const SIZE_LIMIT = 30 * 1024;
 const IGNORED_DIRS = new Set(['.git', 'node_modules', 'docs', '.bak', '.complete', '.run', '_scripts', '.not__current']);
-const PAGES = ['popup/popup.html', 'organizer/index.html', 'organizer/export-view.html', 'offscreen.html', 'access/index.html', 'standalone/index.html', 'standalone/view.html', 'update/index.html', 'settings/index.html'];
+const PAGES = ['popup/popup.html', 'organizer/index.html', 'organizer/export-view.html', 'offscreen.html', 'standalone/index.html', 'standalone/view.html', 'update/index.html', 'settings/index.html'];
 // Node tools are run by hand, so this list is their load list
 const NODE_TOOLS = ['tools/check-project.js'];
 // standalone/data.js is written into the user's data folder at runtime, never shipped

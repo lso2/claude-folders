@@ -1,40 +1,33 @@
 // popup/popup-access.js
-// Shows the popup banner while the background's folder writer cannot save into the data folder.
+// Shows the popup banner while the background writer cannot save into the data folder.
 // Globals: renderPopupAccessBanner, onPopupAccessClick
-// Depends on: lib/folder-access.js (readQueuedExports), background.js (checkWriteAccess, openFolderAccess)
+// Depends on: lib/folder-state.js (cfReadWriterState, cfDescribeWriter), background.js (openFolderAccess)
 // Notes: docs/notes/popup/popup-access.js.md
 
-// The writer is the access window while it is open, else the offscreen document (background.js askFolderWorker).
-// A grant asked for in the popup holds only for the popup page, so the popup asks the writer.
+// A grant asked for in the popup holds only for the popup page. The banner shows the background writer's state.
+// Without a folder the popup shows its setup screen.
 async function renderPopupAccessBanner() {
   const banner = document.getElementById('folderAccessBanner');
   const text = document.getElementById('folderAccessText');
-  if (!banner || !text) return;
-  let writer = null;
-  try {
-    writer = await chrome.runtime.sendMessage({ action: 'checkWriteAccess' });
-  } catch (e) {
-    writer = { success: false, error: e.message };
-  }
-  // Without a folder the popup shows its setup screen
-  if (writer && writer.success && (!writer.hasHandle || writer.permission === 'granted')) {
+  const btn = document.getElementById('folderAccessBtn');
+  if (!banner || !text || !btn) return;
+  const view = cfDescribeWriter(await cfReadWriterState());
+  if (view.state === 'granted' || view.state === 'none') {
     banner.classList.add('hidden');
     return;
   }
-  const queued = (await readQueuedExports()).length;
-  const waiting = queued ? ` ${queued} export${queued === 1 ? '' : 's'} waiting.` : '';
-  text.textContent = writer && writer.success
-    ? `Saving into "${writer.folderName}" needs the access window open with access allowed (state: ${writer.permission}).${waiting}`
-    : `The folder writer did not answer: ${(writer && writer.error) || 'no response'}.${waiting}`;
+  text.textContent = view.text;
+  btn.textContent = view.state === 'unreadable' ? 'Choose data folder' : 'Allow folder access';
   banner.classList.remove('hidden');
 }
 
-// The access window holds the grant the writer uses, and it writes the waiting exports once allowed
+// The settings page's Data folder section, where a click lets Chrome show its prompt
 async function onPopupAccessClick() {
   try {
     await chrome.runtime.sendMessage({ action: 'openFolderAccess' });
+    window.close();
   } catch (e) {
-    document.getElementById('folderAccessText').textContent = 'The access window did not open: ' + e.message;
+    document.getElementById('folderAccessText').textContent = 'The settings page did not open: ' + e.message;
   }
 }
 
@@ -43,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderPopupAccessBanner();
 });
 
-// Sent once the access window is allowed (lib/folder-access.js announceFolderAccess)
+// Sent once access is allowed on the settings page (lib/folder-access.js announceFolderAccess)
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === 'folderAccessChanged') renderPopupAccessBanner();
 });

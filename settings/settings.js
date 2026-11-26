@@ -3,7 +3,8 @@
 // Globals: SETTINGS_SIDEBAR_IDS, renderSettings, startSettingsSidebar
 // Depends on: settings/settings-folder.js, settings/settings-accounts.js, settings/settings-helper.js,
 //             settings/settings-about.js, settings/settings-clear.js, settings/settings-migration.js,
-//             settings/settings-auto-sync.js, settings/settings-button-color.js,
+//             settings/settings-auto-sync.js, settings/settings-group-sync.js, settings/settings-header-buttons.js,
+//             settings/settings-button-color.js,
 //             lib/folder-picker.js (cfOpenPickerFlag), lib/sidebar-layout.js (the organizer's sidebar frame),
 //             lib/storage-keys.js (SETTINGS_LAYOUT_KEY), background.js (openOrganizer)
 // Notes: docs/notes/settings/settings.js.md
@@ -18,11 +19,13 @@ async function renderSettings() {
     renderClearSection(),
     renderMigrationChoice(),
     renderAutoSyncSection(),
+    renderGroupSyncSection(),
+    renderHeaderButtonsSection(),
     renderButtonColorSection()
   ]);
 }
 
-settingsFolderEls.grant.addEventListener('click', onFolderGrantClick);
+settingsFolderEls.allow.addEventListener('click', onFolderAllowClick);
 settingsFolderEls.choose.addEventListener('click', onFolderChooseClick);
 settingsFolderEls.flag.addEventListener('click', () => cfOpenPickerFlag());
 document.getElementById('helperCheck').addEventListener('click', () => renderHelperSection(true));

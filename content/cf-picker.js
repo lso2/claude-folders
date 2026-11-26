@@ -2,7 +2,7 @@
 // Shows the folder picker for the open chat and files the chat into the chosen or new folder.
 // Globals: showFolderPicker, createFolderAndAssign, assignCurrentChatToFolder
 // Depends on: lib/cowork-api.js (isCoworkSessionId, sessionProductOfUrl), content/cf-routes.js, content/cf-data.js,
-//             content/cf-notify.js
+//             content/cf-state.js (allChats), content/cf-notify.js
 // Notes: docs/notes/content/cf-picker.js.md
 
 function showFolderPicker(anchorElement) {
@@ -99,23 +99,26 @@ async function createFolderAndAssign(folderName, category) {
   }
 }
 
+// A chat with a stored record is sent with that record (organization, project, dates, latest message id) and the title
+// shown on the page. A chat with no stored record is sent as a new record of its id, title, address, label, and today's
+// date.
 async function assignCurrentChatToFolder(folderId) {
   const chatTitle = cfCurrentChatTitle();
   const chatUrl = window.location.href;
-  
-  try {
-    await chrome.runtime.sendMessage({
-      action: 'assignChatToFolder',
-      chat: {
+  const stored = allChats.find(c => c.id === currentChatId);
+  const chat = stored
+    ? { ...stored, title: chatTitle && chatTitle !== 'Untitled' ? chatTitle : stored.title }
+    : {
         id: currentChatId,
         title: chatTitle,
         url: chatUrl,
         tags: isCoworkSessionId(currentChatId) ? [sessionProductOfUrl(chatUrl) === 'code' ? 'claude-code' : 'cowork'] : [],
         date: new Date().toISOString().split('T')[0],
         relativeDate: 'Today'
-      },
-      folderId
-    });
+      };
+
+  try {
+    await chrome.runtime.sendMessage({ action: 'assignChatToFolder', chat, folderId });
     await loadData();
     showNotification('Added to folder');
   } catch (error) {

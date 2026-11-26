@@ -2,6 +2,76 @@
 
 All notable changes to Claude Folders.
 
+## 1.7.0
+
+**Claude groups**
+
+- Added the Groups row to Claude's sidebar, with a panel of Claude's sidebar groups and a pane for each group's chats.
+- Groups in the Groups panel expand in place to list their chats.
+- Added Folders and Groups buttons to the header of Claude's sidebar, with a setting to hide them.
+- Groups can be created, renamed and deleted in the Groups panel, and a chat can be taken out of its group.
+- Added Sync Claude groups with folders to the settings page, on by default.
+- Each Claude group has a folder of the same name in the Claude groups category, and a change to either one changes the other.
+- A chat taken out of a group is put back in its earlier folder.
+- Organize with Claude does not move the chats of group folders.
+
+**Drag and drop**
+
+- Chats can be dragged from the Chats page or Claude's sidebar onto the Folders and Groups panels and their panes.
+- Chats on the Chats page can be dragged onto a group in Claude's sidebar.
+- Closed groups open while a dragged chat is held over them.
+- A chat dropped between 2 chats of a group is placed there, in the Groups panel and in Claude's sidebar.
+
+**Chats page**
+
+- With the Folders or Groups panel open, the chat list is placed to its right.
+
+**Organizer**
+
+- The organizer's sidebar matches Claude's sidebar, with its Pinned, group, and Ungrouped sections.
+- Sections of the organizer's sidebar open and close, and each choice is saved.
+- Added a Groups row to the organizer's sidebar for the folders of Claude's groups.
+- The collapse button is before the name in the organizer, the settings page, and the offline library.
+
+**Sync result**
+
+- The Cowork and Claude Code session counts are listed under the account's total.
+- The sync result shows Claude's project limit for free plans as "Free Claude accounts can only access…".
+
+**Data folder access**
+
+- The settings page's Data folder section is the one place to choose the data folder and allow its access.
+- Removed the Data Folder Access window.
+- Removed the export queue and the sync run that waited for folder access.
+- The popup's folder buttons and the claude.ai folder notices open the Data folder section.
+- The Help tab shows Allow access only while the chosen folder needs it.
+
+**Settings page**
+
+- Added Hide the new chats notice on claude.ai while automatic sync is on, checked by default.
+- Data folder is the first section of the Settings tab, followed by Claude groups.
+
+**README**
+
+- Moved the feature descriptions to FEATURES.md.
+- Added a Download section with GitHub releases and Chrome Web Store buttons, and a Latest Release badge.
+- Added a link to the walkthrough video on YouTube.
+- Listed Chrome and Edge 119, Brave 1.60, and Opera 105 as the minimum versions.
+- Replaced the screenshots with the 1.7.0 interface.
+- Added a table of contents with collapsible subsections.
+- Added the screenshots and descriptions of each feature to the Usage section.
+- Moved the project structure and the browser APIs to DEVELOPMENT.md.
+
+**Fixes**
+
+- Fixed Export failing to save.
+- Fixed the missing Sync Now button on the new chats notice.
+- Fixed chats and Cowork sessions reported as needing an update with no new messages.
+- Fixed folder changes lost after the extension was idle.
+- Fixed the organize buttons flashing when the Folders panel opens with them hidden.
+- Fixed Add to folder on a chat page dropping the chat's organization, project, and dates.
+- Fixed a placeholder name in the account row of the organizer and the offline library before the first claude.ai visit.
+
 ## 1.6.3
 
 **Claude Code sessions**

@@ -1215,6 +1215,13 @@ body {
   list-style: disc;
 }
 
+/* A line's sub-items, such as the Cowork sessions under the account's total (lib/run-failures.js) */
+.cf-run-sublines {
+  margin: 2px 0;
+  padding-left: 18px;
+  list-style: circle;
+}
+
 .cf-run-failures a {
   color: inherit;
   text-decoration: underline;

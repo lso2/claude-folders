@@ -1,7 +1,7 @@
 // settings/settings-auto-sync.js
-// The Automatic sync section: turning it on, its interval and the last attempt.
-// Globals: autoSyncLabel, renderAutoSyncSection, renderAutoSyncLast, onAutoSyncChange
-// Depends on: lib/storage-keys.js (AUTO_SYNC_KEY, AUTO_SYNC_DEFAULT, AUTO_SYNC_MINUTES, AUTO_SYNC_LAST_KEY),
+// The Automatic sync section: turning it on, its interval, hiding the new chats notice and the last attempt.
+// Globals: autoSyncLabel, renderAutoSyncSection, renderAutoSyncLast, onAutoSyncChange, onHideNoticeChange
+// Depends on: lib/storage-keys.js (AUTO_SYNC_KEY, AUTO_SYNC_DEFAULT, AUTO_SYNC_MINUTES, AUTO_SYNC_LAST_KEY, HIDE_SYNC_NOTICE_KEY),
 //             settings/settings-format.js (settingsTime, settingsShowResult), lib/auto-sync.js (the background's timer)
 // Notes: docs/notes/settings/settings-auto-sync.js.md
 
@@ -17,13 +17,21 @@ async function renderAutoSyncSection() {
     select.innerHTML = AUTO_SYNC_MINUTES.map(m => `<option value="${m}">${autoSyncLabel(m)}</option>`).join('');
   }
   let setting = AUTO_SYNC_DEFAULT;
+  let hide;
   try {
-    setting = { ...AUTO_SYNC_DEFAULT, ...((await chrome.storage.local.get(AUTO_SYNC_KEY))[AUTO_SYNC_KEY] || {}) };
+    const stored = await chrome.storage.local.get([AUTO_SYNC_KEY, HIDE_SYNC_NOTICE_KEY]);
+    setting = { ...AUTO_SYNC_DEFAULT, ...(stored[AUTO_SYNC_KEY] || {}) };
+    hide = stored[HIDE_SYNC_NOTICE_KEY];
   } catch (e) {
     console.log('[SETTINGS] Automatic sync setting not read:', e.message);
   }
-  document.getElementById('autoSyncOn').checked = typeof setting.enabled === 'boolean' ? setting.enabled : AUTO_SYNC_DEFAULT.enabled;
+  const enabled = typeof setting.enabled === 'boolean' ? setting.enabled : AUTO_SYNC_DEFAULT.enabled;
+  document.getElementById('autoSyncOn').checked = enabled;
   select.value = String(AUTO_SYNC_MINUTES.includes(setting.minutes) ? setting.minutes : AUTO_SYNC_DEFAULT.minutes);
+  // The notice choice applies only while automatic sync is on. Nothing stored counts as checked.
+  const hideBox = document.getElementById('autoSyncHideNotice');
+  hideBox.checked = hide !== false;
+  hideBox.disabled = !enabled;
   await renderAutoSyncLast();
 }
 
@@ -43,6 +51,7 @@ async function onAutoSyncChange() {
   const result = document.getElementById('autoSyncResult');
   const enabled = document.getElementById('autoSyncOn').checked;
   const minutes = Number(document.getElementById('autoSyncMinutes').value);
+  document.getElementById('autoSyncHideNotice').disabled = !enabled;
   try {
     await chrome.storage.local.set({ [AUTO_SYNC_KEY]: { enabled, minutes } });
     settingsShowResult(result, enabled ? `Saved. The sync runs every ${autoSyncLabel(minutes)}.` : 'Saved. Automatic sync is off.', false);
@@ -51,8 +60,20 @@ async function onAutoSyncChange() {
   }
 }
 
+async function onHideNoticeChange() {
+  const result = document.getElementById('autoSyncResult');
+  const hide = document.getElementById('autoSyncHideNotice').checked;
+  try {
+    await chrome.storage.local.set({ [HIDE_SYNC_NOTICE_KEY]: hide });
+    settingsShowResult(result, hide ? 'Saved. The new chats notice is hidden while automatic sync is on.' : 'Saved. The new chats notice is shown.', false);
+  } catch (e) {
+    settingsShowResult(result, `${e.name}: ${e.message}`, true);
+  }
+}
+
 document.getElementById('autoSyncOn').addEventListener('change', onAutoSyncChange);
 document.getElementById('autoSyncMinutes').addEventListener('change', onAutoSyncChange);
+document.getElementById('autoSyncHideNotice').addEventListener('change', onHideNoticeChange);
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[AUTO_SYNC_LAST_KEY]) renderAutoSyncLast();
 });

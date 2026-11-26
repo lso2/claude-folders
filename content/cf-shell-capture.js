@@ -1,6 +1,7 @@
 // content/cf-shell-capture.js
 // Records Claude's sidebar rows, sections and account menu for the organizer page to draw.
-// Globals: CF_SHELL_MENU_MAX_AGE_MS, cfShellSaved, cfShellLastInput, cfGlyphImage, cfShellLabel, cfShellRow, cfReadSidebarShell,
+// Globals: CF_SHELL_MENU_MAX_AGE_MS, cfShellSaved, cfShellLastInput, cfGlyphImage, cfShellLabel, cfShellRow, cfShellBadge,
+//          cfShellSectionKind, cfShellSectionClosed, cfShellSectionRow, cfShellSectionRows, cfShellAppsLink, cfReadSidebarShell,
 //          cfReadMenuItems, cfSaveShell, cfCaptureSidebar, cfCaptureOpenMenu, cfSilentMenuCapture, cfStartShellCapture
 // Depends on: content/cf-text.js (cfStripGlyphs, cfIsGlyphOnly), content/cf-account.js (cfShellKey, cfAccountReady)
 // Notes: docs/notes/content/cf-shell-capture.js.md
@@ -77,8 +78,71 @@ function cfShellRow(el) {
   };
 }
 
-// Rows marked data-row-nav are the navigation. Each h3 starts a section; the last section is the
-// conversation list, drawn by the organizer from its own data under the same label.
+// A short word drawn beside a row's label in an element of its own, such as Beta beside Meetings. Keyboard hints
+// (kbd) are not badges.
+function cfShellBadge(el, label) {
+  const words = Array.from(el.querySelectorAll('span'))
+    .filter(span => !span.querySelector('*') && !span.closest('kbd'))
+    .map(span => cfStripGlyphs(span.textContent).trim())
+    .filter(text => /^[A-Za-z]{2,12}$/.test(text) && text !== label);
+  return words[0] || null;
+}
+
+// The kind of section a heading starts (measured 2026-11-26): Pinned is in [data-pinned-list], each group in
+// [data-group-list="<group id>"], and Ungrouped in [data-group-list=""]. A heading in neither starts a list of recent
+// chats.
+function cfShellSectionKind(h3) {
+  const box = h3.closest('[data-pinned-list], [data-group-list]');
+  if (!box) return 'recents';
+  if (box.hasAttribute('data-pinned-list')) return 'pinned';
+  return box.getAttribute('data-group-list') ? 'group' : 'ungrouped';
+}
+
+// True when the toggle beside the heading (measured: button[data-group-toggle] in [data-sidebar-group-label]) is closed
+function cfShellSectionClosed(h3) {
+  const label = h3.closest('[data-sidebar-group-label]') || h3.parentElement;
+  const toggle = label && label.querySelector('[aria-expanded]');
+  return !!toggle && toggle.getAttribute('aria-expanded') === 'false';
+}
+
+// One row of a section: the row's fields with its label from span[data-row-label], depth 1 for a row inside a
+// project's block after the project's own row (its sessions and its View all), and viewAll for View all. View all
+// has no link of its own and opens the project.
+function cfShellSectionRow(el) {
+  const row = cfShellRow(el);
+  const label = el.querySelector('[data-row-label]');
+  if (label) row.label = cfStripGlyphs(label.textContent).trim();
+  const block = el.closest('[data-row-key]');
+  const own = block && block.querySelector('[data-row-main-button]');
+  row.depth = own && own !== el ? 1 : 0;
+  row.viewAll = /^view all$/i.test(row.label);
+  if (row.viewAll && !row.href && own) row.href = own.getAttribute('href');
+  return row;
+}
+
+// The rows of a section's box, collapsed ones too. A View all button of the whole section (Ungrouped's) opens the
+// Chats page (measured: claude.ai/chats).
+function cfShellSectionRows(box) {
+  const rows = Array.from(box.querySelectorAll('[data-row-main-button]')).map(cfShellSectionRow).filter(row => row.label);
+  const more = Array.from(box.querySelectorAll('button:not([data-row-main-button])')).find(b => /^view all$/i.test(cfStripGlyphs(b.textContent).trim()));
+  if (more) rows.push({ label: 'View all', href: '/chats', icon: null, iconAfter: false, depth: 0, viewAll: true });
+  return rows;
+}
+
+// The link beside the account button (measured 2026-11-26: Get apps and extensions, /downloads, in the footer that
+// holds the button's wrapper): the first link in the nearest ancestor of the button holding one. An ancestor holding
+// the sidebar's rows is past the footer, and the search stops there.
+function cfShellAppsLink(button) {
+  for (let node = button && button.parentElement; node && node.tagName !== 'ASIDE'; node = node.parentElement) {
+    if (node.querySelector('[data-row-main-button]')) return null;
+    const link = Array.from(node.querySelectorAll('a[href]')).find(a => !button.contains(a));
+    if (link) return link;
+  }
+  return null;
+}
+
+// Rows marked data-row-nav are the navigation. Each h3 starts a section with its kind and closed state. A trailing
+// section of recent chats is drawn by the organizer from its own data under the same label.
 function cfReadSidebarShell() {
   const aside = document.querySelector('aside[aria-label="Sidebar"]') ||
     (document.querySelector('[data-testid="user-menu-button"]') || document.body).closest('aside');
@@ -92,33 +156,53 @@ function cfReadSidebarShell() {
       nav.push({ ours: true, label: 'Folders' });
       return;
     }
+    if (el.hasAttribute('data-groups-link')) {
+      nav.push({ ours: 'groups', label: 'Groups' });
+      return;
+    }
     const row = cfShellRow(el);
-    if (row.label) nav.push({ ...row, kind: el.tagName === 'A' ? 'link' : 'button' });
+    if (row.label) nav.push({ ...row, badge: cfShellBadge(el, row.label), kind: el.tagName === 'A' ? 'link' : 'button' });
   });
   if (!nav.length) return null;
-  // Each other row belongs to the last section heading before it in the page
+  // A section in a box takes the box's rows. A section with no box takes the rows after its heading.
   const headings = Array.from(aside.querySelectorAll('h3'));
-  const sections = headings.map(h3 => ({ label: cfStripGlyphs(h3.textContent), rows: [] }));
-  rows.filter(el => !isNav(el) && el.tagName === 'A').forEach(el => {
+  const sections = headings.map(h3 => ({ label: cfStripGlyphs(h3.textContent).trim(), kind: cfShellSectionKind(h3), closed: cfShellSectionClosed(h3), rows: [] }));
+  headings.forEach((h3, i) => {
+    const box = h3.closest('[data-pinned-list], [data-group-list]');
+    if (box) sections[i].rows = cfShellSectionRows(box);
+  });
+  rows.filter(el => !isNav(el) && el.tagName === 'A' && !el.closest('[data-pinned-list], [data-group-list]')).forEach(el => {
     let index = -1;
     headings.forEach((h3, i) => { if (h3.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) index = i; });
-    if (index < 0) return;
-    const row = cfShellRow(el);
+    if (index < 0 || sections[index].kind !== 'recents') return;
+    const row = cfShellSectionRow(el);
     if (row.label) sections[index].rows.push(row);
   });
-  const home = aside.querySelector('a[href="/new"]:not([data-row-main-button])');
+  const last = sections[sections.length - 1];
+  const recents = last && last.kind === 'recents' ? last : null;
+  const home = aside.querySelector('a[data-sidebar-home-link]') || aside.querySelector('a[href="/new"]:not([data-row-main-button])');
   const button = document.querySelector('[data-testid="user-menu-button"]');
-  const parts = button ? Array.from(button.querySelectorAll('span'))
-    .filter(span => !span.querySelector('span'))
+  const leaves = button ? Array.from(button.querySelectorAll('span')).filter(span => !span.querySelector('span')) : [];
+  const parts = leaves
     .map(span => cfStripGlyphs(span.textContent))
-    .filter(text => text && !/^[·•|,\-–—/]+$/.test(text)) : [];
+    .filter(text => text && !/^[·•|,\-–—/]+$/.test(text));
   const initial = parts.length && Array.from(parts[0]).length === 1 ? parts.shift() : '';
+  // The initial is drawn in a colored circle (measured 2026-11-26: the initial's own span has the color)
+  const circle = initial ? leaves.find(span => cfStripGlyphs(span.textContent) === initial) : null;
+  const color = circle ? getComputedStyle(circle).backgroundColor : '';
+  const apps = cfShellAppsLink(button);
   return {
     brand: home ? cfStripGlyphs(home.textContent) : null,
     nav,
-    sections: sections.slice(0, -1).filter(section => section.label),
-    recentsLabel: sections.length ? sections[sections.length - 1].label : null,
-    account: { initial: initial || (parts[0] ? Array.from(parts[0])[0].toUpperCase() : ''), name: parts[0] || null, team: parts[1] || null }
+    sections: sections.filter(section => section.label && section !== recents),
+    recentsLabel: recents ? recents.label : null,
+    account: {
+      initial: initial || (parts[0] ? Array.from(parts[0])[0].toUpperCase() : ''),
+      name: parts[0] || null,
+      team: parts[1] || null,
+      color: color && color !== 'rgba(0, 0, 0, 0)' ? color : null
+    },
+    apps: apps ? { label: apps.getAttribute('aria-label') || cfStripGlyphs(apps.textContent).trim(), href: apps.getAttribute('href'), icon: cfGlyphImage(apps.querySelector('[data-cds="Icon"]')) } : null
   };
 }
 

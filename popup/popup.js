@@ -37,24 +37,22 @@ function init() {
   });
 }
 
+// A folder whose check failed opens the main screen, where the access banner shows the failed step
 async function checkDataFolder() {
-  return await hasFolderHandle();
+  const access = await checkFolderAccess();
+  return access.hasHandle || !!access.error;
 }
 
+// A folder chosen in this popup would give the background writer no access. The settings page is where it is chosen.
 function showSetupScreen() {
   document.getElementById('setupScreen').classList.remove('hidden');
   document.getElementById('mainScreen').classList.add('hidden');
-  if (!cfFolderPickerAvailable()) {
-    showPickerMissing();
-    return;
-  }
-
-  // A folder chosen in this popup gives the folder writer no access, so the folder is chosen in the access window
   document.getElementById('selectFolderBtn').addEventListener('click', async () => {
     try {
-      await chrome.runtime.sendMessage({ action: 'openFolderAccess', mode: 'setup' });
+      await chrome.runtime.sendMessage({ action: 'openFolderAccess' });
+      window.close();
     } catch (error) {
-      cfPageAlert('Access window not opened', error.message);
+      cfPageAlert('Settings page not opened', error.message);
     }
   });
 }
@@ -133,11 +131,13 @@ async function loadData() {
   updateStats();
 }
 
-// The background stores the change and writes the data file through the folder writer
-async function saveData() {
+// The background stores the change and writes the data file through the folder writer. edit describes the one
+// change made. For a folder linked to a Claude group, the background queues that change for the group
+// (lib/group-pushes.js cfGroupOpsOfEdit).
+async function saveData(edit) {
   const data = { folders, categories, metadata };
   try {
-    const answer = await chrome.runtime.sendMessage({ action: 'updateCache', data });
+    const answer = await chrome.runtime.sendMessage({ action: 'updateCache', data, edit: edit || null });
     if (answer && answer.success && !answer.written) console.log('[POPUP] Saved in the extension; the data file was not written:', answer.error);
     return !!(answer && answer.success);
   } catch (e) {

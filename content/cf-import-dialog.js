@@ -4,7 +4,7 @@
 //          cfOpenImportDialog
 // Depends on: content/cf-migrate.js, content/cf-migrate-source.js (cfMigrationStyle), content/cf-import.js
 //             (cfStartImportRun), content/cf-account-view.js (cfLoadAccountList, cfOwnAccount), content/cf-disk.js
-//             (cfCheckWriteAccess, cfFolderAccessAction), content/cf-text.js, lib/storage-keys.js (MIGRATION_REQUEST_KEY)
+//             (cfCheckWriteAccess, cfIsFolderRefusal, cfPromptFolderAccess), content/cf-text.js, lib/storage-keys.js (MIGRATION_REQUEST_KEY)
 // Notes: docs/notes/content/cf-import-dialog.js.md
 
 // The batch size the dialog opens with, and the largest one it accepts
@@ -45,7 +45,8 @@ async function cfOpenImportDialog(preselectKey) {
   if (document.querySelector('.cf-import-overlay')) return;
   const access = await cfCheckWriteAccess();
   if (!access.ok) {
-    cfFolderAccessAction(access.code, access.folderName, access.permission).run();
+    if (cfIsFolderRefusal(access)) cfPromptFolderAccess(access);
+    else showNotification('The import dialog did not open: ' + access.error, true);
     return;
   }
   if (!cfAccountList) await cfLoadAccountList();

@@ -93,7 +93,7 @@ async function cfExportFileStatus(ref) {
 
 function cfExportUpdateTip(status) {
   const target = status.filename ? `replaces ${status.filename}` : 'replaces its file';
-  if (status.reason === 'format') return `This chat's export has no message timestamps. Clicking Export Update exports it again and ${target} in the data folder.`;
+  if (status.reason === 'format') return `This chat's export is in an older format, or its format is not recorded. Clicking Export Update exports it again with message timestamps and ${target} in the data folder.`;
   return `This chat has messages that are not in its export. Clicking Export Update exports it again and ${target} in the data folder.`;
 }
 

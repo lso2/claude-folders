@@ -1,7 +1,9 @@
 // content/cf-row-hover.js
-// Gives the Folders row in Claude's sidebar its own hover look while the Folders panel is open.
-// Globals: CF_HOVER_PROPS, cfRowHoverStyle, cfCollectHoverRules, cfHoverDeclarations, cfSetFoldersRowOpen
-// Depends on: content/cf-sidebar.js (the a[data-folders-link] row, cloned from one of Claude's rows)
+// Gives the Folders or Groups row in Claude's sidebar its own hover look while that row's panel is open, and presses
+// the matching header button.
+// Globals: CF_HOVER_PROPS, cfRowHoverStyle, cfCollectHoverRules, cfHoverDeclarations, cfSetSidebarRowOpen
+// Depends on: content/cf-sidebar.js (the a[data-folders-link] and a[data-groups-link] rows, cloned from one of Claude's rows),
+//             content/cf-header-buttons.js (cfSetHeaderButtonOpen)
 // Notes: docs/notes/content/cf-row-hover.js.md
 
 // The properties copied from the row's :hover rules. Custom properties (--name) are copied too,
@@ -54,16 +56,18 @@ function cfHoverDeclarations(link) {
   return { found, checked: rules.length, unreadable };
 }
 
-// open true: the row shows its hover look and aria-expanded true. open false: both are taken off.
-function cfSetFoldersRowOpen(open) {
-  const link = document.querySelector('a[data-folders-link="true"]');
+// attr is the row's attribute: 'data-folders-link' or 'data-groups-link'. open true: the row shows its hover look and
+// aria-expanded true. open false: both are taken off. With both rows cloned from one template, one read serves both.
+function cfSetSidebarRowOpen(attr, open) {
+  cfSetHeaderButtonOpen(attr, open);
+  const link = document.querySelector(`a[${attr}="true"]`);
   if (!link) return;
   link.setAttribute('aria-expanded', String(open));
   if (open && !(cfRowHoverStyle && Object.keys(cfRowHoverStyle.found).length)) {
     cfRowHoverStyle = cfHoverDeclarations(link);
     const names = Object.keys(cfRowHoverStyle.found);
-    if (names.length) console.log('[PANEL] Folders row hover look read:', names.join(', '));
-    else console.log('[PANEL] No :hover rule matched the Folders row among', cfRowHoverStyle.checked, 'hover rules;', cfRowHoverStyle.unreadable, 'style sheets could not be read');
+    if (names.length) console.log('[PANEL] Sidebar row hover look read:', names.join(', '));
+    else console.log('[PANEL] No :hover rule matched the', attr, 'row among', cfRowHoverStyle.checked, 'hover rules;', cfRowHoverStyle.unreadable, 'style sheets could not be read');
   }
   Object.entries((cfRowHoverStyle && cfRowHoverStyle.found) || {}).forEach(([name, value]) => {
     if (open) link.style.setProperty(name, value);

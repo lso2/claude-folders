@@ -22,11 +22,13 @@ function init() {
 
   // Per-account data loads only after the account key reaches the background
   cfAccountReady = cfInitAccount();
-  cfAccountReady.then(() => {
-    loadData();
+  cfAccountReady.then(async () => {
+    await loadData();
     checkPendingSync();
     startNewChatMonitor();
     cfResumeImport();
+    // The group link reads the folders' chats for its queued changes (content/cf-group-sync.js)
+    cfStartGroupSync();
   });
 
   checkPendingOrganizeData();
@@ -63,14 +65,12 @@ function cfOnRuntimeMessage(message, sender, sendResponse) {
     sendResponse({ received: true });
     return true;
   }
+  // Sent once a folder is chosen or its access allowed on the settings page (lib/folder-access.js)
   if (message.action === 'folderAccessChanged') {
     cfClearAccessPrompt();
-    const written = message.written || 0;
-    showNotification(written ? `Folder access granted. ${written} queued export${written === 1 ? '' : 's'} written.` : 'Folder access granted.');
+    showNotification('Folder access allowed.');
     cfRefreshSyncBar();
-    // The sync this tab asked for before access was granted
-    const request = cfTakeSyncRequest();
-    if (request) scrapeRecentsPage(request.fullResync, false, request.rewriteAll === true);
+    cfRefreshPageExportButton(true);
     sendResponse({ received: true });
     return true;
   }

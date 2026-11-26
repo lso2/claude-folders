@@ -1,8 +1,9 @@
 // content/cf-url-watch.js
 // Watches Claude's single-page navigation and puts the injected rows and buttons back after re-renders.
 // Globals: observeUrlChanges
-// Depends on: content/cf-routes.js, content/cf-data.js, content/cf-chat.js, content/cf-sidebar.js,
-//             content/cf-project-import.js, content/cf-export-state.js
+// Depends on: content/cf-routes.js, content/cf-data.js, content/cf-chat.js, content/cf-sidebar.js, content/cf-panel.js,
+//             content/cf-groups-panel.js, content/cf-project-import.js, content/cf-export-state.js, content/cf-push.js,
+//             content/cf-header-buttons.js
 // Notes: docs/notes/content/cf-url-watch.js.md
 
 function observeUrlChanges() {
@@ -19,14 +20,20 @@ function observeUrlChanges() {
       if (url !== lastUrl) {
         lastUrl = url;
         updateCurrentChatId();
+        // With a panel open, only the Chats page's column is pushed right (content/cf-push.js)
+        cfUpdatePush();
         if (cfOnConversationPage()) {
           setTimeout(injectChatButton, 500);
         } else {
           cfClearChatButtons();
         }
       }
-      // Re-inject sidebar if React removed it
-      if (!document.querySelector('a[data-folders-link="true"]')) {
+      // A panel removed with the part of Claude's page that held it (content/cf-panel-host.js) is closed in the state too
+      if (panelExpanded && !document.querySelector('.claude-folders-panel')) cfClosePanel();
+      if (groupsPanelOpen && !document.querySelector('.claude-groups-panel')) cfCloseGroupsPanel();
+      // The header buttons and the sidebar rows are added again when React removed them
+      if (cfHeaderButtonsMissing()) cfInjectHeaderButtons();
+      if (cfSidebarRowsMissing()) {
         sidebarInjected = false;
         injectSidebar();
       }

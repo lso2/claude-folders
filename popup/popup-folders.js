@@ -181,7 +181,7 @@ function showRenameFolderModal(folderId) {
     folder.name = name;
     folder.category = select.value || folder.category;
     modal.classList.add('hidden');
-    await saveData();
+    await saveData({ type: 'rename', folderId: folder.id });
     renderCategoryFilters();
     renderFolders();
   };
@@ -199,7 +199,7 @@ function showDeleteFolderModal(folderId) {
   document.getElementById('confirmDeleteBtn').onclick = async () => {
     modal.classList.add('hidden');
     folders = folders.filter(f => f.id !== folderId);
-    await saveData();
+    await saveData({ type: 'delete', folderId });
     renderFolders();
     updateStats();
   };

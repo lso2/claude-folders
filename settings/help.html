@@ -5,6 +5,7 @@
     <section class="settings-card" aria-labelledby="helpWelcomeHeading">
       <h2 class="settings-heading" id="helpWelcomeHeading">Welcome to Claude Folders</h2>
       <p class="settings-text">Claude Folders sorts your claude.ai chats into folders and saves each chat as a markdown file in a folder on your computer. The folders, the files and the settings are stored on your computer.</p>
+      <p class="settings-text">The groups in Claude's sidebar appear as folders too, in the Claude groups category.</p>
       <p class="settings-text">The setup has 3 steps: choosing the data folder, syncing the chats and organizing them into folders. Each step below has buttons that do it from here, and the chips above the sections jump to each one.</p>
     </section>
 
@@ -12,19 +13,15 @@
       <h2 class="settings-heading" id="helpFolderHeading">Step 1: Choose the Data Folder</h2>
       <p class="help-status" id="helpFolderStatus">Checking the data folder...</p>
       <ol class="help-steps">
-        <li>Click <strong>Go to Data folder</strong> below, then <strong>Choose folder</strong> in the Data folder section. In the popup, <strong>Select Data Folder</strong> opens the Data Folder Access window with the same <strong>Choose folder</strong>.</li>
-        <li>Pick an empty folder, such as <code>Documents/Claude-Data</code>, or the data folder you used before.</li>
-        <li>Click <strong>Select Folder</strong>, then <strong>Allow</strong> in Chrome's prompt. The Data Folder Access window minimizes itself and keeps the access while the browser is open.</li>
-        <li>The next time the browser starts, the Data Folder Access window opens once. Click <strong>Allow access</strong>, then <strong>Allow on every visit</strong> in Chrome's prompt. Chrome keeps that choice after restarts and reinstalls.</li>
+        <li>Click <strong>Choose folder</strong> below and pick an empty folder, such as <code>Documents/Claude-Data</code>, or the data folder you used before.</li>
+        <li>Click <strong>Allow</strong> in Chrome's prompt. Saving works while a Claude Folders page is open.</li>
+        <li>After the next browser start, click <strong>Allow access</strong> here and choose <strong>Allow on every visit</strong> in Chrome's prompt. Saving then works with every Claude Folders page closed.</li>
       </ol>
       <div class="settings-actions">
-        <button type="button" class="btn" data-help-action="tab" data-tab="main" data-target="folderHeading">Go to Data folder</button>
-        <button type="button" class="btn btn-light" data-help-action="access">Open Data Folder Access</button>
+        <button type="button" class="btn" data-help-action="allow" hidden>Allow access</button>
+        <button type="button" class="btn" data-help-action="choose">Choose folder</button>
       </div>
-      <figure class="help-figure">
-        <img src="help/help-access.png" alt="The Data Folder Access window at the next browser start, with Allow access and Choose another folder" width="460" height="330">
-        <figcaption>The Data Folder Access window at the next browser start.</figcaption>
-      </figure>
+      <p class="settings-result" id="helpFolderResult" hidden></p>
     </section>
 
     <section class="settings-card" aria-labelledby="helpSyncHeading">
@@ -53,9 +50,9 @@
         <img src="help/help-sync-bar.png" alt="The sync progress bar with Updating 120 of 2235, Pause, Stop and the close button" width="560" height="90">
         <figcaption>The progress bar on claude.ai during a sync.</figcaption>
       </figure>
-      <p class="settings-text">The result lists the counts. A line such as <strong>32 x not permitted</strong> opens the list of those chats as links to claude.ai.</p>
+      <p class="settings-text">The result lists the counts. A line such as <strong>3 x not permitted</strong> opens the list of those chats as links to claude.ai.</p>
       <figure class="help-figure">
-        <img src="help/help-sync-result.png" alt="The popup's sync result with the not permitted line, with Claude's message, opened to 3 chat links" width="400" height="207">
+        <img src="help/help-sync-result.png" alt="The popup's sync result with the not permitted line, with Claude's message, opened to 3 chat links" width="376" height="256">
         <figcaption>A sync result in the popup with a failure reason opened.</figcaption>
       </figure>
     </section>
@@ -82,11 +79,36 @@
     <section class="settings-card" aria-labelledby="helpPanelHeading">
       <h2 class="settings-heading" id="helpPanelHeading">Folders Panel on claude.ai</h2>
       <ul class="help-steps">
-        <li>Clicking <strong>Folders</strong> in Claude's sidebar opens the Folders panel beside it, and the Folders row is highlighted while the panel is open.</li>
+        <li>Clicking <strong>Folders</strong> in Claude's sidebar, or the folder button beside Claude's Chat and Code switch, opens the Folders panel beside it. The Folders row and the button are highlighted while the panel is open.</li>
         <li>Clicking a folder lists its chats in a second pane, 30 at a time.</li>
         <li>Clicking <strong>Folders</strong> again, or anywhere outside the panel, closes it.</li>
         <li>Each chat page has <strong>Export</strong> and <strong>Add to folder</strong> beside its title. <strong>Export Update</strong> appears when the chat has messages newer than its file.</li>
       </ul>
+      <div class="settings-actions">
+        <button type="button" class="btn btn-light" data-help-action="claude">Open claude.ai</button>
+      </div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="helpGroupsHeading">
+      <h2 class="settings-heading" id="helpGroupsHeading">Claude Groups and Their Folders</h2>
+      <ul class="help-steps">
+        <li>Clicking <strong>Groups</strong> in Claude's sidebar, or the layers button beside Claude's Chat and Code switch, opens the Groups panel: Claude's sidebar groups under <strong>Chats</strong> and <strong>Cowork</strong>, with each group's number of chats.</li>
+        <li>Clicking a group lists its chats under it, and clicking it again hides them. The button at the right edge of a group's row opens its chats in a pane.</li>
+        <li>In the pane, clicking the pencil renames the group, clicking the trash can deletes it, and clicking a chat's <strong>×</strong> takes the chat out of the group. Clicking the pane's <strong>×</strong> or anywhere outside the pane closes the pane.</li>
+        <li>Each group has a folder of the same name in the <strong>Claude groups</strong> category. A chat put in a group is placed in the group's folder, and taking it out of the group puts it back in its earlier folder.</li>
+        <li>Moving a chat into or out of a group folder, renaming a group folder or deleting one changes the group in Claude.</li>
+        <li>Dragging a chat from Claude's sidebar or the Chats page onto a group, its pane or its list puts the chat in that group. Holding it on a closed group for 0.7 seconds lists the group's chats, and dropping it between 2 chats puts it there. Claude's sidebar shows the new place the next time claude.ai loads.</li>
+        <li>Dropping a chat onto a folder or a folder's pane files it there.</li>
+        <li><strong>Sync Claude groups with folders</strong> and <strong>Folders and Groups buttons in Claude's sidebar header</strong> are on the Settings tab, both checked after install.</li>
+      </ul>
+      <figure class="help-figure">
+        <img src="help/help-groups.png" alt="The Groups panel on claude.ai with Printable expanded to its 2 chats and the Completed group's 3 sessions in the pane, beside the Folders and Groups buttons in the sidebar header" width="932" height="400">
+        <figcaption>The Groups panel. Printable is expanded in place, and Completed is open in the pane.</figcaption>
+      </figure>
+      <figure class="help-figure">
+        <img src="help/help-group-folders.png" alt="The Folders panel with the Claude groups category holding Printable, Completed and Job Applications, and Printable's 2 chats in the pane" width="932" height="400">
+        <figcaption>The Claude groups category in the Folders panel.</figcaption>
+      </figure>
       <div class="settings-actions">
         <button type="button" class="btn btn-light" data-help-action="claude">Open claude.ai</button>
       </div>
@@ -106,11 +128,11 @@
         <button type="button" class="btn" data-help-action="organizer">Open the organizer</button>
       </div>
       <figure class="help-figure">
-        <img src="help/help-organizer.png" alt="The organizer with lisbon typed in the search box, the Chats list of 2 matches and the List view of the same 2 chats" width="1200" height="720">
-        <figcaption>The organizer with "lisbon" in the search box.</figcaption>
+        <img src="help/help-organizer.png" alt="The organizer with outline typed in the search box, the Chats list of 2 matches and the List view of the same 2 chats" width="1200" height="720">
+        <figcaption>The organizer with "outline" in the search box.</figcaption>
       </figure>
       <figure class="help-figure">
-        <img src="help/help-folder.png" alt="The Kitchen Remodel folder in the organizer with the search box, Sort by, and 3 chats with the date and time of each" width="1200" height="720">
+        <img src="help/help-folder.png" alt="The Home &amp; Garden folder in the organizer with the search box, Sort by, and 4 chats with the date and time of each" width="1200" height="720">
         <figcaption>A folder in the organizer. Each chat shows the date and time of its last change.</figcaption>
       </figure>
     </section>
@@ -201,13 +223,13 @@
     <section class="settings-card" aria-labelledby="helpTroubleHeading">
       <h2 class="settings-heading" id="helpTroubleHeading">Troubleshooting</h2>
       <ul class="help-steps">
-        <li><strong>Export says folder access is needed</strong>: click <strong>Open Data Folder Access</strong> below, then <strong>Allow access</strong>, then <strong>Allow on every visit</strong> when Chrome's prompt offers it.</li>
+        <li><strong>Access: not allowed</strong>: click <strong>Allow folder access</strong> in the notice, or <strong>Allow access</strong> in Step 1, then <strong>Allow on every visit</strong> when Chrome's prompt offers it.</li>
+        <li><strong>Data folder not read</strong>: click <strong>Choose folder</strong> in Step 1 and pick the same data folder again. Its exports and folders files stay as they are.</li>
         <li><strong>Sync does not start after the extension was reloaded</strong>: clicking <strong>Sync</strong> opens a new claude.ai tab when the open one has none of the extension's scripts, and the sync runs in the new tab.</li>
         <li><strong>Folders are empty after adding the extension again</strong>: choose the same data folder on the Settings tab. Each account's folders are read back from its <code>data.&lt;account&gt;.json</code> file.</li>
         <li><strong>Some chats did not produce a file</strong>: open the reason line in the sync result to list those chats as links, and open each one on claude.ai.</li>
       </ul>
       <div class="settings-actions">
-        <button type="button" class="btn" data-help-action="access">Open Data Folder Access</button>
-        <button type="button" class="btn btn-light" data-help-action="tab" data-tab="main" data-target="folderHeading">Go to Data folder</button>
+        <button type="button" class="btn btn-light" data-help-action="jump" data-target="helpFolderHeading">Go to Step 1</button>
       </div>
     </section>

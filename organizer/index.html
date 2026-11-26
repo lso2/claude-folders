@@ -16,13 +16,14 @@
     <div class="app-layout" id="appLayout">
         <!-- Claude's sidebar as last read on claude.ai (organizer/sidebar.js) -->
         <aside class="sidebar" id="sidebar">
+            <!-- The collapse button before the name, as in Claude's title bar -->
             <div class="sidebar-header">
-                <span class="logo-text" id="brandName"></span>
                 <button class="sidebar-toggle" id="sidebarToggle" title="Collapse sidebar" aria-label="Collapse sidebar">
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M16.5 4C17.3284 4 18 4.67157 18 5.5V14.5C18 15.3284 17.3284 16 16.5 16H3.5C2.67157 16 2 15.3284 2 14.5V5.5C2 4.67157 2.67157 4 3.5 4H16.5ZM7 15H16.5C16.7761 15 17 14.7761 17 14.5V5.5C17 5.22386 16.7761 5 16.5 5H7V15ZM3.5 5C3.22386 5 3 5.22386 3 5.5V14.5C3 14.7761 3.22386 15 3.5 15H6V5H3.5Z"></path>
                     </svg>
                 </button>
+                <span class="logo-text" id="brandName"></span>
             </div>
 
             <!-- The rows, the sections and the chats scroll together; the header and the account button stay -->
@@ -30,9 +31,9 @@
                 <nav class="sidebar-nav" id="sidebarNav" aria-label="Claude"></nav>
                 <div class="sidebar-lists">
                     <div id="sidebarSections"></div>
-                    <div class="sidebar-section">
-                        <div class="section-label" id="recentsLabel" hidden></div>
-                        <div id="recentChats" class="recent-list"></div>
+                    <div class="sidebar-section" id="recentsSection">
+                        <button type="button" class="section-toggle" id="recentsToggle" aria-expanded="true" hidden><span class="section-name" id="recentsLabel"></span><svg class="section-caret" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6l3.5 3.5 3.5-3.5"/></svg></button>
+                        <div id="recentChats" class="recent-list section-rows"></div>
                     </div>
                 </div>
             </div>
@@ -46,9 +47,10 @@
                         <span class="user-team" id="userTeam"></span>
                     </span>
                     <svg class="user-chevron" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M4 10l4-4 4 4"/>
+                        <path d="M4 6l4 4 4-4"/>
                     </svg>
                 </button>
+                <a class="apps-link" id="appsLink" target="_blank" rel="noopener" hidden></a>
             </div>
 
             <div class="sidebar-resizer" id="sidebarResizer" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" tabindex="0"></div>
@@ -346,7 +348,6 @@
     <script src="../lib/data-file.js"></script>
     <script src="../lib/export-files.js"></script>
     <script src="../lib/export-state.js"></script>
-    <script src="../lib/folder-access.js"></script>
     <script src="../lib/account-view.js"></script>
     <script src="../lib/account-view-store.js"></script>
     <script src="../lib/shell-address.js"></script>

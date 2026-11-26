@@ -1,7 +1,8 @@
 // settings/settings-tabs.js
 // Switches the settings page between its Settings, Import/Export, Log, Help and About tabs in the sidebar.
-// The Settings tab's name in the page and its address is main.
-// Globals: SETTINGS_TABS, showSettingsTab, firstSettingsTab
+// The Settings tab's name in the page and its address is main. The address #folder is the Settings tab
+// scrolled to the Data folder section, the address every Allow folder access button opens (lib/folder-tab.js).
+// Globals: SETTINGS_TABS, showSettingsTab, firstSettingsTab, showTabOfAddress
 // Depends on: lib/storage-keys.js (HELP_ON_OPEN_KEY), settings/settings-chips.js (renderSettingsChips)
 // Notes: docs/notes/settings/settings-tabs.js.md
 
@@ -36,5 +37,19 @@ async function firstSettingsTab() {
   return location.hash.slice(1) || 'main';
 }
 
+// #folder shows the Settings tab with its Data folder section at the top
+function showTabOfAddress(tab) {
+  if (tab !== 'folder') {
+    showSettingsTab(tab);
+    return;
+  }
+  showSettingsTab('main');
+  document.getElementById('folderHeading')?.scrollIntoView({ block: 'start' });
+}
+
 document.querySelectorAll('.settings-tab').forEach(btn => btn.addEventListener('click', () => showSettingsTab(btn.dataset.tab)));
-firstSettingsTab().then(showSettingsTab);
+// The background changes an open settings tab's address to #folder and focuses the tab
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#folder') showTabOfAddress('folder');
+});
+firstSettingsTab().then(showTabOfAddress);

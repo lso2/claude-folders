@@ -41,6 +41,22 @@
     color: var(--icon-color);
 }
 
+/* The Folders and Groups icons are 17px in a 20px place, as on claude.ai */
+.nav-item .row-svg {
+    flex: 0 0 17px;
+    margin: 1.5px;
+}
+
+/* A short word after a row's label, such as Beta */
+.nav-badge {
+    flex: 0 0 auto;
+    margin-left: 7px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 14px;
+    color: var(--recents-label);
+}
+
 .sidebar-scroll {
     flex: 1;
     min-height: 0;
@@ -48,15 +64,75 @@
     padding: 2px 8px 8px;
 }
 
-.sidebar-section {
-    margin-top: 10px;
+/* A section's name, with the caret after it in the organizer (measured on claude.ai 2026-11-26: 44px high,
+   13px text 10px from the edge, the 14px caret 5px after the name) */
+.section-label,
+.section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    height: 44px;
+    padding: 16px 4px 4px 10px;
+    border: none;
+    background: transparent;
+    color: var(--sidebar-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
 }
 
-.section-label {
-    padding: 8px 10px 6px;
-    font-size: 12px;
+.section-toggle {
+    cursor: pointer;
+}
+
+.section-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.section-caret {
+    flex: 0 0 14px;
+    transition: transform 0.15s;
+}
+
+.section-toggle[aria-expanded="false"] .section-caret {
+    transform: rotate(-90deg);
+}
+
+.section-toggle[hidden],
+.section-rows[hidden] {
+    display: none;
+}
+
+/* The ring before a chat or session row: 6px, gray at half strength */
+.section-dot {
+    flex: 0 0 6px;
+    width: 6px;
+    height: 6px;
+    margin: 0 7px;
+    border: 0.5px solid rgb(135, 135, 135);
+    border-radius: 50%;
+    opacity: 0.5;
+}
+
+/* A project's sessions and its View all are indented under the project */
+.section-row.depth-1 {
+    padding-left: 32px;
+}
+
+/* View all of a section is dimmed and in line with the section's name. A project's View all is under its sessions. */
+.section-row.view-all {
+    padding-left: 10px;
     color: var(--recents-label);
-    font-weight: 500;
+}
+
+.section-row.view-all.depth-1 {
+    padding-left: 26px;
+    color: var(--sidebar-text);
 }
 
 .recent-list {
@@ -64,37 +140,57 @@
     flex-direction: column;
 }
 
+/* A chat of the organizer's own list, with the ring of Claude's chat rows */
 .recent-item {
-    padding: 6px 10px;
+    position: relative;
+    height: 32px;
+    padding: 0 8px 0 36px;
+    line-height: 32px;
     color: var(--sidebar-text);
     text-decoration: none;
     border-radius: 8px;
-    margin-bottom: 1px;
-    font-size: 13px;
+    font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.recent-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+.recent-item::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 13px;
+    width: 6px;
+    height: 6px;
+    border: 0.5px solid rgb(135, 135, 135);
+    border-radius: 50%;
+    opacity: 0.5;
 }
 
+.recent-item:hover {
+    background: var(--nav-hover);
+}
+
+/* The account button and the link beside it on one line, as on claude.ai */
 .account-area {
     position: relative;
     margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .user-profile {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
+    height: 28px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px;
+    gap: 8px;
+    padding: 0 12px 0 8px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     background: transparent;
     color: inherit;
     font: inherit;
@@ -104,13 +200,19 @@
 
 .user-profile:hover,
 .user-profile[aria-expanded="true"] {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--nav-hover);
 }
 
+/* Hidden before the first claude.ai visit, while no account is known (organizer/sidebar.js renderUserProfile) */
+#userProfile[hidden] {
+    display: none;
+}
+
+/* The color is the one read from Claude's account button (organizer/sidebar.js renderUserProfile) */
 .user-avatar {
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
     border-radius: 50%;
     background: #3f6781;
     display: flex;
@@ -118,37 +220,68 @@
     justify-content: center;
     color: #ffffff;
     font-weight: 500;
-    font-size: 14px;
+    font-size: 9px;
 }
 
+/* The name, then the team after a dot */
 .user-info {
     flex: 1;
     min-width: 0;
     display: flex;
-    flex-direction: column;
+    align-items: baseline;
+    gap: 4px;
 }
 
 .user-name,
 .user-team {
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .user-name {
-    font-size: 13px;
+    flex: 0 1 auto;
+    font-size: 14px;
     color: var(--sidebar-text);
-    font-weight: 500;
 }
 
 .user-team {
+    flex: 0 10 auto;
     font-size: 12px;
     color: var(--recents-label);
+}
+
+.user-team::before {
+    content: '\00B7';
+    margin-right: 4px;
+}
+
+.user-team[hidden] {
+    display: none;
 }
 
 .user-chevron {
     flex: 0 0 12px;
     color: var(--recents-label);
+}
+
+.apps-link {
+    flex: 0 0 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: var(--sidebar-text);
+}
+
+.apps-link:hover {
+    background: var(--nav-hover);
+}
+
+.apps-link[hidden] {
+    display: none;
 }
 
 /* The account menu opens upward from the account button */
@@ -230,13 +363,16 @@
 
 /* Organizer parts hidden or centered while the sidebar is collapsed (the shared rules: lib/page-frame.css) */
 .sidebar.collapsed .sidebar-lists,
+.sidebar.collapsed .nav-badge,
 .sidebar.collapsed .user-info,
-.sidebar.collapsed .user-chevron {
+.sidebar.collapsed .user-chevron,
+.sidebar.collapsed .apps-link {
     display: none;
 }
 
 .sidebar.collapsed .user-profile {
     justify-content: center;
+    padding: 0;
 }
 
 .sidebar.collapsed .account-menu {
@@ -250,4 +386,3 @@
     overflow-y: auto;
     background: var(--body-bg);
 }
-

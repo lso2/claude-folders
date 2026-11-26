@@ -62,6 +62,8 @@ function renderLibrarySidebar() {
   const name = metadata.userName || recorded.name || recorded.email || '';
   document.getElementById('userAvatar').textContent = metadata.userInitial || (name ? Array.from(name)[0].toUpperCase() : '');
   document.getElementById('userName').textContent = name;
+  // Before the first claude.ai visit no account is known, and the row is hidden
+  document.getElementById('userProfile').hidden = !name && !document.getElementById('userAvatar').textContent;
   const team = document.getElementById('userTeam');
   team.textContent = metadata.userTeam || '';
   team.hidden = !metadata.userTeam;

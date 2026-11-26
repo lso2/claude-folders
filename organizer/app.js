@@ -132,11 +132,13 @@ function refreshView() {
   renderHomeView();
 }
 
-// The background stores the change and writes the data file through the folder writer
-async function saveData() {
+// The background stores the change and writes the data file through the folder writer. edit describes the one
+// change made. For a folder linked to a Claude group, the background queues that change for the group
+// (lib/group-pushes.js cfGroupOpsOfEdit).
+async function saveData(edit) {
   const data = { folders, categories, metadata };
   try {
-    const answer = await chrome.runtime.sendMessage({ action: 'updateCache', data });
+    const answer = await chrome.runtime.sendMessage({ action: 'updateCache', data, edit: edit || null });
     if (answer && answer.success && !answer.written) console.log('[ORGANIZER] Saved in the extension; the data file was not written:', answer.error);
   } catch (e) {
     console.log('[ORGANIZER] The change was not saved:', e.message);

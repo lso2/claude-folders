@@ -157,7 +157,7 @@ async function moveChat(chatId, toFolderId) {
     ...f,
     lastActivity: f.chats && f.chats.length > 0 ? Math.max(...f.chats.map(c => new Date(c.date || 0).getTime())) : 0
   }));
-  await saveData();
+  await saveData({ type: 'move', chatId, folderId: toFolderId });
   reopenCurrentFolder();
 }
 
@@ -168,6 +168,7 @@ async function deleteChat(chatId) {
   from.chats = from.chats.filter(c => c.id !== chatId);
   allChats = allChats.filter(c => c.id !== chatId);
   
-  await saveData();
+  // A chat taken out of the folders is also taken out of its Claude group when its folder is linked to one
+  await saveData({ type: 'move', chatId, folderId: null });
   reopenCurrentFolder();
 }

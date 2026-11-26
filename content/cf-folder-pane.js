@@ -4,7 +4,8 @@
 //          cfFolderPaneHtml, cfToggleFolderPane, cfOpenFolderPane, cfCloseFolderPane, cfFolderPaneState,
 //          cfPlaceFolderPane, cfFolderPaneKeydown
 // Depends on: content/cf-text.js, content/cf-account-view.js (cfViewFolders, cfOrgTag),
-//             lib/account-view.js (cfAccountLabel), lib/cowork-api.js (isCoworkSessionId, sessionProductOfUrl)
+//             lib/account-view.js (cfAccountLabel), lib/cowork-api.js (isCoworkSessionId, sessionProductOfUrl),
+//             content/cf-push.js (cfUpdatePush)
 // Notes: docs/notes/content/cf-folder-pane.js.md
 
 // Chats shown when a folder is opened, and added by each Load more
@@ -86,6 +87,7 @@ function cfOpenFolderPane(panel, folderId, shown, scrollTop) {
   document.addEventListener('keydown', cfFolderPaneKeydown);
   window.addEventListener('resize', cfPlaceFolderPane);
   cfPlaceFolderPane();
+  cfUpdatePush();
   // The width decides the height of the wrapped rows. The scroll position is set after it.
   pane.querySelector('.cf-folder-pane-list').scrollTop = scrollTop;
 }
@@ -96,6 +98,7 @@ function cfCloseFolderPane(panel) {
   panel.querySelectorAll('.folder-panel-item.active').forEach(item => item.classList.remove('active'));
   document.removeEventListener('keydown', cfFolderPaneKeydown);
   window.removeEventListener('resize', cfPlaceFolderPane);
+  cfUpdatePush();
 }
 
 // The open folder, the chats shown and the list's scroll position, read before the panel is drawn again
@@ -107,9 +110,10 @@ function cfFolderPaneState(panel) {
 }
 
 // The pane is as tall as the panel and up to 360px wide, at the panel's right edge. In a narrower window the pane
-// ends at the window's right edge, over the right side of the panel.
+// ends at the window's right edge, over the right side of the panel. The Groups panel's pane is placed the same way,
+// and one of the two panels is open at a time.
 function cfPlaceFolderPane() {
-  const panel = document.querySelector('.claude-folders-panel');
+  const panel = document.querySelector('.claude-folders-panel, .claude-groups-panel');
   const pane = panel && panel.querySelector('.cf-folder-pane');
   if (!pane) return;
   const box = panel.getBoundingClientRect();
@@ -118,8 +122,9 @@ function cfPlaceFolderPane() {
   pane.style.left = Math.min(box.width, window.innerWidth - box.left - width) + 'px';
 }
 
+// A typed Escape closes the pane. The Escape sent to end Claude's sidebar drag is not typed (content/cf-sidebar-drag.js).
 function cfFolderPaneKeydown(e) {
-  if (e.key !== 'Escape') return;
+  if (e.key !== 'Escape' || !e.isTrusted) return;
   const panel = document.querySelector('.claude-folders-panel');
   if (panel) cfCloseFolderPane(panel);
 }

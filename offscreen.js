@@ -1,5 +1,5 @@
 // offscreen.js
-// Offscreen document that answers the service worker's data-folder requests when no access window is open.
+// Offscreen document that answers the service worker's data-folder requests (lib/folder-worker.js).
 // Globals: none beyond its message listener
 // Depends on: lib/chat-markdown.js, lib/storage-keys.js, lib/handle-storage.js, lib/data-file.js,
 //             lib/export-files.js, lib/folder-ops.js (loaded first by offscreen.html)

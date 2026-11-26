@@ -6,7 +6,8 @@
 :root {
     --icon-color: #faf9f5;
     --sidebar-bg: #242423;
-    --sidebar-text: #c2c0b5;
+    /* The row text of Claude's sidebar (measured on claude.ai 2026-11-26) */
+    --sidebar-text: rgba(255, 255, 255, 0.93);
     /* The shared page frame's colors (lib/page-frame.css) */
     --sidebar-border: #40403c;
     --nav-hover: rgba(255, 255, 255, 0.05);
@@ -15,7 +16,8 @@
     --footer-text: #9c9a92;
     --footer-hover: #c2c0b5;
     --footer-border: #393935;
-    --recents-label: #9c9a92;
+    /* The dimmed text of Claude's sidebar: badges, the team name and Ungrouped's View all */
+    --recents-label: rgba(255, 255, 255, 0.57);
     --body-bg: #262624;
     --body-text: #9c9a92;
     --input-bg: #30302e;
@@ -1301,6 +1303,13 @@ body {
   padding-left: 18px;
   overflow-y: auto;
   list-style: disc;
+}
+
+/* A line's sub-items, such as the Cowork sessions under the account's total (lib/run-failures.js) */
+.cf-run-sublines {
+  margin: 2px 0;
+  padding-left: 18px;
+  list-style: circle;
 }
 
 .cf-run-failures a {

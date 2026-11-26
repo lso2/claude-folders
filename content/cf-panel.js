@@ -4,7 +4,9 @@
 //          renderPanelContent
 // Depends on: lib/storage-keys.js (SETUP_STEPS_OPEN_KEY), content/cf-state.js, content/cf-text.js, content/cf-account-view.js, content/cf-folder-pane.js,
 //             content/cf-organize.js, content/cf-organize-modal.js, content/cf-export-run.js, content/cf-migrate-button.js,
-//             content/cf-row-hover.js (cfSetFoldersRowOpen), lib/update-notice.js (cfAskForUpdate, cfRenderUpdateNotices, cfWireUpdateCheck)
+//             content/cf-row-hover.js (cfSetSidebarRowOpen), content/cf-panel-host.js (cfPanelHost),
+//             content/cf-groups-panel.js (cfCloseGroupsPanel), content/cf-push.js (cfUpdatePush), content/cf-sidebar-drag.js
+//             (cfDragJustEnded), lib/update-notice.js (cfAskForUpdate, cfRenderUpdateNotices, cfWireUpdateCheck)
 // Notes: docs/notes/content/cf-panel.js.md
 
 // The square-check's stored choice: false keeps the organize actions collapsed. The panel is drawn again on
@@ -40,14 +42,15 @@ function toggleFoldersPanel() {
     return;
   }
   
-  // Create panel
+  // One flyout at a time: the Groups panel closes when this one opens
+  cfCloseGroupsPanel();
   panel = document.createElement('div');
   panel.className = 'claude-folders-panel';
   panelExpanded = true;
   
   renderPanelContent(panel);
-  document.body.appendChild(panel);
-  cfSetFoldersRowOpen(true);
+  cfPanelHost().appendChild(panel);
+  cfSetSidebarRowOpen('data-folders-link', true);
   cfAskForUpdate(false);
 
   // The stored account view and the other accounts are read on open, then the panel redraws with them
@@ -62,6 +65,7 @@ function toggleFoldersPanel() {
     const right = Math.round(sidebarEl.getBoundingClientRect().right);
     if (right > 0) panel.style.left = right + 'px';
   }
+  cfUpdatePush();
 
   // Close on outside click (delay to avoid immediate close)
   setTimeout(() => {
@@ -77,18 +81,20 @@ function cfClosePanel() {
     panel.remove();
   }
   panelExpanded = false;
-  cfSetFoldersRowOpen(false);
+  cfSetSidebarRowOpen('data-folders-link', false);
   document.removeEventListener('click', closePanelOnOutsideClick);
+  cfUpdatePush();
 }
 
 // The event path is fixed when the click starts. A control the click removed from the panel is still in it.
-// A click in a dialog opened over the panel (.cf-confirm-overlay) leaves the panel open.
+// A click in a dialog opened over the panel (.cf-confirm-overlay), on the header buttons, or the release that ends a
+// drag (content/cf-sidebar-drag.js) leaves the panel open.
 function closePanelOnOutsideClick(e) {
   const panel = document.querySelector('.claude-folders-panel');
   const foldersLink = document.querySelector('a[data-folders-link="true"]'); // The Folders nav link
   const path = e.composedPath();
-  if (!panel || path.includes(panel) || (foldersLink && path.includes(foldersLink))) return;
-  if (path.some(el => el instanceof Element && el.classList.contains('cf-confirm-overlay'))) return;
+  if (!panel || path.includes(panel) || (foldersLink && path.includes(foldersLink)) || cfDragJustEnded()) return;
+  if (path.some(el => el instanceof Element && (el.classList.contains('cf-confirm-overlay') || el.classList.contains('cf-header-buttons')))) return;
   cfClosePanel();
 }
 
@@ -112,7 +118,7 @@ function renderPanelContent(panel) {
             <path d="M8 8L12 10" stroke="currentColor" stroke-width="1.5"/>
           </svg>
         </button>
-        <button class="panel-btn toggle-setup-btn" title="Organize with Claude" aria-label="Organize with Claude" aria-expanded="true">
+        <button class="panel-btn toggle-setup-btn" title="Organize with Claude" aria-label="Organize with Claude" aria-expanded="${cfSetupStepsOpen}">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         </button>
         <button class="panel-btn settings-btn" title="Settings" aria-label="Settings">
@@ -143,7 +149,7 @@ function renderPanelContent(panel) {
     
     <!-- Folders View -->
     <div class="panel-folders-view">
-    <div class="folders-panel-actions">
+    <div class="folders-panel-actions"${cfSetupStepsOpen ? '' : ' style="display: none;"'}>
       <button class="organize-auto-btn" id="organizeAutoBtn" title="The chat titles are sent to Claude in a new claude.ai tab, and Claude's answer is shown in a preview to apply">
         <svg width="12" height="14" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true"><path d="M349.4 44.6c5.9-13.7 1.5-29.7-10.6-38.5s-28.6-8-39.9 1.8l-256 224c-10 8.8-13.6 22.9-8.9 35.3S50.7 288 64 288H175.5L98.6 467.4c-5.9 13.7-1.5 29.7 10.6 38.5s28.6 8 39.9-1.8l256-224c10-8.8 13.6-22.9 8.9-35.3s-16.6-20.7-30-20.7H272.5L349.4 44.6z"/></svg>
         Organize in One Click
@@ -271,7 +277,9 @@ function renderPanelContent(panel) {
     showApplyCategoriesModal();
   });
 
-  // The setup actions are open until the square-check collapses them for more list room. The choice is stored.
+  // The setup actions are open until the square-check collapses them for more list room. The choice is stored, and
+  // the markup above draws it. The first draw is made before the panel is added to the page, and cfApplySetupSteps
+  // finds no panel then.
   cfApplySetupSteps();
   panel.querySelector('.toggle-setup-btn')?.addEventListener('click', () => {
     cfSetupStepsOpen = !cfSetupStepsOpen;

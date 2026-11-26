@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <!-- settings/index.html
-     The extension's settings page, with a sidebar of 4 tabs. Settings: data folder, accounts, the Folders panel's
+     The extension's settings page, with a sidebar of 4 tabs. Settings: data folder, Claude groups, accounts, the Folders panel's
      account view, automatic sync, the Claude Folders Helper, the running version and clearing a login's folders.
      Import/Export: the settings file, the folder lists for Claude and importing another account's chats. Help.
      About: what the extension is, its attribution, links and version.
-     Opened from the extension's options, the popup, the Folders panel and the organizer, and on Help after install.
+     Opened from the extension's options, the popup, the Folders panel and the organizer, on Help after install,
+     and at #folder, the Data folder section, from every Allow folder access button (lib/folder-tab.js).
      Notes: docs/notes/settings/index.html.md -->
 <html lang="en">
 <head>
@@ -22,10 +23,10 @@
   <!-- The sidebar frame of the organizer: brand, collapse button, rows and drag edge (lib/page-frame.css, lib/sidebar-layout.js) -->
   <aside class="sidebar" id="settingsSidebar" aria-label="Settings pages">
     <div class="sidebar-header">
-      <span class="logo-text">Claude Folders</span>
       <button class="sidebar-toggle" id="settingsSidebarToggle" title="Collapse sidebar" aria-label="Collapse sidebar">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M16.5 4C17.3284 4 18 4.67157 18 5.5V14.5C18 15.3284 17.3284 16 16.5 16H3.5C2.67157 16 2 15.3284 2 14.5V5.5C2 4.67157 2.67157 4 3.5 4H16.5ZM7 15H16.5C16.7761 15 17 14.7761 17 14.5V5.5C17 5.22386 16.7761 5 16.5 5H7V15ZM3.5 5C3.22386 5 3 5.22386 3 5.5V14.5C3 14.7761 3.22386 15 3.5 15H6V5H3.5Z"></path></svg>
       </button>
+      <span class="logo-text">Claude Folders</span>
     </div>
     <nav class="settings-tabs">
       <button type="button" class="nav-item settings-tab" data-tab="main" aria-controls="tabMain" title="Settings">
@@ -80,6 +81,29 @@
 
     <div class="settings-panel" id="tabMain" data-panel="main" hidden>
 
+    <section class="settings-card" aria-labelledby="folderHeading">
+      <h2 class="settings-heading" id="folderHeading">Data folder</h2>
+      <p class="settings-text" id="folderStatus">Checking the data folder...</p>
+      <div class="settings-actions">
+        <button class="btn" id="folderAllow" hidden>Allow access</button>
+        <button class="btn btn-light" id="folderChoose" hidden>Choose folder</button>
+        <button class="btn" id="folderFlag" hidden>Open flag</button>
+      </div>
+      <p class="settings-result" id="folderResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="groupSyncHeading">
+      <h2 class="settings-heading" id="groupSyncHeading">Claude groups</h2>
+      <label class="settings-check"><input type="checkbox" id="groupSyncOn"> Sync Claude groups with folders</label>
+      <p class="settings-result" id="groupSyncResult" hidden></p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="headerButtonsHeading">
+      <h2 class="settings-heading" id="headerButtonsHeading">Sidebar header</h2>
+      <label class="settings-check"><input type="checkbox" id="headerButtonsOn"> Folders and Groups buttons in Claude's sidebar header</label>
+      <p class="settings-result" id="headerButtonsResult" hidden></p>
+    </section>
+
     <section class="settings-card" aria-labelledby="autoSyncHeading">
       <h2 class="settings-heading" id="autoSyncHeading">Automatic sync</h2>
       <label class="settings-check"><input type="checkbox" id="autoSyncOn"> Sync automatically</label>
@@ -87,6 +111,7 @@
         <select id="autoSyncMinutes" class="cf-select"></select>
       </label>
       <p class="settings-muted">Automatic sync is on every 1 hour until it is changed here. The sync runs in an open claude.ai tab with a writable data folder. A turn with no claude.ai tab open is skipped. A notice appears on claude.ai only after an automatic sync with new, exported or updated chats.</p>
+      <label class="settings-check"><input type="checkbox" id="autoSyncHideNotice"> Hide the new chats notice on claude.ai while automatic sync is on</label>
       <p class="settings-text" id="autoSyncLast"></p>
       <p class="settings-result" id="autoSyncResult" hidden></p>
     </section>
@@ -105,18 +130,6 @@
       </div>
       <label class="settings-check settings-color-organizer"><input type="checkbox" id="buttonColorOrganizer"> Apply to the organizer</label>
       <p class="settings-result" id="buttonColorResult" hidden></p>
-    </section>
-
-    <section class="settings-card" aria-labelledby="folderHeading">
-      <h2 class="settings-heading" id="folderHeading">Data folder</h2>
-      <p class="settings-text" id="folderStatus">Checking the data folder...</p>
-      <p class="settings-muted" id="folderQueue" hidden></p>
-      <div class="settings-actions">
-        <button class="btn" id="folderGrant" hidden>Open access window</button>
-        <button class="btn btn-light" id="folderChoose" hidden>Choose folder</button>
-        <button class="btn" id="folderFlag" hidden>Open flag</button>
-      </div>
-      <p class="settings-result" id="folderResult" hidden></p>
     </section>
 
     <section class="settings-card" aria-labelledby="helperHeading">
@@ -310,6 +323,7 @@
   <script src="../lib/button-color.js"></script>
   <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
+  <script src="../lib/folder-state.js"></script>
   <script src="../lib/data-file.js"></script>
   <script src="../lib/export-files.js"></script>
   <script src="../lib/export-state.js"></script>
@@ -323,6 +337,8 @@
   <script src="settings-clear.js"></script>
   <script src="settings-migration.js"></script>
   <script src="settings-auto-sync.js"></script>
+  <script src="settings-group-sync.js"></script>
+  <script src="settings-header-buttons.js"></script>
   <script src="settings-button-color.js"></script>
   <script src="settings-transfer.js"></script>
   <script src="settings-folder-lists.js"></script>

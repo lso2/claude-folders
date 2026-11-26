@@ -165,7 +165,7 @@ function renderContentSearch() {
   else if (failed) status.textContent = `${titleOnly}. The exports were not searched: ${state.index.error}`;
   else status.textContent = count;
   status.classList.toggle('error', !!failed);
-  access.hidden = !(failed && (state.index.code === 'permission' || state.index.code === 'no-folder'));
+  access.hidden = !(failed && ['no-folder', 'permission', 'unreadable'].includes(state.index.code));
   list.innerHTML = rows.slice(0, state.shown).map(contentSearchRowHtml).join('');
   const left = n - state.shown;
   more.hidden = left <= 0;

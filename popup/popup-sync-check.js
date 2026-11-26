@@ -13,8 +13,9 @@ const POPUP_SYNC_LIST_SIZE = 30;
 let popupSyncWork = null;
 
 // New chats: ids the claude.ai sidebar monitor found, and ids in the newest chats that no folder holds.
-// Changed chats: newest chats whose updated_at is later than their export. Old exports: exports recorded
-// in another format than EXPORT_FORMAT. listError: why the newest chats were not read.
+// Changed chats: newest chats whose leaf message id is not the one recorded with their export, or without
+// recorded ids, whose updated_at is later than their export. Old exports: exports recorded in another or no
+// format than EXPORT_FORMAT. listError: why the newest chats were not read.
 async function readPopupSyncWork() {
   const stored = await chrome.storage.local.get(['activeAccountKey', 'activeOrgId', EXPORT_STATE_KEY, EXPORTED_CHATS_KEY]);
   const monitorKey = MONITORED_NEW_CHATS_KEY_PREFIX + stored.activeAccountKey;
@@ -38,7 +39,12 @@ async function readPopupSyncWork() {
           newIds.add(convo.uuid);
           continue;
         }
-        const exportedAt = Date.parse((records[convo.uuid] && records[convo.uuid].exportedAt) || stamps[convo.uuid] || '');
+        const record = records[convo.uuid];
+        if (record && record.mark && convo.current_leaf_message_uuid) {
+          if (record.mark !== convo.current_leaf_message_uuid) changedChats++;
+          continue;
+        }
+        const exportedAt = Date.parse((record && record.exportedAt) || stamps[convo.uuid] || '');
         const updatedAt = Date.parse(convo.updated_at || '');
         if (!Number.isFinite(exportedAt) || (Number.isFinite(updatedAt) && updatedAt > exportedAt)) changedChats++;
       }
@@ -56,7 +62,7 @@ function popupSyncWorkText(work) {
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   if (work.newChats) parts.push(plural(work.newChats, 'new chat'));
   if (work.changedChats) parts.push(plural(work.changedChats, 'changed chat'));
-  if (work.oldExports) parts.push(`${plural(work.oldExports, 'export')} without message timestamps`);
+  if (work.oldExports) parts.push(`${plural(work.oldExports, 'export')} in an older or unrecorded format`);
   return parts.join(', ');
 }
 

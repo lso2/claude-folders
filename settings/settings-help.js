@@ -3,8 +3,9 @@
 // Globals: helpLoaded, loadHelpContent, helpScrollTo, runHelpAction, helpShowResult, renderHelpStatus
 // Depends on: settings/settings-tabs.js (showSettingsTab), settings/settings-chips.js (filterSettingsSections), settings/settings-transfer.js (exportSettingsFile),
 //             settings/settings-format.js (settingsTime, settingsShowResult), lib/storage-keys.js (RUN_STATE_KEY,
-//             AUTO_SYNC_KEY, AUTO_SYNC_DEFAULT), background.js (checkWriteAccess, openFolderAccess, startAutoScrape,
-//             openImportDialog, openOrganizer), settings/settings-auto-sync.js (autoSyncLabel),
+//             AUTO_SYNC_KEY, AUTO_SYNC_DEFAULT), lib/folder-state.js (cfReadWriterState, cfDescribeWriter),
+//             background.js (startAutoScrape, openImportDialog, openOrganizer), settings/settings-auto-sync.js (autoSyncLabel),
+//             settings/settings-folder.js (runFolderChoose, runFolderAllow, folderButtonsFor),
 //             settings/settings-chips.js (renderSettingsChips)
 // Notes: docs/notes/settings/help.html.md
 
@@ -47,7 +48,12 @@ async function runHelpAction(btn) {
       showSettingsTab(btn.dataset.tab);
       helpScrollTo(btn.dataset.target);
     }
-    if (action === 'access') await chrome.runtime.sendMessage({ action: 'openFolderAccess' });
+    // The Data folder section's own steps, run inside this click for Chrome's prompt
+    if (action === 'choose' || action === 'allow') {
+      const outcome = action === 'choose' ? await runFolderChoose() : await runFolderAllow();
+      if (outcome) helpShowResult('helpFolderResult', outcome.text, !outcome.ok);
+      await renderHelpStatus();
+    }
     if (action === 'claude') await chrome.tabs.create({ url: 'https://claude.ai/new' });
     if (action === 'organizer') await chrome.runtime.sendMessage({ action: 'openOrganizer' });
     if (action === 'export-settings') await exportSettingsFile();
@@ -71,12 +77,15 @@ async function renderHelpStatus() {
   const folder = document.getElementById('helpFolderStatus');
   const sync = document.getElementById('helpSyncStatus');
   const auto = document.getElementById('helpAutoStatus');
-  const writer = await chrome.runtime.sendMessage({ action: 'checkWriteAccess' }).catch(e => ({ success: false, error: e.message }));
-  if (!writer || !writer.success) folder.textContent = `The folder writer did not answer: ${(writer && writer.error) || 'no response'}.`;
-  else if (!writer.hasHandle) folder.textContent = 'Not done yet: no data folder is chosen.';
-  else if (writer.permission === 'granted') folder.textContent = `Done: "${writer.folderName}" is the data folder, and the extension can save into it.`;
-  else folder.textContent = `"${writer.folderName}" is the data folder. Saving into it needs access allowed (state: ${writer.permission}).`;
-  folder.classList.toggle('done', !!(writer && writer.success && writer.hasHandle && writer.permission === 'granted'));
+  const view = cfDescribeWriter(await cfReadWriterState());
+  folder.textContent = (view.state === 'granted' ? 'Done. ' : 'Not done. ') + view.text;
+  folder.classList.toggle('done', view.state === 'granted');
+  const buttons = folderButtonsFor(view);
+  const allow = document.querySelector('#helpContent [data-help-action="allow"]');
+  const choose = document.querySelector('#helpContent [data-help-action="choose"]');
+  allow.hidden = !buttons.allow;
+  choose.textContent = buttons.chooseText;
+  choose.className = buttons.chooseClass;
 
   const stored = await chrome.storage.local.get([RUN_STATE_KEY, AUTO_SYNC_KEY]);
   const run = stored[RUN_STATE_KEY];

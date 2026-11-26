@@ -1,27 +1,20 @@
 // background.js
 // Service worker that answers extension messages against the cached folder data.
-// Globals: cachedData, currentAccountKey, offscreenCreated, offscreenSetup, writerPort,
-//          writerRequestId, acctKey, persist, broadcastDataUpdated, broadcastToClaudeTabs,
-//          countChatsInData, overlapRatioWithScraped, ensureOffscreen, setUpOffscreen, askOffscreen,
-//          askWriterWindow, askFolderWorker, syncDataToDisk, fileImportedChat,
-//          reloadClaudeTabs, loadCachedData, countBgChats, handleMessage, CF_BACKGROUND_FILES
+// Globals: cachedData, currentAccountKey, acctKey, persist, broadcastDataUpdated, broadcastToClaudeTabs,
+//          countChatsIn, overlapRatioWithScraped, syncDataToDisk, fileImportedChat, reloadClaudeTabs,
+//          cfCacheLoad, loadCachedData, countBgChats, cfLinkFoldersAfterWrite, handleMessage, CF_BACKGROUND_FILES
 // Notes: docs/notes/background.js.md
 
 // The background's other files, run in this order before the code below
 const CF_BACKGROUND_FILES = ['lib/build-reload.js', 'lib/background-build.js', 'lib/helper-host.js', 'lib/storage-keys.js',
-  'lib/activity-kinds.js', 'lib/activity-log.js', 'lib/activity-watch.js',
+  'lib/activity-kinds.js', 'lib/activity-log.js', 'lib/run-failures.js', 'lib/activity-watch.js',
   'lib/account-identity.js', 'lib/account-migrate.js', 'lib/account-entries.js', 'lib/accounts.js', 'lib/tab-handoff.js', 'lib/organize-tabs.js',
   'lib/shell-address.js', 'lib/claude-tab.js', 'lib/account-restore.js', 'lib/auto-sync.js', 'lib/first-run.js', 'lib/library-refresh.js',
-  'lib/access-window.js', 'lib/update-check.js'];
+  'lib/folder-worker.js', 'lib/folder-tab.js', 'lib/update-check.js', 'lib/group-pushes.js', 'lib/group-folders.js'];
 importScripts(...CF_BACKGROUND_FILES);
 
 let cachedData = null;
 let currentAccountKey = null;
-let offscreenCreated = false;
-// The setup in progress. Concurrent folder requests share it.
-let offscreenSetup = null;
-let writerPort = null;
-let writerRequestId = 0;
 
 // Each signed-in account keeps its own folders under cfData_<key>. `cachedData`
 // is always a mirror of the active account so the organizer page and the
@@ -64,34 +57,6 @@ function overlapRatioWithScraped(scrapedIds) {
   return overlap / haveIds.length;
 }
 
-// The offscreen document performs every data-folder write and Chrome can close it between calls.
-// While a new document is loading, hasDocument() is already true and its message listener is
-// not there yet. A second request waits for the first one's setup.
-function ensureOffscreen() {
-  if (!offscreenSetup) offscreenSetup = setUpOffscreen().finally(() => { offscreenSetup = null; });
-  return offscreenSetup;
-}
-
-async function setUpOffscreen() {
-  try {
-    if (await chrome.offscreen.hasDocument()) {
-      offscreenCreated = true;
-      return true;
-    }
-    await chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['LOCAL_STORAGE'],
-      justification: 'Write export files to user folder via FileSystem API'
-    });
-    offscreenCreated = true;
-    console.log('[BG] Offscreen document created');
-    return true;
-  } catch (e) {
-    console.log('[BG] Offscreen creation failed:', e.message);
-    return false;
-  }
-}
-
 // Writes the cached data to the data folder, with the button color for the offline library's data.js
 async function syncDataToDisk() {
   let buttonColor = null;
@@ -110,61 +75,6 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area !== 'local' || !changes[BUTTON_COLOR_KEY]) return;
   if (!cachedData) await loadCachedData();
   syncDataToDisk();
-});
-
-// Sends one folder request to the offscreen document, creating it first when needed
-async function askOffscreen(request, fallback) {
-  const ready = await ensureOffscreen();
-  if (!ready) return { ...fallback, error: 'The offscreen writer could not be created' };
-  const response = await chrome.runtime.sendMessage({ ...request, target: 'offscreen' });
-  return response || { ...fallback, error: 'No response from offscreen' };
-}
-
-// Replies from the open access window are received over its port. Null means no reply within 30 seconds,
-// or the window closed before replying.
-function askWriterWindow(request) {
-  return new Promise((resolve) => {
-    const port = writerPort;
-    if (!port) return resolve(null);
-    const id = ++writerRequestId;
-    const finish = (result) => {
-      clearTimeout(timer);
-      port.onMessage.removeListener(onReply);
-      port.onDisconnect.removeListener(onGone);
-      resolve(result);
-    };
-    const onReply = (msg) => {
-      if (msg && msg.id === id) finish(msg.result || null);
-    };
-    const onGone = () => finish(null);
-    const timer = setTimeout(() => finish(null), 30000);
-    port.onMessage.addListener(onReply);
-    port.onDisconnect.addListener(onGone);
-    try {
-      port.postMessage({ id, request });
-    } catch (e) {
-      finish(null);
-    }
-  });
-}
-
-// Measured 2026-10-27: the offscreen document kept seeing the folder permission as "prompt"
-// while the access window held the user's grant. The access window, when open, performs
-// folder requests; otherwise the offscreen document does.
-async function askFolderWorker(request, fallback) {
-  if (writerPort) {
-    const viaWindow = await askWriterWindow(request);
-    if (viaWindow) return viaWindow;
-  }
-  return askOffscreen(request, fallback);
-}
-
-chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'folder-writer') return;
-  writerPort = port;
-  port.onDisconnect.addListener(() => {
-    if (writerPort === port) writerPort = null;
-  });
 });
 
 // An imported chat is filed under a folder named for the project it was shared in
@@ -186,9 +96,9 @@ async function fileImportedChat(chat, folderId, folderName, category) {
   return { success: true, folderId: folder.id };
 }
 
-// Load cached data on startup
-chrome.runtime.onStartup.addListener(loadCachedData);
-chrome.runtime.onInstalled.addListener(loadCachedData);
+// Load cached data on startup. Every message waits for the load in progress (handleMessage).
+chrome.runtime.onStartup.addListener(() => { cfCacheLoad = loadCachedData(); });
+chrome.runtime.onInstalled.addListener(() => { cfCacheLoad = loadCachedData(); });
 
 // A tab opened before an update keeps the old content scripts, cut off from the
 // extension, until it loads again. claude.ai restores the composer draft on reload.
@@ -206,19 +116,22 @@ async function reloadClaudeTabs(details) {
 }
 chrome.runtime.onInstalled.addListener(reloadClaudeTabs);
 
+// The worker stops after 30 seconds without events and starts again on the next one. With the account of the last
+// claude.ai tab read back at that start, every save also reaches that account's slot.
 async function loadCachedData() {
   try {
-    const result = await chrome.storage.local.get('cachedData');
+    const result = await chrome.storage.local.get(['cachedData', 'activeAccountKey']);
+    if (result.activeAccountKey && !currentAccountKey) currentAccountKey = result.activeAccountKey;
     if (result.cachedData && result.cachedData.folders) {
       cachedData = result.cachedData;
       console.log('[BG] Loaded cache:', cachedData.folders?.length, 'folders,', countBgChats(), 'chats');
     } else {
-      cachedData = { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: { userName: 'James', userInitial: 'J' } };
+      cachedData = { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} };
       console.log('[BG] No cache found, using defaults');
     }
   } catch (e) {
     console.log('[BG] Error loading cache:', e.message);
-    cachedData = { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: { userName: 'James', userInitial: 'J' } };
+    cachedData = { folders: [], categories: ['Personal', 'Work', 'Projects'], metadata: {} };
   }
 }
 
@@ -230,8 +143,18 @@ function countBgChats() {
   return count;
 }
 
+// A page's folder write. Its one described edit becomes queued group changes, and the folders linked to Claude's
+// groups are brought back in line with the groups last read (lib/group-pushes.js, lib/group-folders.js).
+// before is the data held before the write.
+async function cfLinkFoldersAfterWrite(before, edit) {
+  await cfQueueGroupPushes(cfGroupOpsOfEdit(edit, before, cachedData));
+  const known = new Map();
+  ((before && before.folders) || []).forEach(f => (f.chats || []).forEach(c => known.set(c.id, c)));
+  await cfReapplyGroups(cachedData, currentAccountKey || 'default', known);
+}
+
 // Initialize cache
-loadCachedData();
+let cfCacheLoad = loadCachedData();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sender, sendResponse);
@@ -240,6 +163,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function handleMessage(message, sender, sendResponse) {
   try {
+    await cfCacheLoad;
     switch (message.action) {
 
       case 'setAccount': {
@@ -303,10 +227,12 @@ async function handleMessage(message, sender, sendResponse) {
         break;
       }
         
-      case 'saveData':
+      case 'saveData': {
         // Called by content-script after organizing - update cache and trigger file sync
         console.log('[BG] saveData received');
+        const beforeSave = cachedData;
         cachedData = message.data;
+        await cfLinkFoldersAfterWrite(beforeSave, null);
         cfTagChats(cachedData, currentAccountKey);
         await persist();
         console.log('[BG] Cache updated:', cachedData.folders?.length, 'folders');
@@ -315,11 +241,14 @@ async function handleMessage(message, sender, sendResponse) {
         await broadcastDataUpdated();
         sendResponse({ success: true });
         break;
+      }
       
       case 'updateCache': {
-        // A change saved in the popup or the organizer. The data file is written through the folder writer,
-        // the one place holding the folder grant.
+        // A change saved in the popup or the organizer, with the edit it made. The data file is written through the
+        // folder writer, the one place holding the folder grant.
+        const beforeUpdate = cachedData;
         cachedData = message.data;
+        await cfLinkFoldersAfterWrite(beforeUpdate, message.edit || null);
         cfTagChats(cachedData, currentAccountKey);
         await persist();
         console.log('[BG] Cache updated:', cachedData.folders?.length, 'folders');
@@ -344,10 +273,12 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse({ success: true });
         break;
         
-      case 'assignChatToFolder':
+      case 'assignChatToFolder': {
         if (!cachedData) await loadCachedData();
         const folder = cachedData.folders.find(f => f.id === message.folderId);
         if (folder) {
+          // A chat moved into or out of a folder linked to a Claude group changes that group (lib/group-pushes.js)
+          await cfQueueGroupPushes(cfGroupOpsOfMove(message.chat.id, cfGroupFolderOfChat(cachedData, message.chat.id), folder));
           // Remove from other folders first
           cachedData.folders.forEach(f => {
             f.chats = f.chats.filter(c => c.id !== message.chat.id);
@@ -360,6 +291,7 @@ async function handleMessage(message, sender, sendResponse) {
         }
         sendResponse({ success: true });
         break;
+      }
         
       case 'scrapedChats':
         if (!cachedData) await loadCachedData();
@@ -402,6 +334,8 @@ async function handleMessage(message, sender, sendResponse) {
             if (incoming.createdAt) current.createdAt = incoming.createdAt;
             if (incoming.relativeDate) current.relativeDate = incoming.relativeDate;
             if (incoming.url) current.url = incoming.url;
+            // A chat's current leaf message id from the listing, compared with its export's mark (content/cf-export-run.js)
+            if (incoming.mark) current.mark = incoming.mark;
             // A chat stored before chats carried their organization gets it from the listing
             if (incoming.orgId && !current.orgId) { current.orgId = incoming.orgId; orgTagged++; }
             if (incoming.orgId && incoming.orgId === current.orgId && incoming.orgName) current.orgName = incoming.orgName;
@@ -453,10 +387,9 @@ async function handleMessage(message, sender, sendResponse) {
         sendResponse(await cfCheckForUpdate(message.force === true));
         break;
 
-      // mode: 'setup', 'restore' or 'hold' (lib/access-window.js)
+      // The settings page's Data folder section, where a click lets Chrome show its folder prompt (lib/folder-tab.js)
       case 'openFolderAccess':
-        await openAccessWindow(message.mode);
-        sendResponse({ success: true });
+        sendResponse({ success: true, tabId: await cfOpenFolderTab() });
         break;
 
       case 'openFlagsPage': {
@@ -471,11 +404,44 @@ async function handleMessage(message, sender, sendResponse) {
         break;
       }
 
+      // A claude.ai tab read Claude's sidebar groups (content/cf-group-sync.js). The linked folders follow them.
+      case 'claudeGroupsRead': {
+        if (!(await cfGroupSyncOn())) {
+          sendResponse({ success: true, changes: 0, off: true });
+          break;
+        }
+        if (!cachedData) await loadCachedData();
+        const changes = await cfTakeGroupsRead(cachedData, currentAccountKey || 'default', message);
+        if (changes) {
+          cfTagChats(cachedData, currentAccountKey);
+          await persist();
+          syncDataToDisk();
+          await broadcastDataUpdated();
+          cfLogActivity('Groups', `Group folders brought in line with Claude's groups: ${changes} change${changes === 1 ? '' : 's'}`);
+        }
+        sendResponse({ success: true, changes });
+        break;
+      }
+
+      // The queued group changes of one organization, for the claude.ai tab that writes them (lib/group-pushes.js)
+      case 'takeGroupPushes':
+        sendResponse({ success: true, ops: (await cfReadGroupPushes()).ops.filter(op => op.orgId === message.orgId) });
+        break;
+
+      case 'groupPushesApplied': {
+        const dropped = await cfDropGroupPushes(message.seqs);
+        if (dropped) cfLogActivity('Groups', `${dropped} group change${dropped === 1 ? '' : 's'} written to Claude's sidebar`);
+        sendResponse({ success: true, dropped });
+        break;
+      }
+
       case 'folderAccessChanged':
-        // Sent by the access window once the folder can be written again
-        cfLogActivity('Folder access', `Folder access granted${message.written ? `, ${message.written} queued export${message.written === 1 ? '' : 's'} written` : ''}${message.failed ? `, ${message.failed} not written` : ''}`);
-        await broadcastToClaudeTabs({ action: 'folderAccessChanged', written: message.written || 0, failed: message.failed || 0 });
+        // Sent by the settings page once a folder is chosen or its access allowed (lib/folder-access.js).
+        // The offline library is written into that folder after the answer (lib/library-refresh.js).
+        cfLogActivity('Folder access', message.folderName ? `Folder access allowed for "${message.folderName}"` : 'Folder access allowed');
+        await broadcastToClaudeTabs({ action: 'folderAccessChanged' });
         sendResponse({ success: true });
+        await cfWriteLibraryFiles();
         break;
 
       case 'fileImportedChat':

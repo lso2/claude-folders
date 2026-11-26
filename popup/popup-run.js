@@ -40,7 +40,7 @@ function renderPopupRun(state, startingText) {
   }
   title.textContent = state.error ? `${kind} did not finish` : `${kind} finished`;
   text.textContent = state.error || '';
-  cfRenderRunLines(list, state.lines, state.failures);
+  cfRenderRunLines(list, state.lines, state.failures, state.sublines);
 }
 
 function renderLastSync(state) {

@@ -33,8 +33,9 @@
   flex-shrink: 0;
 }
 
-/* Folders Panel - flyout beside nav */
-.claude-folders-panel {
+/* Folders panel: the flyout beside the nav. The Groups panel (content/cf-groups-panel.js) has the same frame. */
+.claude-folders-panel,
+.claude-groups-panel {
   position: fixed;
   left: 260px;
   top: 0;
@@ -303,6 +304,251 @@
   background: #4d4d4a;
 }
 
+/* Groups panel parts (content/cf-groups-panel.js). Its rows and its pane use the folder classes above. */
+.claude-groups-panel .cf-group-icon {
+  margin-right: 8px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.claude-groups-panel.cf-groups-busy {
+  cursor: progress;
+}
+
+.cf-groups-hint {
+  font-size: 12px;
+  color: #9c9a92;
+}
+
+.cf-groups-error {
+  margin: 4px 16px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.cf-groups-form {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #3d3d3a;
+  flex-shrink: 0;
+}
+
+.cf-groups-form[hidden] {
+  display: none;
+}
+
+.cf-groups-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: #1f1f1e;
+  border: 1px solid #4a4945;
+  border-radius: 6px;
+  color: #e8e6e3;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.cf-groups-submit {
+  padding: 6px 12px;
+  background: var(--cf-orange);
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cf-groups-submit:hover {
+  background: var(--cf-orange-hover);
+}
+
+/* A chat row of the group pane: the link and its button that takes the chat out of the group */
+.cf-group-chat {
+  display: flex;
+  align-items: flex-start;
+}
+
+.cf-group-chat .cf-pane-chat {
+  flex: 1;
+  min-width: 0;
+}
+
+.cf-group-chat .cf-group-chat-remove {
+  margin: 6px 8px 0 0;
+  font-size: 16px;
+  line-height: 1;
+  visibility: hidden;
+}
+
+.cf-group-chat:hover .cf-group-chat-remove,
+.cf-group-chat .cf-group-chat-remove:focus-visible {
+  visibility: visible;
+}
+
+/* On the Chats page, Claude's chats column is pushed right by the width of an open Folders or Groups panel (content/cf-push.js) */
+html.cf-pushing div[data-route-outlet] {
+  margin-left: var(--cf-push);
+  transition: margin-left 0.15s ease-out;
+}
+
+/* The folder, group or sidebar section a dragged chat is over (content/cf-drag.js) */
+.claude-folders-panel .folder-panel-item.cf-drop-over,
+.claude-groups-panel .folder-panel-item.cf-drop-over {
+  background: #4a4945;
+}
+
+aside .cf-drop-over {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 8px;
+}
+
+/* An open pane takes drops too */
+.claude-folders-panel .cf-folder-pane.cf-drop-over,
+.claude-groups-panel .cf-folder-pane.cf-drop-over {
+  background: #3a3936;
+}
+
+/* The panels are in the layer of Claude's sidebar (content/cf-panel-host.js). Claude raises the sidebar, which draws
+   the drag ghost, to z-index 9001 while its drag runs, and the panels go under it (content/cf-sidebar-drag.js). */
+html.cf-claude-drag .claude-folders-panel,
+html.cf-claude-drag .claude-groups-panel {
+  z-index: 9000;
+}
+
+/* A group's row: the name with its caret right after it, the count, and the pane button (content/cf-groups-panel.js) */
+.cf-group-label {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.cf-group-item .folder-panel-name {
+  flex: 0 1 auto;
+}
+
+.cf-group-caret {
+  flex-shrink: 0;
+  margin-left: 5px;
+  transition: transform 0.15s;
+}
+
+.cf-group-item[aria-expanded="false"] .cf-group-caret {
+  transform: rotate(-90deg);
+}
+
+.cf-group-pane-btn {
+  margin: -4px -8px -4px 6px;
+}
+
+.cf-group-pane-btn:hover,
+.cf-group-pane-btn[aria-pressed="true"] {
+  background: #4a4945;
+  color: #ffffff;
+}
+
+/* Where a dragged chat goes in a group's list (content/cf-group-drop.js) */
+.cf-drop-slot {
+  height: 26px;
+  margin: 2px 12px 2px 34px;
+  border-radius: 6px;
+  background: #3d3d3a;
+}
+
+.cf-drop-slot.cf-drop-slot-pane {
+  height: 34px;
+  margin: 2px 12px;
+}
+
+.cf-group-chats {
+  padding: 2px 0 6px;
+}
+
+.cf-group-inline-chat,
+.cf-group-inline-empty {
+  display: block;
+  padding: 6px 16px 6px 38px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cf-group-inline-chat {
+  color: #e8e6e3;
+  text-decoration: none;
+}
+
+a.cf-group-inline-chat:hover {
+  background: #3d3d3a;
+  color: #ffffff;
+}
+
+.cf-group-inline-empty {
+  color: #9c9a92;
+}
+
+.cf-group-inline-more {
+  display: block;
+  width: calc(100% - 54px);
+  margin: 4px 16px 0 38px;
+  padding: 6px;
+  background: #3d3d3a;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Folders and Groups buttons in the title bar of Claude's sidebar (content/cf-header-buttons.js), built from the
+   measured parts of Claude's Chat and Code switch: a 28px track with 1px padding and 7px corners, 34 by 26 items with
+   5px corners, and a thumb with a 1px ring on the pressed item */
+.cf-header-buttons {
+  display: inline-flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 1px;
+  margin-left: auto;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: var(--cds-segmented-control-track, color-mix(in srgb, currentColor 5%, transparent));
+}
+
+.cf-header-buttons.cf-header-buttons-alone {
+  margin-right: auto;
+}
+
+.cf-header-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cf-header-btn:hover {
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.cf-header-btn[aria-pressed="true"] {
+  background: var(--cds-segmented-control-thumb, color-mix(in srgb, currentColor 10%, transparent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 20%, transparent);
+}
+
 /* Folder Picker Dropdown */
 .claude-folders-picker {
   position: fixed;
@@ -485,18 +731,21 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 
 /* Scrollbar */
 .claude-folders-panel::-webkit-scrollbar,
+.claude-groups-panel::-webkit-scrollbar,
 .claude-folders-picker::-webkit-scrollbar,
 .cf-folder-pane-list::-webkit-scrollbar {
   width: 8px;
 }
 
 .claude-folders-panel::-webkit-scrollbar-track,
+.claude-groups-panel::-webkit-scrollbar-track,
 .claude-folders-picker::-webkit-scrollbar-track,
 .cf-folder-pane-list::-webkit-scrollbar-track {
   background: transparent;
 }
 
 .claude-folders-panel::-webkit-scrollbar-thumb,
+.claude-groups-panel::-webkit-scrollbar-thumb,
 .claude-folders-picker::-webkit-scrollbar-thumb,
 .cf-folder-pane-list::-webkit-scrollbar-thumb {
   background: #64645f;
@@ -504,6 +753,7 @@ body:has(#claude-folders-sync-notification) .cf-folder-pane-list {
 }
 
 .claude-folders-panel::-webkit-scrollbar-thumb:hover,
+.claude-groups-panel::-webkit-scrollbar-thumb:hover,
 .claude-folders-picker::-webkit-scrollbar-thumb:hover,
 .cf-folder-pane-list::-webkit-scrollbar-thumb:hover {
   background: #757570;

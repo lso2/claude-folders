@@ -114,7 +114,7 @@ async function cfHostMissingExport(btn, chatId, title) {
   return false;
 }
 
-// One time slice of the content search index, run by the folder writer that holds the folder grant (lib/search-build.js)
+// One time slice of the content search index, run by the background writer (lib/search-build.js)
 async function cfHostIndexStep(after) {
   try {
     return await chrome.runtime.sendMessage({ action: 'indexExports', after });
@@ -123,7 +123,7 @@ async function cfHostIndexStep(after) {
   }
 }
 
-// The data folder is read through the background's folder writer, which holds the folder grant
+// The data folder is read through the background writer, the offscreen document
 async function cfHostReadExport(filename) {
   try {
     const res = await chrome.runtime.sendMessage({ action: 'readExportFile', filename });
@@ -139,8 +139,9 @@ function cfHostOpenExport(filename, title) {
   openExportView(filename, title);
 }
 
+// The settings page's Data folder section (lib/folder-tab.js)
 function cfHostOpenFolderAccess() {
-  chrome.runtime.sendMessage({ action: 'openFolderAccess' }).catch(e => console.log('[SEARCH] Folder access window not opened:', e.message));
+  chrome.runtime.sendMessage({ action: 'openFolderAccess' }).catch(e => console.log('[SEARCH] Settings page not opened:', e.message));
 }
 
 // A finished sync or import may have written exports

@@ -1,12 +1,20 @@
 // content/cf-disk.js
-// Sends export files to the background writer and asks for folder access when it is missing.
-// Globals: cfWriteExport, cfSaveExport, cfQueueExport, cfCheckWriteAccess, cfFolderAccessAction,
+// Sends export files to the background writer. Without folder access, a save stops with a notice and a button for the
+// settings page's Data folder section.
+// Globals: CF_FOLDER_REFUSALS, cfIsFolderRefusal, cfWriteExport, cfSaveExport, cfCheckWriteAccess, cfFolderAccessAction,
 //          cfPromptFolderAccess, cfReportSave
-// Depends on: lib/storage-keys.js, lib/folder-picker.js, lib/chat-markdown.js (EXPORT_FORMAT), content/cf-notify.js,
-//             content/cf-export-records.js (markChatAsExported), content/cf-reveal.js (cfNotifySaved)
+// Depends on: content/cf-notify.js, content/cf-export-records.js (markChatAsExported), content/cf-reveal.js (cfNotifySaved),
+//             background.js (saveExport, checkWriteAccess, openFolderAccess)
 // Notes: docs/notes/content/cf-disk.js.md
 
-// One write through the offscreen writer, returning its { success, code, error } as given
+// The refusal codes of a folder check (lib/handle-storage.js cfAccessRefusal). Each is answered on the settings page.
+const CF_FOLDER_REFUSALS = ['no-folder', 'permission', 'unreadable'];
+
+function cfIsFolderRefusal(result) {
+  return !!result && CF_FOLDER_REFUSALS.includes(result.code);
+}
+
+// One write through the background writer, returning its { success, code, error } as given
 async function cfWriteExport(filename, content) {
   try {
     const res = await chrome.runtime.sendMessage({ action: 'saveExport', filename, content });
@@ -16,91 +24,74 @@ async function cfWriteExport(filename, content) {
   }
 }
 
-// A single export is kept in the queue when folder access is missing, and the
-// access window writes it once access is granted. The mark is the conversation's
-// state at export (lib/export-state.js).
+// A missing folder or access is reported with the button that opens the settings page. The mark is the
+// conversation's state at export (lib/export-state.js).
 async function cfSaveExport(filename, content, chatId, mark) {
   const res = await cfWriteExport(filename, content);
   if (res.success) {
     if (chatId) await markChatAsExported(chatId, { filename, mark });
     return { saved: true, filename, chatId: chatId || null };
   }
-  if (res.code === 'no-folder' || res.code === 'permission') {
-    const queued = await cfQueueExport(filename, content, chatId, mark);
-    cfPromptFolderAccess(res.code, res.folderName, res.permission);
-    return { saved: false, queued, code: res.code, error: res.error, filename };
+  console.log('[EXPORT]', filename, 'not saved:', res.code, res.error);
+  if (cfIsFolderRefusal(res)) {
+    cfPromptFolderAccess(res);
+    return { saved: false, prompted: true, code: res.code, error: res.error, filename };
   }
-  return { saved: false, queued: false, code: res.code, error: res.error, filename };
+  return { saved: false, prompted: false, code: res.code, error: res.error, filename };
 }
 
-async function cfQueueExport(filename, content, chatId, mark) {
-  try {
-    const stored = await chrome.storage.local.get(QUEUED_EXPORTS_KEY);
-    const queue = (Array.isArray(stored[QUEUED_EXPORTS_KEY]) ? stored[QUEUED_EXPORTS_KEY] : [])
-      .filter(item => item.filename !== filename);
-    queue.push({ filename, content, chatId: chatId || null, mark: mark || null, format: EXPORT_FORMAT, queuedAt: new Date().toISOString() });
-    await chrome.storage.local.set({ [QUEUED_EXPORTS_KEY]: queue });
-    return true;
-  } catch (e) {
-    console.log('[EXPORT] Could not queue', filename, '-', e.message);
-    return false;
-  }
-}
-
+// ok, or the refusal the writer reported: { code, folderName, permission, error }
 async function cfCheckWriteAccess() {
   let res = null;
   try {
     res = await chrome.runtime.sendMessage({ action: 'checkWriteAccess' });
   } catch (e) {
+    console.log('[EXPORT] Folder access not read:', e.message);
     return { ok: false, code: 'unreachable', error: e.message };
   }
   if (!res || !res.success) {
-    return { ok: false, code: 'unreachable', error: (res && res.error) || 'The writer returned no result' };
+    const error = (res && res.error) || 'The writer returned no result';
+    console.log('[EXPORT] Folder access not read:', error);
+    return { ok: false, code: 'unreachable', error };
   }
-  if (!res.hasHandle) return { ok: false, code: 'no-folder', error: res.error || 'No data folder is selected' };
-  if (res.permission !== 'granted') {
-    return {
-      ok: false,
-      code: 'permission',
-      folderName: res.folderName,
-      permission: res.permission,
-      error: `Access to the data folder "${res.folderName}" is "${res.permission}"`
-    };
+  if (res.refusal) {
+    const { code, folderName, permission, error } = res.refusal;
+    if (code === 'unreadable') console.log('[EXPORT] Folder access not read:', error);
+    return { ok: false, code, folderName, permission, error };
   }
   return { ok: true, folderName: res.folderName };
 }
 
-// The message and button for a missing folder or permission, shared by the notice and the sync bar.
-// A browser without the folder picker gets the flag page, since no folder can be chosen there.
-function cfFolderAccessAction(code, folderName, permission) {
-  if (code === 'no-folder' && !cfFolderPickerAvailable()) {
-    return {
-      message: CF_PICKER_MISSING + (cfPickerFlagAvailable() ? ' ' + CF_PICKER_FLAG_HINT : ''),
-      label: cfPickerFlagAvailable() ? 'Open flag' : null,
-      run: () => cfOpenPickerFlag()
-    };
+// The message and button for a folder refusal, shared by the notice, the sync bar and the sync result.
+// The button opens the settings page's Data folder section, where Chrome shows its folder prompt.
+function cfFolderAccessAction(refusal) {
+  let message = `Data folder: ${refusal.folderName || '(no name)'}. Access: not allowed.`;
+  let label = 'Allow folder access';
+  if (refusal.code === 'no-folder') {
+    message = 'No data folder.';
+    label = 'Choose data folder';
+  } else if (refusal.code === 'unreadable') {
+    message = `Data folder not read: ${String(refusal.error || '').replace(/\.$/, '')}.`;
+    label = 'Choose data folder';
   }
-  const noFolder = code === 'no-folder';
   return {
-    message: noFolder
-      ? 'No data folder is selected for exports.'
-      : `Saving exports needs access to the "${folderName || 'data'}" folder (permission: ${permission || 'unknown'}).`,
-    label: noFolder ? 'Choose folder' : 'Grant access',
-    run: () => chrome.runtime.sendMessage({ action: 'openFolderAccess' }).catch(() => {})
+    message,
+    label,
+    run: () => chrome.runtime.sendMessage({ action: 'openFolderAccess' })
+      .catch(e => showNotification('The settings page did not open: ' + e.message, true))
   };
 }
 
-// Chrome only re-grants folder access from a click inside an extension page
-function cfPromptFolderAccess(code, folderName, permission) {
-  const action = cfFolderAccessAction(code, folderName, permission);
-  cfNotifyAction('access', action.message, action.label ? [{ label: action.label, primary: true, onClick: action.run }] : []);
+function cfPromptFolderAccess(refusal) {
+  const action = cfFolderAccessAction(refusal);
+  cfNotifyAction('access', action.message, [{ label: action.label, primary: true, onClick: action.run }]);
 }
 
 // A saved file gets a notice that stays until closed, with the file name opening its folder
 function cfReportSave(outcome) {
   if (outcome.saved) {
     cfNotifySaved(outcome.filename, outcome.chatId);
-  } else if (!outcome.queued) {
+  } else if (!outcome.prompted) {
     showNotification('Could not save: ' + (outcome.error || 'the writer returned no reason'), true);
   }
 }

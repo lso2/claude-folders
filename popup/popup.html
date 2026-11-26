@@ -19,13 +19,9 @@
         <h2>Welcome to Claude Folders</h2>
         <p>Organize your Claude conversations into folders</p>
         <button id="selectFolderBtn" class="btn-primary">
-          Select Data Folder
+          Choose data folder
         </button>
-        <p id="setupPickerNote" class="setup-picker-note hidden"></p>
-        <button id="setupFlagBtn" class="btn-orange hidden">Open flag</button>
-        <p class="help-text">
-          Select your <code>claude-chat-organizer/data</code> folder
-        </p>
+        <p class="help-text">Opens the settings page.</p>
       </div>
     </div>
 
@@ -65,7 +61,7 @@
 
       <div id="folderAccessBanner" class="access-banner hidden">
         <span id="folderAccessText" class="access-banner-text"></span>
-        <button id="folderAccessBtn" class="access-banner-btn">Open access window</button>
+        <button id="folderAccessBtn" class="access-banner-btn">Allow folder access</button>
       </div>
 
       <!-- The organize steps, shown and collapsed by the square-check, above the search and categories -->
@@ -270,18 +266,16 @@
   <script src="../lib/page-dialog.js"></script>
   <script src="../lib/chat-markdown.js"></script>
   <script src="../lib/handle-storage.js"></script>
+  <script src="../lib/folder-state.js"></script>
   <script src="../lib/data-file.js"></script>
   <script src="../lib/export-files.js"></script>
   <script src="../lib/export-state.js"></script>
-  <script src="../lib/folder-access.js"></script>
-  <script src="../lib/folder-picker.js"></script>
   <script src="../lib/organize-prompt.js"></script>
   <script src="../lib/organize-apply.js"></script>
   <script src="../lib/organize-json.js"></script>
   <script src="../lib/account-view.js"></script>
   <script src="../lib/account-view-store.js"></script>
   <script src="popup-access.js"></script>
-  <script src="popup-picker.js"></script>
   <script src="popup.js"></script>
   <script src="popup-folders.js"></script>
   <script src="popup-accounts.js"></script>

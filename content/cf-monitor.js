@@ -1,22 +1,41 @@
 // content/cf-monitor.js
 // Watches Claude's sidebar for chats not yet imported and offers a one-click sync.
-// Globals: monitoredNewChats, syncNotificationEl, syncInProgress, CF_SYNC_NOTIFY_THRESHOLD,
-//          startNewChatMonitor, scanForNewChats, checkSyncThreshold, showSyncNotification,
-//          syncBarAccess, cfRefreshSyncBar, cfSyncBarClick, hideSyncNotification,
-//          runSyncAndClear, observeUrlForSync
-// Depends on: content/cf-state.js, content/cf-account.js, content/cf-disk.js, content/cf-sync.js
+// Globals: monitoredNewChats, syncNotificationEl, syncInProgress, CF_SYNC_NOTIFY_THRESHOLD, cfSyncNoticeHidden,
+//          cfReadNoticeChoice, startNewChatMonitor, scanForNewChats, checkSyncThreshold, showSyncNotification,
+//          cfRefreshSyncBar, cfSyncBarClick, hideSyncNotification, runSyncAndClear, observeUrlForSync
+// Depends on: content/cf-state.js, content/cf-account.js, content/cf-disk.js, content/cf-sync.js,
+//             lib/storage-keys.js (AUTO_SYNC_KEY, AUTO_SYNC_DEFAULT, HIDE_SYNC_NOTICE_KEY)
 // Notes: docs/notes/content/cf-monitor.js.md
 
 // ============ PASSIVE NEW CHAT MONITOR ============
 let monitoredNewChats = new Set();
 let syncNotificationEl = null;
 let syncInProgress = false;
+// True while automatic sync is on and the settings page's Hide the new chats notice is checked
+let cfSyncNoticeHidden = false;
+
+// Nothing stored for the notice choice counts as checked
+async function cfReadNoticeChoice() {
+  try {
+    const stored = await chrome.storage.local.get([AUTO_SYNC_KEY, HIDE_SYNC_NOTICE_KEY]);
+    const auto = { ...AUTO_SYNC_DEFAULT, ...(stored[AUTO_SYNC_KEY] || {}) };
+    cfSyncNoticeHidden = auto.enabled === true && stored[HIDE_SYNC_NOTICE_KEY] !== false;
+  } catch (e) {
+    console.log('[MONITOR] Notice choice not read:', e.message);
+  }
+  return cfSyncNoticeHidden;
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local' || (!changes[AUTO_SYNC_KEY] && !changes[HIDE_SYNC_NOTICE_KEY])) return;
+  cfReadNoticeChoice().then(() => checkSyncThreshold());
+});
 
 function startNewChatMonitor() {
   console.log('[MONITOR] Starting passive chat monitor');
   
-  // Load tracked IDs from storage (per active account)
-  chrome.storage.local.get(cfMonitorKey(), (result) => {
+  // Load tracked IDs from storage (per active account), after the notice choice
+  cfReadNoticeChoice().then(() => chrome.storage.local.get(cfMonitorKey())).then((result) => {
     if (result[cfMonitorKey()]) {
       monitoredNewChats = new Set(result[cfMonitorKey()]);
       console.log('[MONITOR] Loaded', monitoredNewChats.size, 'pending new chats');
@@ -92,6 +111,11 @@ const CF_SYNC_NOTIFY_THRESHOLD = 1;
 
 function checkSyncThreshold() {
   const count = monitoredNewChats.size;
+  if (cfSyncNoticeHidden) {
+    console.log('[MONITOR] Pending new chats:', count + '. The notice is hidden while automatic sync is on (settings page).');
+    hideSyncNotification();
+    return;
+  }
   console.log('[MONITOR] Pending new chats:', count, 'of', CF_SYNC_NOTIFY_THRESHOLD, 'needed for the sync bar');
   
   if (count >= CF_SYNC_NOTIFY_THRESHOLD) {
@@ -189,13 +213,14 @@ function showSyncNotification(count) {
     </svg>
     <span><span class="sync-count">${count}</span> <span class="sync-noun">${count === 1 ? 'new chat detected' : 'new chats detected'}</span></span>
     <span class="sync-access" hidden></span>
-    <button class="sync-btn" hidden>Sync Now</button>
+    <button class="sync-btn">Sync Now</button>
+    <button class="sync-btn sync-access-btn" hidden></button>
     <button class="dismiss-btn">×</button>
   `;
 
   document.body.appendChild(syncNotificationEl);
 
-  syncNotificationEl.querySelector('.sync-btn').addEventListener('click', cfSyncBarClick);
+  syncNotificationEl.querySelector('.sync-btn:not(.sync-access-btn)').addEventListener('click', cfSyncBarClick);
 
   syncNotificationEl.querySelector('.dismiss-btn').addEventListener('click', () => {
     hideSyncNotification();
@@ -203,42 +228,32 @@ function showSyncNotification(count) {
   cfRefreshSyncBar();
 }
 
-// The bar offers Sync Now only while the data folder can be written. Otherwise its
-// button opens what grants access, and the sync starts once access is granted.
-let syncBarAccess = null;
-
+// Sync Now is always on the bar. A folder without access adds the reason and the button that opens the
+// settings page; Sync Now then stops at the same check and shows that notice.
 async function cfRefreshSyncBar() {
   if (!syncNotificationEl) return;
   const access = await cfCheckWriteAccess();
-  syncBarAccess = access;
   if (!syncNotificationEl) return;
-  const btn = syncNotificationEl.querySelector('.sync-btn');
   const note = syncNotificationEl.querySelector('.sync-access');
+  const accessBtn = syncNotificationEl.querySelector('.sync-access-btn');
   if (access.ok) {
-    btn.textContent = 'Sync Now';
-    btn.hidden = false;
     note.hidden = true;
+    accessBtn.hidden = true;
     return;
   }
-  const action = access.code === 'no-folder' || access.code === 'permission'
-    ? cfFolderAccessAction(access.code, access.folderName, access.permission)
-    : { message: access.error, label: null };
+  const action = cfIsFolderRefusal(access)
+    ? cfFolderAccessAction(access)
+    : { message: 'Folder access not read: ' + access.error, label: null };
   note.textContent = action.message;
   note.hidden = false;
-  btn.textContent = action.label || '';
-  btn.hidden = !action.label;
+  accessBtn.textContent = action.label || '';
+  accessBtn.hidden = !action.label;
+  accessBtn.onclick = action.label ? () => action.run() : null;
 }
 
-async function cfSyncBarClick() {
-  const access = syncBarAccess && syncBarAccess.ok ? syncBarAccess : await cfCheckWriteAccess();
-  if (access.ok) {
-    hideSyncNotification();
-    runSyncAndClear();
-    return;
-  }
-  if (access.code !== 'no-folder' && access.code !== 'permission') return;
-  cfRememberSyncRequest(false);
-  cfFolderAccessAction(access.code, access.folderName, access.permission).run();
+function cfSyncBarClick() {
+  hideSyncNotification();
+  runSyncAndClear();
 }
 
 function hideSyncNotification() {

@@ -3,11 +3,11 @@
 // Globals: cfRelativeToISODate, CF_SYNC_OVERLAP_DAYS, CF_SYNC_CLEAN_PAGES, cfParseChatLink,
 //          cfFindScroller, CF_MORE_CONTROL, cfIsOwnUi, cfAdvanceChatList, cfCollectChatsByScrolling,
 //          cfReadWatermark, cfWriteWatermark, cfHeldChatIds, cfCreatedAtListed, cfCollectAllChats, scrapeAllChats,
-//          CF_SYNC_AFTER_ACCESS_KEY, cfRememberSyncRequest, cfTakeSyncRequest, cfNoteAutoResult, scrapeRecentsPage,
-//          cfSyncProgress
+//          cfNoteAutoResult, scrapeRecentsPage, cfSyncProgress
 // Depends on: content/cf-sync-control.js (Pause, Resume, Stop and the × of the progress bar),
 //             lib/chat-exporter.js, content/cf-disk.js, content/cf-export-run.js,
-//             content/cf-sync-summary.js, content/cf-cowork-sync.js, content/cf-run-state.js
+//             content/cf-sync-summary.js, content/cf-cowork-sync.js, content/cf-run-state.js,
+//             lib/run-failures.js (cfRunLineText)
 // Notes: docs/notes/content/cf-sync.js.md
 
 // Convert a relative label like "3 hours ago" / "Yesterday" to an ISO date
@@ -114,7 +114,8 @@ function cfFindScroller(root) {
 const CF_MORE_CONTROL = /^(view all conversations|view all|show more|load more|older conversations|show older)$/;
 
 function cfIsOwnUi(el) {
-  return !!(el.closest('[data-folders-link]') || el.closest('.claude-folders-panel') || el.closest('.claude-folders-btn'));
+  return !!(el.closest('[data-folders-link]') || el.closest('[data-groups-link]') || el.closest('.claude-folders-panel') ||
+    el.closest('.claude-groups-panel') || el.closest('.claude-folders-btn'));
 }
 
 function cfAdvanceChatList(root) {
@@ -318,24 +319,6 @@ async function scrapeAllChats() {
   await loadData();
 }
 
-// A sync asked for while the data folder cannot be written is kept for this tab
-// and started by the folderAccessChanged broadcast
-const CF_SYNC_AFTER_ACCESS_KEY = 'cf-sync-after-access';
-
-function cfRememberSyncRequest(fullResync, rewriteAll) {
-  sessionStorage.setItem(CF_SYNC_AFTER_ACCESS_KEY, JSON.stringify({ fullResync: !!fullResync, rewriteAll: !!rewriteAll }));
-}
-
-function cfTakeSyncRequest() {
-  const raw = sessionStorage.getItem(CF_SYNC_AFTER_ACCESS_KEY);
-  sessionStorage.removeItem(CF_SYNC_AFTER_ACCESS_KEY);
-  try {
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
-}
-
 // The outcome of an automatic sync for the settings page (lib/storage-keys.js AUTO_SYNC_LAST_KEY)
 function cfNoteAutoResult(started, text) {
   console.log('[AUTO SYNC]', text);
@@ -352,20 +335,18 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
     cfNoteAutoResult(false, 'Skipped: a sync or an import is running in this tab');
     return;
   }
-  // A sync runs only with a writable data folder. A request made without one is
-  // kept and started once access is granted.
+  // A sync runs only with a writable data folder
   const access = await cfCheckWriteAccess();
   if (!access.ok && auto) {
     cfNoteAutoResult(false, 'Skipped: the data folder cannot be written: ' + access.error);
     return;
   }
   if (!access.ok) {
-    cfRememberSyncRequest(fullResync, rewriteAll);
-    console.log('[SCRAPER] Sync waiting for folder access:', access.error);
+    console.log('[SCRAPER] Sync not started:', access.error);
     cfRunStart('sync', 'Checking folder access');
-    cfRunFinish([], [], 'The sync is queued in the claude.ai tab until folder access is granted: ' + access.error);
-    if (access.code === 'no-folder' || access.code === 'permission') {
-      cfPromptFolderAccess(access.code, access.folderName, access.permission);
+    cfRunFinish([], [], 'The sync did not start: ' + access.error);
+    if (cfIsFolderRefusal(access)) {
+      cfPromptFolderAccess(access);
     } else {
       showNotification('Sync stopped: ' + access.error, true);
     }
@@ -491,22 +472,21 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
 
   // Mark sync complete
   syncInProgress = false;
-  // Exports stopped for folder access: the sync runs again once access is granted (content/cf-core.js folderAccessChanged)
+  // Exports stopped for folder access; the result window offers the settings page
   const accessNeeded = outcome && outcome.access ? outcome.access : null;
-  if (accessNeeded && !auto) cfRememberSyncRequest(fullResync, rewriteAll);
   
   // The account total counts conversations; Cowork and Claude Code sessions are added to it
   const chatTotal = accountTotal || (collected.length - coworkCount);
   const summary = cfSyncSummaryLines(scrapedChats.length, chatTotal + coworkCount, outcome, orgSummaries, coworkCount - codeCount, libraryWritten, codeCount);
   if (cfSyncStopRequested()) {
     const done = outcome ? `${outcome.exported} exported, ${outcome.updated} updated` : 'no chats exported';
-    cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], `Stopped with Stop on the sync bar: ${done}`, outcome ? outcome.failures : []);
+    cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], `Stopped with Stop on the sync bar: ${done}`, outcome ? outcome.failures : [], summary.sublines);
     if (auto) cfNoteAutoResult(true, `Stopped with Stop on the sync bar: ${done}`);
     cfShowSyncStopped(`Sync stopped: ${done}`);
     return;
   }
-  const accessError = accessNeeded ? `${outcome.aborted}. The sync runs again in the claude.ai tab once access is granted.` : null;
-  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], accessError, outcome ? outcome.failures : []);
+  const accessError = accessNeeded ? `${outcome.aborted}. Allow folder access, then run the sync again.` : null;
+  cfRunFinish(summary.lines.concat(summary.details), outcome ? outcome.files : [], accessError, outcome ? outcome.failures : [], summary.sublines);
   if (!auto) {
     showSyncSuccessModal(summary, accessNeeded);
     return;
@@ -518,7 +498,7 @@ async function scrapeRecentsPage(fullResync = false, auto = false, rewriteAll = 
   if (outcome && outcome.exported) changed.push(`${outcome.exported} exported`);
   if (outcome && outcome.updated) changed.push(`${outcome.updated} updated`);
   if (changed.length) showNotification('Automatic sync: ' + changed.join(', '));
-  cfNoteAutoResult(true, 'Finished: ' + summary.lines.join('. '));
+  cfNoteAutoResult(true, 'Finished: ' + summary.lines.map(line => cfRunLineText(line, summary.sublines)).join('. '));
 }
 
 // The progress bar on this page and the run record the popup and organizer read (content/cf-run-state.js)

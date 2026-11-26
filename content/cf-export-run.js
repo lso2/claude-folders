@@ -1,9 +1,10 @@
 // content/cf-export-run.js
 // Exports a list of stored chats to the data folder for folder, popup and sync exports.
-// Globals: cfLoadExportedFiles, cfExportIsOutdated, cfOutdatedTarget, cfOrgIdFor, cfReadableOrgIds,
+// Globals: cfLoadExportedFiles, cfExportIsOutdated, cfExportNeedsRewrite, cfOutdatedTarget, cfOrgIdFor, cfReadableOrgIds,
 //          cfReleaseForeignChats, cfExportChatList, cfDescribeExportOutcome, cfRunExportWithModal, handleFolderExport
 // Depends on: lib/chat-markdown.js (exportIdPrefix, exportPrefixOfFilename, EXPORT_FORMAT),
-//             lib/export-state.js (loadExportRecords), lib/chat-exporter.js,
+//             lib/export-state.js (loadExportRecords, recordExportChecks), lib/chat-exporter.js,
+//             lib/cowork-api.js (isCoworkSessionId, fetchCoworkNewestTurn),
 //             content/cf-disk.js, content/cf-export-records.js, content/cf-notify.js,
 //             content/cf-run-state.js (cfRunStart, cfRunProgress, cfRunFinish), inject.css
 // Notes: docs/notes/content/cf-export-run.js.md
@@ -26,13 +27,33 @@ async function cfLoadExportedFiles() {
   return byPrefix;
 }
 
-// An export on disk is outdated when its record has no format or another format than EXPORT_FORMAT,
-// or when the chat's updatedAt is later than the export. A file with no record counts as outdated.
+// An export on disk is outdated when its record has no format or another format than EXPORT_FORMAT. A chat
+// listed with its leaf message id is outdated when that id is not the recorded one. Without both ids, the chat
+// is outdated when its updatedAt is later than the export and than the last check of its newest turn.
+// A file with no record counts as outdated.
 function cfExportIsOutdated(chat, record) {
   if (!record || record.format !== EXPORT_FORMAT) return true;
+  if (chat && chat.mark && record.mark) return chat.mark !== record.mark;
   const changed = Date.parse((chat && chat.updatedAt) || '');
-  const exported = Date.parse(record.exportedAt || '');
-  return Number.isFinite(changed) && Number.isFinite(exported) && changed > exported;
+  const seen = Math.max(Date.parse(record.exportedAt || '') || 0, Date.parse(record.checkedAt || '') || 0);
+  return Number.isFinite(changed) && seen > 0 && changed > seen;
+}
+
+// A Cowork session's listed activity time also changes with events that are no turn (control, rate limit, system
+// and log events). A session outdated by that time alone is read for its newest turn, and the export is current
+// while that turn is the recorded one. checks collects { chatId, at } for recordExportChecks.
+async function cfExportNeedsRewrite(chat, record, checks) {
+  if (!cfExportIsOutdated(chat, record)) return false;
+  if (!isCoworkSessionId(chat.id) || !record.mark) return true;
+  try {
+    const newest = await fetchCoworkNewestTurn(chat.id, cfOrgIdFor(chat));
+    if (!newest || newest.mark !== record.mark) return true;
+    checks.push({ chatId: String(chat.id), at: chat.updatedAt });
+    return false;
+  } catch (e) {
+    console.log('[EXPORT] Newest turn of', chat.id, 'not read:', e.message);
+    return true;
+  }
 }
 
 // An outdated export is written over its recorded file when that file is on disk, else over the first file with its id prefix
@@ -105,9 +126,9 @@ async function cfExportChatList(chats, options) {
   const access = await cfCheckWriteAccess();
   if (!access.ok) {
     outcome.aborted = access.error;
-    if (access.code === 'no-folder' || access.code === 'permission') {
-      outcome.access = { code: access.code, folderName: access.folderName, permission: access.permission };
-      cfPromptFolderAccess(access.code, access.folderName, access.permission);
+    if (cfIsFolderRefusal(access)) {
+      outcome.access = { code: access.code, folderName: access.folderName, permission: access.permission, error: access.error };
+      cfPromptFolderAccess(access);
     }
     return outcome;
   }
@@ -131,6 +152,7 @@ async function cfExportChatList(chats, options) {
 
   const toExport = [];
   const onDisk = [];
+  const checks = [];
   for (const chat of chats) {
     const chatId = String((chat && chat.id) || '');
     if (releasedIds.has(chatId)) continue;
@@ -148,7 +170,7 @@ async function cfExportChatList(chats, options) {
       continue;
     }
     const names = onDiskFiles.get(exportIdPrefix(chatId).toLowerCase());
-    if (names && !opts.rewriteAll && !cfExportIsOutdated(chat, records[chatId])) {
+    if (names && !opts.rewriteAll && !(await cfExportNeedsRewrite(chat, records[chatId], checks))) {
       outcome.skipped++;
       onDisk.push(chatId);
       continue;
@@ -156,6 +178,8 @@ async function cfExportChatList(chats, options) {
     toExport.push({ chat, target: names ? cfOutdatedTarget(records[chatId], names) : null });
   }
   await cfMarkChatsExported(onDisk);
+  await recordExportChecks(checks).catch(e => console.log('[EXPORT] Turn checks not recorded:', e.message));
+  if (checks.length) console.log('[EXPORT]', checks.length, 'Cowork sessions read for their newest turn are current on disk');
   const updates = toExport.filter(entry => entry.target).length;
   console.log('[EXPORT] Checked', chats.length, 'chats:', toExport.length - updates, 'to export,', updates, 'outdated on disk to update,', outcome.skipped, 'current on disk,',
     outcome.knownMissing, 'recorded as missing,', outcome.otherOrgs, 'in organizations this login cannot read,',
@@ -188,10 +212,10 @@ async function cfExportChatList(chats, options) {
           else outcome.exported++;
           outcome.files.push(filename);
           await markChatAsExported(chatId, { filename, mark: result.mark });
-        } else if (written.code === 'no-folder' || written.code === 'permission') {
+        } else if (cfIsFolderRefusal(written)) {
           outcome.aborted = written.error;
-          outcome.access = { code: written.code, folderName: written.folderName, permission: written.permission };
-          cfPromptFolderAccess(written.code, written.folderName, written.permission);
+          outcome.access = { code: written.code, folderName: written.folderName, permission: written.permission, error: written.error };
+          cfPromptFolderAccess(written);
           break;
         } else {
           outcome.failed++;
@@ -313,7 +337,7 @@ async function handleFolderExport(folderId) {
   const count = folder.chats.length;
   const confirmed = await cfConfirm(
     `Export ${count} chat${count === 1 ? '' : 's'} from "${folder.name}"?`,
-    'Each chat is saved as markdown in the chats folder of your data folder. Exports on disk are written again when the chat changed after its export or the export has no message timestamps. Current exports are skipped.',
+    'Each chat is saved as markdown in the chats folder of your data folder. Exports on disk are written again when the chat has a newer message than its export, or the export is in an older format. Current exports are skipped.',
     'Export'
   );
   if (confirmed) await cfRunExportWithModal(folder.chats, `Exporting: ${folder.name}`);

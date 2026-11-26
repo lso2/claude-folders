@@ -16,11 +16,12 @@
     border-right: 1px solid var(--sidebar-border);
 }
 
+/* The collapse button comes first and the brand follows it, as in Claude's title bar */
 .sidebar-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 14px 12px 10px 18px;
+    gap: 4px;
+    padding: 12px 12px 10px 8px;
     min-height: 56px;
 }
 
@@ -51,15 +52,16 @@
     background: var(--nav-hover);
 }
 
+/* A row of Claude's sidebar: 32px high, the 20px icon 8px from the row's edge and the label 8px after it */
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 7px 10px;
+    gap: 8px;
+    height: 32px;
+    padding: 0 8px;
     color: var(--sidebar-text);
     text-decoration: none;
     border-radius: 8px;
-    margin-bottom: 1px;
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
